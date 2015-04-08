@@ -1,0 +1,330 @@
+* Introduction
+*To compile:* type ~C-c C-e h~.
+This directory contains all of the code and results for the 2015 version of PathLinker.  This is a change from the PathLinker submitted to RECOMB RegSysGen and Molecular Systems Biology in the following ways:
+- The term ``PathLinker'' now refers solely to the k shortest paths portion of the method.
+- The interactome is weighted by the evidence scores, rather than by PageRank.  However, PageRank and unweighted results are now a subsection in the Results and/or Discussion.
+- We use Nick's implementation of PathLinker, which is what we released. Thus, all the results are now generated from the released code (instead of Chris's original implementation).  
+- All datasets are now committed in SVN.
+** History
+- 2014-07-25: Submitted PathLinker to RECOMB Conference on Regulatory and Systems Genomics.  The submission directory is in SVN under chris-poirel/papers/.  Anna checked it out [[/home/annaritz/group/chris-poirel/papers/2014-07-25-recomb-regsysgen-pathlinker/2014-07-25-recomb-regsysgen][in her home directory]].  *Paper was accepted for an oral presentation.*
+- 2014-10-04: Revised version of PathLinker submitted to the RECOMB RegSysGen conference, addressing reviewers comments.  [[/home/annaritz/group/chris-poirel/papers/2014-07-25-recomb-regsysgen-pathlinker/2014-10-04-recomb-regsysgen-resubmission][Submission Directory.]]
+- 2014-11-15: Upon the recommendation of the conference chairs at RECOMB RegSysGen, we submitted the paper to Molecular Systems Biology.  An editor came to my talk at RECOMB RegSysGen before we were allowed to submit, so this was heartening. [[/home/annaritz/group/chris-poirel/papers/2014-07-25-recomb-regsysgen-pathlinker/2014-10-04-recomb-regsysgen-resubmission][The submission directory]] contains a cover letter and copies of the manuscript from RECOMB RegSysGen.  This was *editorially rejected*.
+- 2015-03-11: Murali sent a pre-submission inquiry to Cell Systems. *We got a negative response.*  Draft is located in the [[/home/annaritz/group/chris-poirel/papers/2014-07-25-recomb-regsysgen-pathlinker/2015-02-27-cellsystems-pathlinker][submission directory]].
+- Our next target is for Nature Methods.
+* Datasets
+** Human Interactome
+Located in [[/data/annaritz/datasets/svn-data/interactomes/human/][data/interactomes/human/]].  
+*** Versions
+There are many PPI versions you can run:
+| Name                              | Description                                                                                                                      |
+|-----------------------------------+----------------------------------------------------------------------------------------------------------------------------------|
+| 2013linker                        | Includes Vinayagam et. al., doesn't remove bidirected edges if they are represented as directed in a signaling pathway database. |
+| 2015pathlinker                    | Current version.  KEGG contains the current (2015) KGML-parsed files. Weighted by "regulation of signal transduction" GO term.   |
+| pathlinker-old-kegg-buggy         | KEGG is replaced by the files from 2013 that have a bug: if an edge was undirected, only one direciton was written.              |
+| pathlinker-old-kegg-fixed         | KEGG is replaced by the files from 2013 that were fixed.                                                                         |
+| pathlinker-old-kegg-new-parse     | KEGG is replaced by the new parsing of the KGML files from 2013.                                                                 |
+| pathlinker-signaling              | 2015pathlinker version weighted with "signal transduction" GO term.                                                              |
+| pathlinker-signaling-children     | 2015pathlinker version weighted with 8 children of "signal transduction GO term with >50 genes.                                  |
+| pathlinker-singaling-children-reg | 2015pathlinker version weighted with 8 children and "regulation of signal transduction".                                         |
+|                                   |                                                                                                                                  | 
+  
+*** PPI Files
+- ~<version>-human-ppi.txt~ is the largest weakly connected component (all weights are 1)
+- ~<version>-weighted.txt~ is the evidence-based weighted network (scores are probabilities on the edges).
+- ~<version>-weighted-negln.txt~ is the evidence-based weighted network (negative natural log of the edge probabilities).
+** Receptor and TF Files
+*** Receptor File
+The receptor file is [[/data/annaritz/datasets/svn-data/receptors/uniprot-target-list.txt][data/receptors/uniprot-target-list.txt]], taken from a publication by [[http://www.biomedcentral.com/1741-7007/7/50][Almen et. al., BMC Biology 2009, 7:50]] and mapped using the UniProt mapping server located at [[http://www.uniprot.org/mapping/]].  Proteins in this list that are in NetPath/Kegg pathways are listed as "receptor" in the ~*-nodes.txt~ files.\\
+
+*NOTE:* I also manually added the following proteins to the receptor file.  They are needed for TCR, and if they aren't present then the KEGG has no receptors for the TCR pathway.
+| CD3D | CD3d molecule, delta (CD3-TCR complex)   | P04234 |
+| CD3E | CD3e molecule, epsilon (CD3-TCR complex) | P07766 |
+| CD3G | CD3g molecule, gamma (CD3-TCR complex)   | P09693 |
+*NOTE:* In the original submisison, we added FZD4 and FZD6 to the NetPath receptors and re-ran the analysis. To make things much more streamlined, I manually add these just as we added the CF3 subunits above.  These are the only two FZD receptors that were not in the systematic list.
+| FZD4 | frizzled family receptor 4 | Q9ULV1 |
+| FZD6 | frizzled family receptor 6 | O60353 |
+**** TODO This may be a major problem with the receptor list; there are about 100 IPI ids that cannot be converted!  They may include the CD3 complex subunits, for example.
+*** TF File
+The TF file is [[/data/annaritz/datasets/svn-data/transcription-factors/vaquerizas-ravasi/human-tfs.txt][data/transcription-factors/vaqueizas-ravasi/human-tfs.txt]].  This is constructed from two sources, [[http://www.nature.com/nrg/journal/v10/n4/full/nrg2538.html][Vaquerizas et al., Nature Reviews 2009]], and [[http://www.sciencedirect.com/science/article/pii/S0092867410000796][Ravasi et al., Cell 2010]].  For the Vaquerizas et al. publication, We only consider TFs from this table of class 'a', 'b', or 'other', which the authors describe as high-quality TFs (ignoring types 'c' and 'x').
+** NetPath Pathways (~--netpath~)
+Located in [[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/][data/interactions/netpath/pathways/]].  
+- List of the 15 analyzed pathways for the PathLinker paper is [[/data/annaritz/signaling/2015-03-pathlinker/data/netpath-analyzed-pathways.txt]].  Note that BCR is commented out because it has a mincut of 2.
+*** Only Wnt Signaling Pathway from NetPath (~--onlynetpathwnt~)
+Only returns the Wnt signaling pathway from NetPath, rather than all 15 analyzed pathways.
+** KEGG Pathways (~--kegg~)
+Located in [[/data/annaritz/datasets/svn-data/interactions/kegg/hsa/edge-files/][data/interactions/hsa/edge-files/]].  Note that both edge files *and* node files are here - we had to run an additional ~annotate-nodes.py~ script to get the nodelist.
+- List of the analyzed pathways for the PathLinker paper is [[/data/annaritz/signaling/2015-03-pathlinker/data/kegg-analyzed-pathways.txt]].
+** DBCompare Pathways (~--dbcompare~)
+Takes the 6 NetPath pathways and the 6 KEGG pathways that are in common. 
+- For NetPath pathways, we add BCR (mincut of 2) and Hedgehog (mincut of 0) even though they are NOT considered for the aggregate precision and recall pathways. There are only a few pathways in common between KEGG and NetPath. This file is [[/data/annaritz/signaling/2015-03-pathlinker/data/netpath-dbcompare-pathways.txt]].
+- For KEGG pathways, we take all 6 analyzed pathways (already trimmed to used these pathways).
+*** TODO not complete yet.
+** Old Datasets
+*** Special Wnt Pathway for Experimental Followup (~--wntforexperiments~)
+*We now add FZD4/FZD6 to receptor files, so this is no longer a special experiment.*
+There are 3 different types of special wnt pathways we have generated. They are all in [[/data/annaritz/signaling/2015-03-pathlinker/data/wntforexperiments/]].
+- ~all-wnt-receptors-nodes.txt~: Identical nodes file to the NetPath nodes file for Wnt ([[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/Wnt-nodes.txt]]) with the addition of two more receptors that are *in* the netpath pathway but are *not* in the systematic list of receptors: FZD4 and FZD6.  This is the file that is used.
+- ~netpath-kegg-union-*.txt~: union of KEGG and NetPath wnt pathways.  the nodes file is not used anymore. However, the ~netpath-kegg-union-edges.txt~ file is used when plotting the wnt pathway reconstructions for different algorithms, since *either* netpath or kegg edges are considered OK here.
+- ~wnts-as-sources-nodes.txt~: replace receptors by all WNT proteins in NetPath Wnt pathway. Not used anymore.
+We take the ~all-wnt-receptors-nodes.txt~ file instead of the ~Wnt-nodes.txt~ file and run relevant algorithms.
+#+BEGIN_SRC bash
+python master-script.py --ppiversion 2015pathlinker --weightedppi --wntforexperiments --pathlinker --rerank --pcsf --anat --ipa --responsenet
+#+END_SRC
+Runs PathLinker, PCSF, ANAT, IPA, and ResponseNet for the wnt pathway that is used for experimental followup.  
+#+BEGIN_SRC bash
+python master-script.py --ppiversion 2015pathlinker --weightedppi --wntforexperimentsviz
+#+END_SRC
+Posts PathLinker, PCSF, ANAT, IPA, and ResponseNet visualizations to the perl version of GraphSpace.
+
+* Software
+** PathLinker
+PathLinker Version 1.0 is located in [[/home/annaritz/src/python/PathLinker/PathLinker-1.0/][src/python/PathLinker/Pathlinker-1.0/]].  You must add this to your ~$PYTHONPATH~ environment variable.  In your ~\~/.bashrc~ file, add the following line:
+#+BEGIN_SRC bash
+export PYTHONPATH=$PYTHONPATH:/<location-to-Pathlinker-1.0/>
+#+END_SRC
+*** TODO maintain this code base in Git (available on GitHub) or in SVN?? Currently it's in two places!
+*** TODO can we remove gettin the largest conn comp? We already do this in the interactome code.
+*** TODO How do we run PathLInker on a weighted network with a source/target file?
+** UtilsPoirel.py
+This script, written by Chris Poirel, is very useful for reading differently-formatted files as tuples, dictionaries, etc.  It's located in [[/home/annaritz/src/python/scripts/trunk/][src/python/scripts/trunk/]] directory.  You must add this to your ~$PYTHONPATH~ environment variable, just like the PathLinker code.
+** GraphSpace Python Module (posts to perl version of GraphSpace)
+This module posts networks to the perl version of GraphSpace (the one that Craig is mainly the author of).  It's located in [[/data/poirel/research/signaling-pathways/viz/graphspace/trunk/net-graphspace/lib/][src/python/graphspace/trunk/net-graphspace/lib/]]. You must add this to your ~$PYTHONPATH~ environment variable, just like the PathLinker code.
+- All new networks are in the group ~2015PathwayReconstructions~ owned by Anna. Email her to get access.
+- Old networks are in the group ~2014LinkerSignalingPathways~, also owned by Anna.
+** master-script.py
+This is the script that ultimately generates all results and images for the paper, including additional analyses that were not included.  It is located in this directory.  To see all options, type 
+#+BEGIN_SRC bash
+python master-script.py -h
+#+END_SRC
+* Algorithms
+** PathLinker (~--pathlinker~)
+Runs KSP on the input graph, which may be weighted.  Calls Nick's PathLinker code modified by Anna to *not* run PageRank or take the negative log of the weights.  If the ~--weightedppi~ option is specified, runs KSP on the negative log base 10 of the edge probabilities.
+- Optional Parameter k: default is 20,000.
+** All Pairs Shortest Paths (~--shortestpaths~)
+Computes the shortest path from every (Receptor,TF) pair.  Written by Allison; source code is [[/home/annaritz/src/python/CellCycle/shortest_paths.py][src/python/CellCycle/shortest_paths.py]].  Keeps paths tied for shortest paths.
+*** TODO This is an odd place for the code now.  It is along with the weight-edges.py script.  Where should this go? Also see TODO item in Induced Subgraph.
+** Induced Subgraph (~--inducedsubgraph~)
+Takes the output from PathLinker with ~k=20000~ and computes the induced subgraph of the PPI while walking down the list of paths.  Located at [[/data/annaritz/signaling/2014-06-linker/src/order-by-induced-subgraph.py]].
+*** TODO this code is not checked in. Where should this go?
+*** TODO I modified this code to work with the new paths file, which does not include the "source|" and the "|target" as the start and end nodes in the path.  Thus, the code is no longer compatible with previous versions.
+** Rerank PathLinker (~--rerank~)
+Takes the output from PathLinker with ~k=20000~ and only retains paths that have either (1) new edges (~*-unique-edges_paths.txt~) or (2) new nodes (~*-unique-nodes_paths.txt~).  Both are paths files. Note that there is an additional column in these files: first column is the adjusted /k/ value considering only unique edges/nodes, and the second column is the original /k/ value.  Located at [[/data/annaritz/signaling/2014-06-linker/src/recount-ksp.py]].
+*** TODO this code is not checked in. Where should this go?
+** PageRank (~--pagerank~)
+Runs PageRank on the input graph, which may be weighted. Calls Nick's PathLinker code modified by Anna to *not* run KSP and *output* the pagerank results.  If the ~--weightedppi~ option is specified, runs PageRank on the edge probabilities.
+- Optional parameter q: default is 0.5.
+** eQED (~--eqed~)
+This runs eQED (Suthram et. al., 2008) on the network.  The source code is located in [[/data/annaritz/sig-path-other-methods/src/eQED.py][group/anna-ritz/sig-path-other-methods/src/eQED.py]].
+- Optional parameter inputcurrent: default is 10000.
+*** TODO where should this go?
+*** TODO the ILP will be faster if we do not use the ~cplex~ module from Python.  Refactor.
+** ResponseNet (~--responsenet~)
+This runs ResponseNet (Yeger-Lotem et. al., Nat. Genetics 2009) on the network.  The source code is located in [[/data/annaritz/sig-path-other-methods/src/ResponseNet.py]].
+- Optional Parameter gamma: default is 20.
+*** TODO this code is not checked in. where should it go?
+*** TODO this code should be refactored.  As is it is rather poorly written.
+** Prize Collecting Steiner Forest (~--pcsf~)
+This runs the PCSF algorithm (Tuncbag et. al., RECOMB 2012).  Source code is located in [[/data/annaritz/sig-path-other-methods/src/PCSF_weighted.py]].
+- Optional Parameter prize: default is 5
+- Optional Parameter omega (cost of adding a tree to forest): default is 0.01.
+*** TODO this code is not checked in. Where should it go?
+*** TODO this code should be refactored.  As is it is rather poorly written.
+*** TODO ~msgsteiner~ code does not work on agatha (boost shared library issues), but works on cuthbert.
+** ANAT (~--anat~)
+This runs the ANAT algorithm (). Source code is located in [[/data/annaritz/signaling/2014-06-linker/src/run-anat-weighted.py]].
+- Optional parameter alpha: default is 0.0.
+*** TODO this code is not checked in. Where should it go?
+** Degree (~--degree~)
+This code computes the *now weighted* degree of nodes (indegree, outdegree, in+out degree, and undirected degree) and the *now weighted* "degree" of edges, which is the sum of the degree of the incident nodes.  Source code is located in [[/data/annaritz/signaling/2014-06-linker/src/2014-06-linker/src/compute-ppi-degrees.py]].
+*** TODO this code is not checked in. Where should it go?
+** IPA (~--ipa~)
+Network Generation Algorithm from their whitepaper.  
+* Visualization Scripts
+** Precision-Recall
+*** Write precision and recall to files (~--computeprecrec~)
+We first write precision and recall to files.  In doing so, we ensure that we only collect positives and subsample negatives *once for each pathway* and the negative list is used for all algorithms.  
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt --computeprecrec --pathlinker --shortestpaths
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath --computeprecrec --pathlinker --shortestpaths
+#+END_SRC
+*** Plotting precision and recall
+* Corrections/Sanity Checks/Exploratory Analysis
+** Compare KEGG-parsed files
+Here, only compute the /k/ = 1000 paths.
+#+BEGIN_SRC bash
+python master-script.py --ppiversion 2015pathlinker --weightedppi --wntforexperiments --k 1000 --pathlinker
+python master-script.py --ppiversion pathlinker-old-kegg-buggy --weightedppi --wntforexperiments --k 1000 --pathlinker
+python master-script.py --ppiversion pathlinker-old-kegg-buggy-oldannotations --weightedppi --wntforexperiments --k 1000 --pathlinker
+python master-script.py --ppiversion pathlinker-old-kegg-fixed --weightedppi --wntforexperiments  --k 1000 --pathlinker
+python master-script.py --ppiversion pathlinker-old-kegg-new-parse --weightedppi --wntforexperiments --k 1000 --pathlinker
+#+END_SRC
+Visualize all /k/ = 1000 paths.
+#+BEGIN_SRC bash
+python master-script.py --ppiversion 2015pathlinker --weightedppi --wntforexperimentsviz --k 1000 --topk 200
+python master-script.py --ppiversion pathlinker-old-kegg-buggy --weightedppi --wntforexperimentsviz --k 1000 --topk 200
+python master-script.py --ppiversion pathlinker-old-kegg-buggy--oldannotations --weightedppi --wntforexperimentsviz --k 1000 --topk 200
+python master-script.py --ppiversion pathlinker-old-kegg-fixed --weightedppi --wntforexperimentsviz --k 1000 --topk 200
+python master-script.py --ppiversion pathlinker-old-kegg-new-parse --weightedppi --wntforexperimentsviz --k 1000 --topk 200
+#+END_SRC
+** Compare weighted interactomes
+#+BEGIN_SRC bash
+bash 2015-03-38-run-weighting.bash
+#+END_SRC
+Runs, in this order:
+1. Wnt PathLinker (/k/ = 20,000)
+2. Wnt for Experiments Path Linker (/k/ = 1,000), visualize top 200 paths in GraphSpace
+3. NetPath Pathlinker (/k/ = 20,000) for aggregate PR curves.
+*** Wnt Only
+#+BEGIN_SRC bash 
+python master-script.py --ppiversion 2015pathlinker --weightedppi --onlynetpathwnt --computeprecrec --forcealg
+python master-script.py --ppiversion pathlinker-signaling --weightedppi --onlynetpathwnt --computeprecrec --forcealg
+python master-script.py --ppiversion pathlinker-signaling-children --weightedppi --onlynetpathwnt --computeprecrec --forcealg
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt --computeprecrec --forcealg
+#+END_SRC
+To compute precision and recall for all versions.
+#+BEGIN_SRC bash 
+python src/compute-precision-recall.py --outprefix results/old-weighted-ksp/Wnt \
+--edgefile /data/annaritz/signaling/2014-11-weighted-interactome/weighted-results/netpath/ksp/Wnt-weighted-q_0.5-none_weighted-ksp_20000.txt  \
+--edgecol 5 --trueedgefile /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-edges.txt \
+--truenodefile /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-nodes.txt \
+--sampledoutprefix results/old-weighted-ksp/Wnt \
+--ppi /data/annaritz/signaling/2014-06-linker/data/human-ppi-2014-06.txt --negtype none \
+--neg-factor 50 --forcealg
+
+python src/compute-precision-recall.py --outprefix results/old-weighted-ksp/Wnt \
+--edgefile /data/annaritz/signaling/2014-11-weighted-interactome/weighted-results/netpath/ksp/Wnt-weighted-q_0.5-none_weighted-ksp_20000.txt  \
+--edgecol 5 --trueedgefile /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-edges.txt \
+--truenodefile /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-nodes.txt \
+--sampledoutprefix results/old-weighted-ksp/Wnt \
+--ppi /data/annaritz/signaling/2014-06-linker/data/human-ppi-2014-06.txt --negtype adjacent \
+--neg-factor 50 --forcealg
+#+END_SRC
+To compute precision and recall from KSP + weighted interactome files.
+#+BEGIN_SRC bash
+python src/plot-precrec-weighted-versions-of-ppi.py
+#+END_SRC
+Plot all PathLinker runs on weighted versions in one plot.  Output is [[/data/annaritz/signaling/2015-03-pathlinker/viz/sanity-checks/wnt-weighted-versions-of-ppi-pathlinker.png]].
+*** Aggregate
+Compute precision and recall (including aggregate PR) for all methods.
+#+BEGIN_SRC bash
+python master-script.py --ppiversion 2015pathlinker --weightedppi --netpath --computeprecrec
+python master-script.py --ppiversion pathlinker-signaling --weightedppi --netpath --computeprecrec
+python master-script.py --ppiversion pathlinker-signaling-children --weightedppi --netpath --computeprecrec
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath --computeprecrec
+#+END_SRC
+Compute aggregate precision and recall from OLD directories.
+#+BEGIN_SRC bash
+python src/compute-aggregate-precision-recall.py --inputdir results/old-weighted-ksp/ \
+--netpath --negtype none --neg-factor 50 --debug
+python src/compute-aggregate-precision-recall.py --inputdir results/old-weighted-ksp/ \
+--netpath --negtype adjacent --neg-factor 50 --debug
+#+END_SRC
+Plot all PathLinker runs in one plot.
+#+BEGIN_SRC bash
+python src/plot-precrec-weighted-versions-of-ppi.py
+#+END_SRC
+Output is [[/data/annaritz/signaling/2015-03-pathlinker/viz/sanity-checks/aggregate-weighted-versions-of-ppi-pathlinker.png]].
+
+** Add/Remove FZD4 and FZD6 from Wnt receptors
+It seems that adding FZD4 and FZD6 manually to the list of receptors causes a distinct dropoff in precision at a recall of just above 0.4.  Did this happen when we removed FZD4 and FZD6?  Make a Wnt-nodes.txt in data/ that removes FZD4/FZD6 from consideration.
+#+BEGIN_SRC bash
+cp /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-nodes.txt data/Wnt-no-FZD4FZD6-nodes.txt
+# remove FZD4/FZD6
+python /home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker-NoPR.py -k 20000 --write-paths \
+--output results/pathlinker-signaling-children-reg/weighted//netpath//pathlinker//Wnt-no-FZD4FZD6- \
+/data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-weighted-neglog10.txt \
+data/Wnt-no-FZD4FZD6-nodes.txt
+python src/compute-precision-recall.py \
+--outprefix results/pathlinker-signaling-children-reg/weighted//netpath//precision-recall/pathlinker/Wnt-no-FZD4FZD6 \
+--edgefile results/pathlinker-signaling-children-reg/weighted//netpath//pathlinker/Wnt-no-FZD4FZD6-k_20000-ranked-edges.txt \
+--trueedgefile /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-edges.txt \
+--truenodefile data/Wnt-no-FZD4FZD6-nodes.txt \
+--sampledoutprefix results/pathlinker-signaling-children-reg/weighted//samples-exclude-none/Wnt-no-FZD4FZD6 \
+--ppi /data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-weighted.txt \
+--negtype none --neg-factor 50 --edgecol 3
+python src/compute-precision-recall.py \
+--outprefix results/pathlinker-signaling-children-reg/weighted//netpath//precision-recall/pathlinker/Wnt-no-FZD4FZD6 \
+--edgefile results/pathlinker-signaling-children-reg/weighted//netpath//pathlinker/Wnt-no-FZD4FZD6-k_20000-ranked-edges.txt \
+--trueedgefile /data/annaritz/datasets/svn-data/interactions/netpath/pathways//Wnt-edges.txt \
+--truenodefile data/Wnt-no-FZD4FZD6-nodes.txt \
+--sampledoutprefix results/pathlinker-signaling-children-reg/weighted//samples-exclude-adjacent/Wnt-no-FZD4FZD6 \
+--ppi /data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-weighted.txt \
+--negtype adjacent --neg-factor 50 --edgecol 3
+python src/plot-two-pr.py \
+results/pathlinker-signaling-children-reg/weighted/netpath/precision-recall/pathlinker/Wnt \
+results/pathlinker-signaling-children-reg/weighted/netpath/precision-recall/pathlinker/Wnt-no-FZD4FZD6 \
+viz/sanity-checks/Wnt-without-FZD4FZD6.png
+#+END_SRC
+Yep, it is due to not having FZD4/FZD6:
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/sanity-checks/Wnt-without-FZD4FZD6.png]]
+* Results
+If the files exist in the directories, they will not be overwritten.  To execute all algorithms and overwrite files, use the ~--forcealg~ and ~--forceprecrec~ options.  To only print what /would/ be executed, use the ~--printonly~ option.  Both of these have become *extremely useful* for a project such as this.
+** Run All Algorithms on NetPath Wnt Pathway using Weighted PPI
+#+BEGIN_SRC bash 
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt \
+--pathlinker --shortestpaths --pagerank \
+--responsenet --pcsf --anat --ipa \
+--computeprecrec --precrecviz
+#+END_SRC
+Note that these may be run on different machines: ~--weightedppi --onlynetpathwnt~ arguments must always be specified.
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/Wnt.png]]
+** Rank TFs in PathLinker, IPA, and PageRank
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --ranktfs
+#+END_SRC
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/misc/tr-ranks.png]]
+** Run All Algorithms on All NetPath Pathways using Weighted PPI
+#+BEGIN_SRC bash 
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath \
+--pathlinker --shortestpaths --pagerank \
+--responsenet --pcsf --anat --ipa \
+--computeprecrec --precrecviz
+#+END_SRC
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/aggregate.png]]
+** Run Algorithms that Vary Parameters on All NetPath Pathways using Weighted PPI
+These algorithms and values are listed in the VARYPARAMS global variable (dictionary of parameter name to list of values):
+| PageRank    | /q/ = [0.1, 0.25, 0.5, 0.75, 0.9]                   |
+| ResponseNet | /gamma/ = [10,15,20,25,30]                          |
+| PCSF        | /omega/ = [0, 0.01, 0.1], /prize/ = [1, 3, 5, 7, 9] |
+| ANAT        | /alpha/ = [0, 0.1, 0.25, 0.4, 0.5]                  |
+| IPA         | /nmax/ = [15, 25, 35, 50, 75, 100, 200, 500]        |   
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg \
+--weightedppi --netpath --responsenet --pcsf --anat --ipa \
+--varyparams --computeprecrec --precrecviz
+#+END_SRC
+Wnt Varying PArameters (IPA is shown in main figures):
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-anat.png]]
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-pagerank.png]]
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-pcsf.png]]
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-responsenet.png]]
+Aggregate Varying Parameters (IPA is shown in main figures):
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-anat.png]]
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-pagerank.png]]
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-pcsf.png]]
+[[/data/annaritz/signaling/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-responsenet.png]]
+** Visualize Wnt Networks
+Precision and Recall for different methods (considering edges here):
+| Method                       | # Edges |      Precision |          Precision |  Recall |
+|                              |         | (exclude none) | (exclude adjacent) |         |
+|------------------------------+---------+----------------+--------------------+---------|
+| *PathLinker (top 200 paths)* |     137 |           0.75 |             0.9545 |   0.125 |
+| PathLinker (top 300 paths)   |     190 |         0.7551 |             0.9737 |  0.2202 |
+| PathLinker (top 800 paths)   |     270 |            0.7 |             0.9545 |    0.25 |
+| PathLinker (top 1000 paths)  |     335 |         0.6716 |            0.95645 |  0.2678 |
+| *PageRank*                   |     135 |         0.7742 |                1.0 |  0.1429 |
+| *IPA (nmax=15)*              |     193 |         0.6923 |               1.00 | 0.10465 |
+| IPA (nmax=35)                |     398 |         0.7407 |             0.9091 |  0.2326 |
+| *Shortest Paths*             |     161 |            0.7 |             0.7778 |  0.8333 |
+| *PCSF (prize5,omega 0.01)*   |      26 |              0 |                  0 |       0 |
+| *ResponseNet (gamma = 20)*   |      44 |         0.6875 |                1.0 |  0.6547 |
+| *ANAT (alpha=0)*             |     125 |        0.80952 |             0.9444 |  0.1012 | 
+
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg --graphspace --pathlinker --pagerank --anat --shortestpaths --pcsf
+#+END_SRC
+Posts the runs in bold to GraphSpace.  Parameters are included in the naming conventions.  These are hard-coded except for pathlinker, which is determined by the ~--topk~ variable. To run the top 800 paths:
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg --graphspace --pathlinker --topk 800
+#+END_SRC
+** Sample TFs/receptors
