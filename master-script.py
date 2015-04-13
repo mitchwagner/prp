@@ -13,20 +13,19 @@ import subprocess
 
 
 ## INTERACTOME VARIABLES (will be filled in in main())
-PPIweights = ''
-PPIcosts =''
 PPIVERSION = ''
-ALLOWEDVERSIONS = ['2013linker', # Chris's version w/ vinayagam, etc.\
-                   '2015pathlinker', # new version, reg weighting\
+ALLOWEDVERSIONS = [#'2013linker', # Chris's version w/ vinayagam, etc.\
+                   #'2015pathlinker', # new version, reg weighting\
                    #'pathlinker-old-kegg-buggy', # debug version\
                    #'pathlinker-old-kegg-fixed', # debug version\
                    #'pathlinker-old-kegg-new-parse', # debug version\
                    #'pathlinker-old-kegg-buggy-oldannotations', # debug version\
-                   'pathlinker-signaling',  # only weighted by sig-trans     \
-                   'pathlinker-signaling-children',  # weighting\
+                   #'pathlinker-signaling',  # only weighted by sig-trans     \
+                   #'pathlinker-signaling-children',  # weighting\
                    'pathlinker-signaling-children-reg',  # children and reg \
                ]
 DATADIR = '/data/annaritz/datasets/svn-data/'
+PPIDIR = '/data/annaritz/projects/2015-03-pathlinker/data/pathway-specific-interactomes/'
 
 ## MAPPING VARIABLES
 MAPPINGFILE = '%s/namespace-mappers/human-gene-map.txt' % (DATADIR)
@@ -43,11 +42,11 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],
               'omega':[0, 0.01, 0.1],
               'prize':[1, 3, 5, 7, 9],
               'alpha':[0, 0.1, 0.25, 0.4, 0.5],
-              'nmax':[15, 25, 35, 50, 75, 100, 200, 500],
+              'nmax':[5,10,15, 25, 35, 50, 75, 100, 200, 500],
           }
     
 def main(args):
-    global PPIweights, PPIcosts, PPIVERSION
+    global PPIVERSION, PPIDIR
     usage = 'master-script.py [options]\n'
     parser = OptionParser(usage=usage)
 
@@ -69,6 +68,8 @@ def main(args):
                          help='Run with NetPath inputs.')
     group.add_option('','--kegg',action='store_true',default=False,\
                          help='Run with KEGG inputs.')
+    group.add_option('','--wntforexperiments',action='store_true',default=False,\
+                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.')
     group.add_option('','--dbcompare',action='store_true',default=False,\
                      help='Run the 6 KEGG and NetPath pathways in common.')
     group.add_option('','--aggunion',action='store_true',default=False,\
@@ -147,8 +148,8 @@ def main(args):
                      help='Cost of adding additional trees to PCSF forest. Default is 0.01.')
     group.add_option('','--alpha',type='float',default=0.0,metavar='FLOAT',\
                      help='Tradeoff between shortest paths and steiner trees in ANAT. Default is 0.00.')
-    group.add_option('','--nmax',type='int',default=35,metavar='INT',\
-                     help='Size for IPA\'s network generation algorithm. Default is 35')
+    group.add_option('','--nmax',type='int',default=10,metavar='INT',\
+                     help='Size for IPA\'s network generation algorithm. Default is 10')
     group.add_option('','--subsamplefps',type='int',default=50,metavar='INT',\
                          help='Subsample so the number of FPs is this many times the # of TPs for each pathway.  If this value is -1, then all negatives are used.')
     group.add_option('','--bullseyerecall',type='float',default=0.5,metavar='FLOAT',\
@@ -164,38 +165,45 @@ def main(args):
 
     ## BACKGROUND INTERACTOME
     ## set PPI, determined by whether the --weightedppi argument is specified.
-    ## TODO: allow for PageRank weighted PPI. allow for eQED-weighted PPI?
     if opts.weightedppi:
-        ## For weighted PPI, PPIweights contain the probabilities and 
-        ## PPIcosts contain the -log10 probabilities.
-        PPIweights = '/data/annaritz/datasets/svn-data/interactomes/human/%s-weighted.txt' % (PPIVERSION)
-        PPIcosts = '/data/annaritz/datasets/svn-data/interactomes/human/%s-weighted-neglog10.txt' % (PPIVERSION)
+        ## ppifile contains the probabilities from weighting scheme
+        ppifile = '/data/annaritz/datasets/svn-data/interactomes/human/%s-weighted.txt' % (PPIVERSION)
         resultprefix = 'results/%s/weighted/' % (PPIVERSION)
+        PPIDIR = '%s/%s/weighted/' % (PPIDIR,PPIVERSION)
     else:
-        ## For unweighted PPI, both PPIweights and PPIcosts have 
-        ## weight/cost 1 for all edges.
-        PPIweights = '/data/annaritz/datasets/svn-data/interactomes/human/%s.txt' % (PPIVERSION)
-        PPIcosts = '/data/annaritz/datasets/svn-data/interactomes/human/%s.txt' % (PPIVERSION)
+        ## ppifile has weights of 1 for all edges.
+        ppifile = '/data/annaritz/datasets/svn-data/interactomes/human/%s.txt' % (PPIVERSION)
         resultprefix = 'results/%s/unweighted/' % (PPIVERSION)
+        PPIDIR = '%s/%s/unweighted/' % (PPIDIR,PPIVERSION)
     checkDir(resultprefix)
-    print "PPIweights file (opts.weighted=%s): %s" % (opts.weightedppi,PPIweights)
-    print "PPIcosts file (opts.weighted=%s): %s" % (opts.weightedppi,PPIcosts )
+    checkDir(PPIDIR)
+
+    ## PATHWAY-SPECIFIC INTERACTOMES
+    generatePathwaySpecificInteractomes(ppifile)
 
     # DATASETS
     ## pathways is a set() of (pathwayname,resultdir,datadir) tuples.
     pathways = set()
     kegg2netpath = {} # will be populated if kegg pathways are specified.
     if opts.netpath or opts.onlynetpathwnt or opts.dbcompare:
-        # Get NEtPath pathway names.  
+        # Get NetPath pathway names.  
         pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.dbcompare)
         # create result directory 
         resultdir = '%s/netpath/' %(resultprefix)
         checkDir(resultdir) 
         # data directory is netpath directory.
         datadir = NETPATHDIR
+        # ppi file 
+        ppidir = '%s/netpath/' % (PPIDIR)
         # add (pathwayname,resultdir,datadir) tuples
-        pathways.update([(p,resultdir,datadir) for p in pathwaynames])
+        pathways.update([(p,resultdir,datadir,ppidir) for p in pathwaynames])
         print 'Running %d NetPath pathways' % (len(pathwaynames))
+    if opts.wntforexperiments:
+        resultdir = '%s/wnt-all-receptors/' % (resultprefix)
+        checkDir(resultdir)
+        datadir = 'data/wnt-all-receptors/'
+        ppidir = '%s/wnt-all-receptors/' % (PPIDIR)
+        pathways.update([('Wnt',resultdir,datadir,ppidir)])
     if opts.kegg or opts.dbcompare:
         # get KEGG pathway names
         pathwaynames,kegg2netpath = getKEGGPathways() 
@@ -204,7 +212,8 @@ def main(args):
         checkDir(resultdir) 
         # data directory is kegg directory
         datadir = KEGGDIR
-        pathways.update([(p,resultdir,datadir) for p in pathwaynames])
+        ppidir = '%s/kegg/'% (PPIDIR)
+        pathways.update([(p,resultdir,datadir,ppidir) for p in pathwaynames])
         print 'Running %d KEGG pathways' % (len(pathwaynames))
     if len(pathways)==0:
         print 'WARNING: no datasets specified. This is OK when visualizing output or running special runs.'
@@ -216,22 +225,22 @@ def main(args):
     ## PathLinker ##
     if opts.pathlinker and not opts.missingnpkegg:
         print 'Running PathLinker:'
-        for (pathway,resultdir,datadir) in pathways:
-            runPathLinker(pathway,resultdir,datadir,opts.k,opts.forcealg,opts.printonly)
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runPathLinker(pathway,resultdir,datadir,ppidir,opts.k,opts.forcealg,opts.printonly)
         print 'Done Running PathLinker\n'
 
     ## Shortest Paths ##
     if opts.shortestpaths:
         print 'Running Shortest Paths'
-        for (pathway,resultdir,datadir) in pathways:
-            runShortestPaths(pathway,resultdir,datadir,opts.forcealg,opts.printonly)
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runShortestPaths(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
         print 'Done Running Shortest Paths\n'
 
     ## Induced Subgraph ##
     if opts.inducedsubgraph:
         print 'Getting induced subgraph from PathLinker'
-        for (pathway,resultdir,datadir) in pathways:
-            runInducedSubgraph(pathway,resultdir,datadir,opts.forcealg,opts.printonly)
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runInducedSubgraph(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
         print 'Done getting induced subgraph from PathLinker.\n'
 
     ## Reranking PathLinker ##
@@ -245,85 +254,86 @@ def main(args):
     if opts.pagerank:
         print 'Running PageRank'
         if not opts.varyparams: # just run with opts.q value
-            for (pathway,resultdir,datadir) in pathways:
-                runPageRank(pathway,resultdir,datadir,opts.q,opts.forcealg,opts.printonly)
+            for (pathway,resultdir,datadir,ppidir) in pathways:
+                runPageRank(pathway,resultdir,datadir,ppidir,opts.q,opts.forcealg,opts.printonly)
         else: # vary opts.q value
             for varyq in VARYPARAMS['q']:
-                for (pathway,resultdir,datadir) in pathways:
-                    runPageRank(pathway,resultdir,datadir,varyq,opts.forcealg,opts.printonly)
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    runPageRank(pathway,resultdir,datadir,ppidir,varyq,opts.forcealg,opts.printonly)
         print 'Done runing PageRank.\n'
 
     ## EQED ##
     if opts.eqed:
         print 'Running eQED:'
-        for (pathway,resultdir,datadir) in pathways:
-            runEQED(pathway,resultdir,datadir,opts.inputcurrent,opts.forcealg,opts.printonly)
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runEQED(pathway,resultdir,datadir,ppidir,opts.inputcurrent,opts.forcealg,opts.printonly)
         print 'Done running eQED\n'
 
     ## ResponseNet ##
     if opts.responsenet:
         print 'Running ResponseNet:'
         if not opts.varyparams: # just run with opts.gamma value
-            for (pathway,resultdir,datadir) in pathways:
-                runResponseNet(pathway,resultdir,datadir,opts.gamma,opts.forcealg,opts.printonly)
+            for (pathway,resultdir,datadir,ppidir) in pathways:
+                runResponseNet(pathway,resultdir,datadir,ppidir,opts.gamma,opts.forcealg,opts.printonly)
         else: # vary opts.gamma value
             for varygamma in VARYPARAMS['gamma']:
-                for (pathway,resultdir,datadir) in pathways:
-                    runResponseNet(pathway,resultdir,datadir,varygamma,opts.forcealg,opts.printonly)
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    runResponseNet(pathway,resultdir,datadir,ppidir,varygamma,opts.forcealg,opts.printonly)
         print 'Done running ResponseNet\n'
 
     ## PCSF ##
     if opts.pcsf:
         print 'Running PCSF'
         if not opts.varyparams: # just run with opts.prize and opts.omega values
-            for (pathway,resultdir,datadir) in pathways:
-                runPCSF(pathway,resultdir,datadir,opts.prize,opts.omega,opts.forcealg,opts.printonly)
+            for (pathway,resultdir,datadir,ppidir) in pathways:
+                runPCSF(pathway,resultdir,datadir,ppidir,opts.prize,opts.omega,opts.forcealg,opts.printonly)
         else: # vary prize and omega
             for varyprize in VARYPARAMS['prize']:
                 for varyomega in VARYPARAMS['omega']:
-                    for (pathway,resultdir,datadir) in pathways:
-                        runPCSF(pathway,resultdir,datadir,varyprize,varyomega,opts.forcealg,opts.printonly)
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
+                        runPCSF(pathway,resultdir,datadir,ppidir,varyprize,varyomega,opts.forcealg,opts.printonly)
         print 'Done running PCSF\n'
 
     ## ANAT  ##
     if opts.anat:
         print 'Running ANAT:'
         if not opts.varyparams: # just run with opts.alpha value
-            for (pathway,resultdir,datadir) in pathways:
-                runANAT(pathway,resultdir,datadir,opts.alpha,opts.forcealg,opts.printonly)
+            for (pathway,resultdir,datadir,ppidir) in pathways:
+                runANAT(pathway,resultdir,datadir,ppidir,opts.alpha,opts.forcealg,opts.printonly)
         else: # vary alpha
             for varyalpha in VARYPARAMS['alpha']:
-                for (pathway,resultdir,datadir) in pathways:
-                    runANAT(pathway,resultdir,datadir,varyalpha,opts.forcealg,opts.printonly)
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    runANAT(pathway,resultdir,datadir,ppidir,varyalpha,opts.forcealg,opts.printonly)
         print 'Done Running ANAT\n'
 
     ## DEGREE ##
     if opts.degree:
-        print 'Computing Weighted Degree of PPIweights:'
-        ## resultprefix is either "results-weighted" or "results-unweighted"
-        outprefix = '%s/ppidegree/weighted-degree' % (resultprefix)
-        checkDir(outprefix)
+        print 'NOT UPDATED TO HANDLE PATHWAY-SPECIFIC INTERACTOMES!! skipping.'
+        # print 'Computing Weighted Degree of PPIFILE:'
+        # ## resultprefix is either "results-weighted" or "results-unweighted"
+        # outprefix = '%s/ppidegree/weighted-degree' % (resultprefix)
+        # checkDir(outprefix)
 
-        if opts.forcealg or not os.path.isfile('%s-edges.txt' % (outprefix)):
-            script = '/data/annaritz/signaling/2014-06-linker/src/compute-ppi-degrees.py'
-            cmd = 'python %s %s %s %s' % (script,PPIweights,outprefix,MAPPINGFILE)
-            print cmd
-            if not opts.printonly:
-                subprocess.check_call(cmd.split())
-        else:
-            print 'Skipping weighting PPI: %s already exists.' % ('%s-edges.txt' % (outprefix))
-        print 'Done computing Degree of PPIweights\n'
+        # if opts.forcealg or not os.path.isfile('%s-edges.txt' % (outprefix)):
+        #     script = '/data/annaritz/signaling/2014-06-linker/src/compute-ppi-degrees.py'
+        #     cmd = 'python %s %s %s %s' % (script,PPIFILE,outprefix,MAPPINGFILE)
+        #     print cmd
+        #     if not opts.printonly:
+        #         subprocess.check_call(cmd.split())
+        # else:
+        #     print 'Skipping weighting PPI: %s already exists.' % ('%s-edges.txt' % (outprefix))
+        # print 'Done computing Degree of PPIFILE\n'
 
     ## IPA ##
     if opts.ipa:
         print 'Running IPA'
         if not opts.varyparams: # just run with opts.nmax value
-            for (pathway,resultdir,datadir) in pathways:
-                runIPA(pathway,resultdir,datadir,opts.nmax,opts.forcealg,opts.printonly)
+            for (pathway,resultdir,datadir,ppidir) in pathways:
+                runIPA(pathway,resultdir,datadir,ppidir,opts.nmax,opts.forcealg,opts.printonly)
         else: # vary nmax
             for varynmax in VARYPARAMS['nmax']:
-                for (pathway,resultdir,datadir) in pathways:
-                    runIPA(pathway,resultdir,datadir,varynmax,opts.forcealg,opts.printonly)
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    runIPA(pathway,resultdir,datadir,ppidir,varynmax,opts.forcealg,opts.printonly)
         print 'Done IPA\n'
 
     ## VIZ SCRIPTS ##
@@ -336,19 +346,22 @@ def main(args):
             ## get sample output prefix (all methods use the same sampled positives/negatives)
             sampledir = '%s/samples-exclude-%s' % (resultprefix,negtype)
             checkDir(sampledir)
-            
-            ## hardcode for now since the interactome has identical edges; only weighted differently.
-            ## TODO Remove for final version.
-            ##sampleoutprefix='results/2015pathlinker/weighted/samples-exclude-none/%s' % (pathway)
 
+            if opts.wntforexperiments:
+                wntsampledir = '%s/wntforexperiments-samples-exclude-%s' % (resultprefix,negtype)
+                checkDir(wntsampledir)
+            
             ## PATHLINKER ##
             if opts.pathlinker:
                 sortcol = 3 # ksp
-                for (pathway,resultdir,datadir) in pathways:
+                for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/pathlinker/%s-k_%s-ranked-edges.txt' % (resultdir,pathway,opts.k)
                     outdir = '%s/precision-recall/pathlinker/' % (resultdir)
-                    sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                    computePrecisionRecall(pathway,datadir,edgefile,outdir,sortcol,negtype,\
+                    if 'wnt-all-receptors' in resultdir:
+                        sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                    else:
+                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly)
                 if opts.netpath:
                     ## compute aggregate for NetPath
@@ -358,11 +371,14 @@ def main(args):
             ## Shortest Paths ##
             if opts.shortestpaths:
                 sortcol = None # no sorting; entire file is shortest paths subgraph.
-                for (pathway,resultdir,datadir) in pathways:
+                for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/shortestpaths/%s-shortest-paths.txt' % (resultdir,pathway)
                     outdir = '%s/precision-recall/shortestpaths/' % (resultdir)
-                    sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                    computePrecisionRecall(pathway,datadir,edgefile,outdir,sortcol,negtype,\
+                    if 'wnt-all-receptors' in resultdir:
+                        sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                    else:
+                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly)
                 if opts.netpath:
                     ## compute aggregate for NetPath
@@ -372,11 +388,14 @@ def main(args):
             ## Induced Subgraph ##
             if opts.inducedsubgraph:
                 sortcol = 3 # ksp
-                for (pathway,resultdir,datadir) in pathways:
+                for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/inducedsubgraph/%s-induced-subgraph.txt' % (resultdir,pathway)
                     outdir = '%s/precision-recall/inducedsubgraph/' % (resultdir)
-                    sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                    computePrecisionRecall(pathway,datadir,edgefile,outdir,sortcol,negtype,\
+                    if 'wnt-all-receptors' in resultdir:
+                        sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                    else:
+                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly)
                 if opts.netpath:
                     ## compute aggregate for NetPath
@@ -393,12 +412,15 @@ def main(args):
                 else: # vary opts.q value
                     params = ['q_%.2f' % p for p in VARYPARAMS['q']]
                 for param in params:
-                    for (pathway,resultdir,datadir) in pathways:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/pagerank/%s-%s-edge-fluxes.txt' % (resultdir,pathway,param)
                         nodefile = '%s/pagerank/%s-%s-node-pagerank.txt' % (resultdir,pathway,param)
                         outdir = '%s/precision-recall/pagerank/' % (resultdir)
-                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                        computePrecisionRecall(pathway,datadir,edgefile,outdir,edgesortcol,negtype,\
+                        if 'wnt-all-receptors' in resultdir:
+                            sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                        else:
+                            sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,\
                                                descending=True,param=param)
@@ -414,12 +436,15 @@ def main(args):
                 # both sort columns are in decreasing order.
                 edgesortcol = 4 # abs(current)
                 nodesortcol = 3 # positive input current
-                for (pathway,resultdir,datadir) in pathways:
+                for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/eqed/%s-eqed-edges.out' % (resultdir,pathway)
                     nodefile = '%s/eqed/%s-eqed-nodes.out' % (resultdir,pathway)
                     outdir = '%s/precision-recall/eqed/' % (resultdir)
-                    sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                    computePrecisionRecall(pathway,datadir,edgefile,outdir,edgesortcol,negtype,\
+                    if 'wnt-all-receptors' in resultdir:
+                        sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                    else:
+                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                            opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,descending=True)
                 if opts.netpath:
@@ -437,11 +462,14 @@ def main(args):
                 else: # vary opts.gamma value
                     params = ['gamma_%d' % p for p in VARYPARAMS['gamma']]
                 for param in params:
-                    for (pathway,resultdir,datadir) in pathways:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/reponsenet/%s-%s_responsenet-edges.out' % (resultdir,pathway,param)
                         outdir = '%s/precision-recall/responsenet/' % (resultdir)
-                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                        computePrecisionRecall(pathway,datadir,edgefile,outdir,edgesortcol,negtype,\
+                        if 'wnt-all-receptors' in resultdir:
+                            sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                        else:
+                            sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param)
                     if opts.netpath:
@@ -461,11 +489,14 @@ def main(args):
                         for varyomega in VARYPARAMS['omega']:
                             params.append('prize%d-omega%.2f' % (varyprize,varyomega))
                 for param in params:
-                    for (pathway,resultdir,datadir) in pathways:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/pcsf/%s-%s_PCSF-edges.out' % (resultdir,pathway,param)
                         outdir = '%s/precision-recall/pcsf/' % (resultdir)
-                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                        computePrecisionRecall(pathway,datadir,edgefile,outdir,sortcol,negtype,\
+                        if 'wnt-all-receptors' in resultdir:
+                            sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                        else:
+                            sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param)
                     if opts.netpath:
@@ -482,11 +513,14 @@ def main(args):
                 else: # vary opts.alpha value
                     params = ['alpha%.2f' % p for p in VARYPARAMS['alpha']]
                 for param in params:
-                    for (pathway,resultdir,datadir) in pathways:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/anat/%s-%s-edges.out' % (resultdir,pathway,param)
                         outdir = '%s/precision-recall/anat/' % (resultdir)
-                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                        computePrecisionRecall(pathway,datadir,edgefile,outdir,sortcol,negtype,\
+                        if 'wnt-all-receptors' in resultdir:
+                            sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                        else:
+                            sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param)
                     if opts.netpath:
@@ -505,11 +539,14 @@ def main(args):
                 else: # vary opts.nmax value
                     params = ['nmax%d' % p for p in VARYPARAMS['nmax']]
                 for param in params:
-                    for (pathway,resultdir,datadir) in pathways:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/ipa/%s-%s.out' % (resultdir,pathway,param)
                         outdir = '%s/precision-recall/ipa/' % (resultdir)
-                        sampleoutprefix = '%s/%s' % (sampledir,pathway)
-                        computePrecisionRecall(pathway,datadir,edgefile,outdir,sortcol,negtype,\
+                        if 'wnt-all-receptors' in resultdir:
+                            sampleoutprefix = '%s/%s' % (wntsampledir,pathway)
+                        else:
+                            sampleoutprefix = '%s/%s' % (sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,descending=True,param=param)
                     if opts.netpath:
@@ -540,8 +577,11 @@ def main(args):
         if opts.ipa:
             algcmd += ' --alg ipa'
         indir = '%s/netpath/precision-recall/' % (resultprefix)
-        for (pathway,resultdir,datadir) in pathways:
-            outprefix = 'viz/precision-recall/%s' % (pathway)
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            if opts.wntforexperiments and 'wnt-all-receptors' in resultdir:
+                outprefix = 'viz/precision-recall/%s-all-receptors' % (pathway)
+            else:
+                outprefix = 'viz/precision-recall/%s' % (pathway)
             cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s' % (indir,outprefix,pathway,algcmd)
             if opts.varyparams:
                 if pathway != 'Wnt':
@@ -558,7 +598,8 @@ def main(args):
                 
         if opts.netpath: # plot aggregate
             outprefix = 'viz/precision-recall/aggregate'
-            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s' % (indir,outprefix,algcmd)
+            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s' % \
+                  (indir,outprefix,algcmd)
             if opts.varyparams:
                 cmd += '  --varyparams'
 
@@ -568,39 +609,44 @@ def main(args):
 
     if opts.graphspace:
         print 'Posting to GraphSpace...'
+        
         if opts.pathlinker:
             ## pathlinkerfile is the ranked edges.
-            infile = '%s/netpath/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
-            gsid = 'pathlinker-top%dpaths' % (opts.topk)
+            infile = '%s/wnt-all-receptors/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
+            gsid = 'Wnt-pathlinker-top%dpaths' % (opts.topk)
             postWntReconstructionsToGraphSpace(infile,opts.topk,gsid,opts.printonly,increase=True)
 
         if opts.pagerank:
-            ## thresold is set to 135 edgdes and 0.1429 recall.
-            thres = 0.00261
-            infile = '%s/netpath/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
-            gsid = 'pagerank-top135edges'
+            ## threshold is set to 150 edges and 0.1429 recall.
+            thres = 0.001677
+            infile = '%s/wnt-all-receptors/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
+            gsid = 'Wnt-pagerank-thres0.001677'
             postWntReconstructionsToGraphSpace(infile,thres,gsid,opts.printonly,decrease=True)
 
         if opts.anat:
-            infile = '%s/netpath/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
-            gsid = 'anat-alpha0.00'
+            infile = '%s/wnt-all-receptors/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
+            gsid = 'Wnt-anat-alpha0.00'
             postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
 
         if opts.shortestpaths:
-            infile = '%s/netpath/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
-            gsid = 'shortest-paths'
+            infile = '%s/wnt-all-receptors/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
+            gsid = 'Wnt-shortest-paths'
             postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
 
         if opts.responsenet:
-            infile = '%s/netpath/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
-            gsid = 'responsenet-gamma20'
+            infile = '%s/wnt-all-receptors/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
+            gsid = 'Wnt-responsenet-gamma20'
             postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
 
         if opts.pcsf:
-            infile = '%s/netpath/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
-            gsid = 'pcsf-prize5-omega0.01'
+            infile = '%s/wnt-all-receptors/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
+            gsid = 'Wnt-pcsf-prize5-omega0.01'
             postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
-            
+
+        if opts.ipa:
+            infile = '%s/wnt-all-receptors/ipa/Wnt-nmax10.out' % (resultprefix)
+            gsid = 'Wnt-ipa-nmax10'
+            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,undirected=True)
 
     if opts.ranktfs:
         outprefix = 'viz/misc/tr-ranks'
@@ -698,6 +744,65 @@ def main(args):
     print 'DONE'
     return
 
+############################################################
+def generatePathwaySpecificInteractomes(ppifile):
+    edges = [] # list of (u,v,line) tuples
+    header = ''
+    with open(ppifile) as fin:
+        for line in fin:
+            if line[0]=='#':
+                header = line
+                continue
+            row = line.split('\t')
+            edges.append((row[0],row[1],line))
+
+    checkDir(PPIDIR+'/netpath/')
+    pathways = getNetPathPathways(False,False)
+    for p in pathways:
+        interactomefile = '%s/netpath/%s-interactome.txt' % (PPIDIR,p)
+        if not os.path.isfile(interactomefile):
+            print 'Making NetPath %s Interactome' % (p)
+            nodefile = '%s/%s-nodes.txt' % (NETPATHDIR,p)
+            generatePPI(edges,nodefile,interactomefile,header)
+
+    checkDir(PPIDIR+'/wnt-all-receptors/')
+    interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (PPIDIR)
+    if not os.path.isfile(interactomefile):
+        print 'Making Wnt All receptors Interactome'
+        nodefile = 'data/wnt-all-receptors/Wnt-nodes.txt'
+        generatePPI(edges,nodefile,interactomefile,header)
+
+    checkDir(PPIDIR+'/kegg/')
+    pathways,keggids = getKEGGPathways()
+    for p in pathways:
+        interactomefile = '%s/kegg/%s-interactome.txt' % (PPIDIR,p)
+        if not os.path.isfile(interactomefile):
+            print 'Making KEGG %s (%s) Interactome' % (p,keggids[p])
+            nodefile = '%s/%s-nodes.txt' % (KEGGDIR,p)
+            generatePPI(edges,nodefile,interactomefile,header)
+    return
+
+############################################################
+def generatePPI(edges,nodefile,interactomefile,header):
+    ## get receptors and tfs
+    nodes = readColumns(nodefile,1,2)
+    receptors = set([n for n,t in nodes if t == 'receptor'])
+    tfs = set([n for n,t in nodes if t == 'tf'])    
+    out = open(interactomefile,'w')
+    out.write(header)
+    numskipped = 0
+    for u,v,line in edges:
+        if u in tfs or v in receptors:
+            numskipped+=1
+            continue
+        out.write(line)
+    out.close()    
+    
+    # print receptors, tfs, num edges removed, percent removed for org file.
+    print '| %d | %d | %d | %.2e |' % (len(receptors),len(tfs),numskipped,numskipped/float(len(edges)))
+    #print '%d receptors and %d tfs.' % (len(receptors),len(tfs))
+    #print 'Removed %d edges (%.2e)' % (numskipped,numskipped/float(len(edges)))
+    return
 
 ############################################################
 def checkDir(dirname):
@@ -726,7 +831,7 @@ def getKEGGPathways():
     return pathways,kegg2netpath
 
 ############################################################
-def runPathLinker(pathway,resultdir,datadir,k,forcealg,printonly):
+def runPathLinker(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
     
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -738,10 +843,17 @@ def runPathLinker(pathway,resultdir,datadir,k,forcealg,printonly):
     checkDir(outdir)
     outprefix = '%s/%s-' % (outdir,pathway)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     # pathlinker command
     if forcealg or not os.path.isfile('%sk_%d-paths.txt' % (outprefix,k)):
-        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker-NoPR.py'
-        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,PPIcosts,nodefile) 
+        ## Old script
+        ##script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/hack-scripts-pre-refactoring/PathLinker-NoPR.py'
+        ## Needed to pass PPIcosts (-log10) instead of PPIFILE for old script.
+
+        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
+        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,nodefile) 
         print cmd              
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -750,7 +862,7 @@ def runPathLinker(pathway,resultdir,datadir,k,forcealg,printonly):
     return
 
 ############################################################
-def runShortestPaths(pathway,resultdir,datadir,forcealg,printonly):
+def runShortestPaths(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -762,9 +874,12 @@ def runShortestPaths(pathway,resultdir,datadir,forcealg,printonly):
     checkDir(outdir)
     outfile = '%s/%s-shortest-paths.txt' % (outdir,pathway)
                
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     if forcealg or not os.path.isfile(outfile):
         script = '/home/annaritz/src/python/CellCycle/shortest_paths.py'
-        cmd = 'python %s --network %s --annotations %s --out %s --include-ties' % (script,PPIweights,nodefile,outfile)
+        cmd = 'python %s --network %s --annotations %s --out %s --include-ties' % (script,ppifile,nodefile,outfile)
         print cmd
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -773,7 +888,7 @@ def runShortestPaths(pathway,resultdir,datadir,forcealg,printonly):
     return
 
 ############################################################
-def runInducedSubgraph(pathway,resultdir,datadir,forcealg,printonly):
+def runInducedSubgraph(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
     ## paths file is pathlinker run for k=20,000.
@@ -787,9 +902,12 @@ def runInducedSubgraph(pathway,resultdir,datadir,forcealg,printonly):
     checkDir(outdir)
     outfile = '%s/%s-induced-subgraph.txt' % (outdir,pathway)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     if forcealg or not os.path.isfile(outfile):
         script = '/data/annaritz/signaling/2014-06-linker/src/order-by-induced-subgraph.py'
-        cmd = 'python %s --pathsfile %s --outfile %s --ppi %s' % (script,pathsfile,outfile,PPIweights)
+        cmd = 'python %s --pathsfile %s --outfile %s --ppi %s' % (script,pathsfile,outfile,ppifile)
         print cmd
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -798,7 +916,7 @@ def runInducedSubgraph(pathway,resultdir,datadir,forcealg,printonly):
     return
 
 ############################################################
-def rerankPathLinker(pathway,resultdir,datadir,forcealg,printonly):
+def rerankPathLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
     ## paths file is pathlinker run for k=20,000.
@@ -823,7 +941,7 @@ def rerankPathLinker(pathway,resultdir,datadir,forcealg,printonly):
     return
 
 ############################################################
-def runPageRank(pathway,resultdir,datadir,q,forcealg,printonly):
+def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -835,9 +953,15 @@ def runPageRank(pathway,resultdir,datadir,q,forcealg,printonly):
     checkDir(outdir)
     outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     if forcealg or not os.path.isfile('%s-node-pagerank.txt' % (outprefix)):
-        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker-PRonly.py'
-        cmd = 'python %s -q %f --output %s %s %s' % (script,q,outprefix,PPIweights,nodefile) 
+        ## old script
+        ##script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/hack-scripts-pre-refactoring/PathLinker-PRonly.py'
+    
+        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
+        cmd = 'python %s --PageRank -q %s -k %d --output %s %s %s' % (script,q,1,outprefix,ppifile,nodefile)     
         print cmd
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -846,7 +970,7 @@ def runPageRank(pathway,resultdir,datadir,q,forcealg,printonly):
     return
 
 ############################################################
-def runEQED(pathway,resultdir,datadir,inputcurrent,forcealg,printonly):
+def runEQED(pathway,resultdir,datadir,ppidir,inputcurrent,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -858,9 +982,12 @@ def runEQED(pathway,resultdir,datadir,inputcurrent,forcealg,printonly):
     checkDir(outdir)
     outprefix = '%s/%s' % (outdir,pathway)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     if forcealg or not os.path.isfile('%s-eqed-edges.out' % (outprefix)):
         script = '/data/annaritz/sig-path-other-methods/src/eQED.py'
-        cmd = 'python %s -e %s -n %s -i %d -o %s -l' % (script,PPIweights,nodefile,inputcurrent,outprefix)
+        cmd = 'python %s -e %s -n %s -i %d -o %s -l' % (script,ppifile,nodefile,inputcurrent,outprefix)
         print cmd
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -870,7 +997,7 @@ def runEQED(pathway,resultdir,datadir,inputcurrent,forcealg,printonly):
 
 
 ############################################################
-def runResponseNet(pathway,resultdir,datadir,gamma,forcealg,printonly):
+def runResponseNet(pathway,resultdir,datadir,ppidir,gamma,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -882,9 +1009,12 @@ def runResponseNet(pathway,resultdir,datadir,gamma,forcealg,printonly):
     checkDir(outdir)
     outprefix = '%s/%s-gamma_%d' % (outdir,pathway,gamma)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     if forcealg or not os.path.isfile('%s_responsenet-edges.out' % (outprefix)):
         script = '/data/annaritz/sig-path-other-methods/src/ResponseNet.py'
-        cmd = 'python %s -e %s -n %s -o %s -g %d' % (script,PPIweights,nodefile,outprefix,gamma)
+        cmd = 'python %s -e %s -n %s -o %s -g %d' % (script,ppifile,nodefile,outprefix,gamma)
         print cmd
         if not printonly:
             try:
@@ -893,31 +1023,10 @@ def runResponseNet(pathway,resultdir,datadir,gamma,forcealg,printonly):
                 'Error with gamma=%d: skipping.' % (gamma)
     else:
         print 'Skipping %s w/ gamma %d: %s exists. Use --forcealg to override.' % (pathway,gamma,'%s_responsenet-edges.out' % (outprefix))
-
-    # if not printonly:
-    #     if forcealg or not os.path.isfile('%s_responsenet-nodes.out' % (outprefix)):
-    #         print 'writing node file.'
-    #         lines = readColumns('%s_responsenet-edges.out' % (outprefix),1,2,3)
-    #         nodes = set([u for u,v,f in lines]).union([v for u,v,f in lines])
-            
-    #         nodeflows = {n:0 for n in nodes}
-    #         for u,v,f in lines:
-    #             nodeflows[u] = max(nodeflows[u],float(f))
-    #             nodeflows[v] = max(nodeflows[v],float(f))
-
-    #         print '%d nodes' % (len(nodeflows))
-    #         print '%d with flow > 0' % (len([n for n in nodeflows if nodeflows[n]>0]))
-    #         out = open('%s_responsenet-nodes.out' % (outprefix),'w')
-    #         out.write('#node\tmax_flow_thru_node\n')
-    #         for n in nodeflows:
-    #             out.write('%s\t%f\n' % (n,nodeflows[n]))
-    #         out.close()
-    #     else:
-    #         print 'Skipping writing node file for %s: %s exists. Use --forcealg to override.'  % (pathway,'%s_responsenet-nodes.out' % (outprefix))
     return
 
 ############################################################
-def runPCSF(pathway,resultdir,datadir,prize,omega,forcealg,printonly):
+def runPCSF(pathway,resultdir,datadir,ppidir,prize,omega,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -928,11 +1037,14 @@ def runPCSF(pathway,resultdir,datadir,prize,omega,forcealg,printonly):
     outdir = '%s/pcsf/' % (resultdir)
     checkDir(outdir)
     outprefix = '%s/%s-prize%d-omega%.2f' % (outdir,pathway,prize,omega)
+
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
     
     # run PCSF
     if forcealg or not os.path.isfile('%s_PCSF-edges.out' % (outprefix)):
         script = '/data/annaritz/sig-path-other-methods/src/PCSF_weighted.py'
-        cmd = 'python %s -e %s -n %s -o %s -p %d --omega %.2f' % (script,PPIweights,nodefile,outprefix,prize,omega)
+        cmd = 'python %s -e %s -n %s -o %s -p %d --omega %.2f' % (script,ppifile,nodefile,outprefix,prize,omega)
         print cmd
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -941,7 +1053,7 @@ def runPCSF(pathway,resultdir,datadir,prize,omega,forcealg,printonly):
     return
 
 ############################################################
-def runANAT(pathway,resultdir,datadir,alpha,forcealg,printonly):
+def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -953,9 +1065,12 @@ def runANAT(pathway,resultdir,datadir,alpha,forcealg,printonly):
     checkDir(outdir)
     outprefix = '%s/%s-alpha%.2f' % (outdir,pathway,alpha)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     script = '/data/annaritz/signaling/2014-06-linker/src/run-anat-weighted.py'
     if forcealg or not os.path.isfile('%s-edges.out' % (outprefix)):
-        cmd = 'python %s -n %s -a %.2f -o %s --ppi %s'  % (script,nodefile,alpha,outprefix,PPIweights)
+        cmd = 'python %s -n %s -a %.2f -o %s --ppi %s'  % (script,nodefile,alpha,outprefix,ppifile)
         #if forcealg: # this is now handled at this function rather than passing to next.
         #    cmd+= ' --force'
         print cmd
@@ -967,7 +1082,7 @@ def runANAT(pathway,resultdir,datadir,alpha,forcealg,printonly):
 
 ############################################################
 ## TODO make sure ipa works on an undirected graph.
-def runIPA(pathway,resultdir,datadir,nmax,forcealg,printonly):
+def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -978,11 +1093,14 @@ def runIPA(pathway,resultdir,datadir,nmax,forcealg,printonly):
     outdir = '%s/ipa/' % (resultdir)
     checkDir(outdir)
 
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
     outfile = '%s/%s-nmax%d.out' % (outdir,pathway,nmax)
     if forcealg or not os.path.isfile(outfile):
         script = '/data/annaritz/signaling/2014-06-linker/src/ipa-network-generation.py'
         cmd = 'python %s --ppi %s --nodes %s --nmax %d --outfile %s'  % \
-                (script,PPIweights,nodefile,nmax,outfile)
+                (script,ppifile,nodefile,nmax,outfile)
         print cmd
         if not printonly:
             subprocess.check_call(cmd.split())
@@ -991,22 +1109,37 @@ def runIPA(pathway,resultdir,datadir,nmax,forcealg,printonly):
     return
 
 ############################################################
-def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=False,decrease=False):
-            
-    cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath Wnt --kegg Wnt' % \
-          (infile,PPIweights,PPIVERSION,DATADIR,gsid)
+def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=False,decrease=False,undirected=False):
+    ppifile = 'data/pathway-specific-interactomes/pathlinker-signaling-children-reg/weighted/wnt-all-receptors/Wnt-interactome.txt'
+    cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath Wnt --kegg Wnt --addfzd' % \
+          (infile,ppifile,PPIVERSION,DATADIR,gsid)
     if increase: # ranked list - pass the threshold
         cmd += ' --increase --thres %f' % (thres)
     if decrease:
         cmd += ' --decrease --thres %f' % (thres)
-
+    if undirected:
+        cmd += ' --undirected'
     print cmd
     if not printonly:
         subprocess.check_call(cmd.split())
+
+    ##print unlabeled
+    cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath Wnt --nolabels --addfzd' % \
+          (infile,ppifile,PPIVERSION,DATADIR,gsid+'-nolabels')
+    if increase: # ranked list - pass the threshold
+        cmd += ' --increase --thres %f' % (thres)
+    if decrease:
+        cmd += ' --decrease --thres %f' % (thres)
+    if undirected:
+        cmd += ' --undirected'
+    print cmd
+    if not printonly:
+        subprocess.check_call(cmd.split())
+
     return
 
 ############################################################
-def computePrecisionRecall(pathway,datadir,edgefile,outdir,edgesortcol,negtype,sampleoutprefix,\
+def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,sampleoutprefix,\
                            subsamplefps,forceprecrec,printonly,nodefile=None,nodesortcol=None,descending=False,param=None):
     ## Get true edge file and true node file from the data directory.
     trueedgefile = '%s/%s-edges.txt' % (datadir,pathway)
@@ -1025,11 +1158,13 @@ def computePrecisionRecall(pathway,datadir,edgefile,outdir,edgesortcol,negtype,s
         print 'Skipping %s exclude %s: file exists. Use --forceprecrec to override.' % (pathway,negtype)
         return
 
-    ## Note that PPIweights vs. PPIcosts doesn't matter
-    ## compute-precision-recally.py simply uses it to get
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
+    ## compute-precision-recally.py simply uses ppifile to get
     ## all possible edges.
     cmd = 'python src/compute-precision-recall.py --outprefix %s --edgefile %s --trueedgefile %s --truenodefile %s --sampledoutprefix %s --ppi %s --negtype %s --neg-factor %d' % \
-          (outprefix,edgefile,trueedgefile,truenodefile,sampleoutprefix,PPIweights,negtype,subsamplefps)
+          (outprefix,edgefile,trueedgefile,truenodefile,sampleoutprefix,ppifile,negtype,subsamplefps)
     if edgesortcol != None:
         cmd += ' --edgecol %d' % (edgesortcol)
     if nodefile != None:

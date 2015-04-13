@@ -157,7 +157,7 @@ Computes aggregate precision and recall from already-computed individual files.
     else:
         outfile = '%s/aggregate-%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
     out = open(outfile,'w')
-    out.write('#pathway\tnode1_unsorted\tnode2_unsorted\tvalue\tpos/neg/ignore\tprecision\trecall\n')
+    out.write('#pathway\tnode1_sorted\tnode2_sorted\tvalue\tpos/neg/ignore\tprecision\trecall\n')
     # write ranked values
     for item,val,itemtype,prec,rec in PREdge:
         out.write('%s\t%s\t%s\t%0.5e\t%s\t%0.5e\t%0.5e\n' % (item[0],item[1][0],item[1][1],val,itemtype,prec,rec))
@@ -178,7 +178,7 @@ Computes aggregate precision and recall from already-computed individual files.
     else:
         outfile = '%s/aggregate-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
     out = open(outfile,'w')
-    out.write('#pathway\tnode1\tvalue\tpos/neg/ignore\tprecision\trecall\n')
+    out.write('#pathway\tnode\tvalue\tpos/neg/ignore\tprecision\trecall\n')
     # write ranked values
     for item,val,itemtype,prec,rec in PRNode:
         out.write('%s\t%s\t%0.5e\t%s\t%0.5e\t%0.5e\n' % (item[0],item[1],val,itemtype,prec,rec))

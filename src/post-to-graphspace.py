@@ -139,7 +139,7 @@ def getPredictedEdges(predfile,increase,decrease,thres):
     return edges
 
 ##########################################################
-def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile):
+def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels):
 
     evidence = getEvidence(prededges)
     desc = getGraphDescription(increase,decrease,thres,prededgefile,netpath,kegg)
@@ -173,7 +173,9 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         keggnodes = set([u for u,v in keggedges]).union(set([v for u,v in keggedges]))
 
     for n in prednodes:
-        if increase or decrease:
+        if nolabels:
+            name = ''
+        elif increase or decrease:
             val = min([prededges[(u,v)] for (u,v) in prededges if n==u or n==v])
             if int(val)==val:
                 name = '%s\n(%d)' % (n,val)
@@ -229,7 +231,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             htmlcolor = COLORS['neither']
 
         name = '%s-%s' % (tail,head)
-        annotation = getEdgeAnnotation(tail,head, prededges[(tail,head)],evidence)
+        annotation = getEdgeAnnotation(tail,head, prededges[(tail,head)],evidence,undirected)
         edge = Edge(id=name,label=name,source=tail,target=head,color=htmlcolor, \
                         directed=edgedir,width=edgewidth,popup=annotation,k=int(prededges[(tail,head)]))
         graph.add_edge(edge)
@@ -290,8 +292,11 @@ def getNodeAnnotation(name, pathset):
     return annotation
 
 ##########################################################
-def getEdgeAnnotation(tail, head, pathset,evidence):
-    annotation='Weight: %.4f' % (PPIWEIGHTS[(tail,head)])
+def getEdgeAnnotation(tail, head, pathset,evidence,undirected):
+    if undirected and (tail,head) not in PPIWEIGHTS:
+        annotation='Weight: %.4f' % (PPIWEIGHTS[(head,tail)])
+    else:
+        annotation='Weight: %.4f' % (PPIWEIGHTS[(tail,head)])
     annotation+='<hr /><b>Edge Ranking</b>: %.4f' % (pathset)
 
     annotation+='<hr /><h><b>Sources of Evidence</b></h>'
@@ -530,7 +535,11 @@ def main(args):
     parser.add_option('','--datadir',type='str',metavar='STR',\
                       help='Data directory from SVN. Required.')
     parser.add_option('','--infile',type='str',metavar='STR',\
-                      help='File of edges.  If --increase (resp. --decrease) is specified, looks at a 3rd column and takes all that are <= (resp. >=) thres.')    
+                      help='File of edges.  If --increase (resp. --decrease) is specified, looks at a 3rd column and takes all that are <= (resp. >=) thres.') 
+    parser.add_option('','--undirected',action='store_true',default=False,\
+                      help='If specified, edges are assumed to be already sorted. Used when reading edge weights.')
+    parser.add_option('','--addfzd',action='store_true',default=False,\
+                      help='Add FZD4 and FZD6 as receptors (for wntforexperiments)')
     parser.add_option('','--increase',action='store_true',default=False,\
                       help='If specified, input file has a 3rd column that contains the ranking. Edges <= thres are taken.')
     parser.add_option('','--decrease',action='store_true',default=False,\
@@ -543,6 +552,8 @@ def main(args):
                       help='Color specified kegg pathway, e.g., --kegg Wnt')
     parser.add_option('','--gsid',type='str',metavar='STR',\
                       help='GraphSpace Graph ID')
+    parser.add_option('','--nolabels',action='store_true',default=False,\
+                      help='Do not show labels.')
     
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -580,6 +591,10 @@ def main(args):
     # Determine Receptors and TFs
     receptorfile = '%s/receptors/uniprot-target-list.txt' % (DATADIR)
     receptors = set([UNIPROT2NAME[n] for n in readItemSet(receptorfile,1) if n in UNIPROT2NAME])
+    if opts.addfzd:    ## ADD FZD4 and FZD6!!
+        #print 'ADDING FZD4 and FZD6 AS RECEPTORS'
+        receptors.add('FZD4')
+        receptors.add('FZD6')
     tffile = '%s/transcription-factors/vaquerizas-ravasi/human-tfs.txt' % (DATADIR)
     tfs = readItemSet(tffile,1)
 
@@ -587,7 +602,7 @@ def main(args):
     prededges = getPredictedEdges(opts.infile,opts.increase,opts.decrease,opts.thres)
 
     # Construct Graph
-    graph = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile)
+    graph = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels)
 
     # Post to GraphSpace
     client = GraphSpace(user = USERNAME, password = PASSWORD,url = GRAPHSERVER)

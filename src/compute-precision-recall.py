@@ -283,7 +283,7 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
     
     outfile = '%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.outprefix,opts.negtype,opts.neg_factor)
     out = open(outfile,'w')
-    out.write('#node1_unsorted\tnode2_unsorted\tvalue\tpos/neg/ignore\tprecision\trecall\n')
+    out.write('#node1_sorted\tnode2_sorted\tvalue\tpos/neg/ignore\tprecision\trecall\n')
     # write ranked values
     for item,val,itemtype,prec,rec in PREdge:
         out.write('%s\t%s\t%0.5e\t%s\t%0.5e\t%0.5e\n' % (item[0],item[1],val,itemtype,prec,rec))
@@ -301,7 +301,7 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
 
     outfile = '%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.outprefix,opts.negtype,opts.neg_factor)
     out = open(outfile,'w')
-    out.write('#node1\tvalue\tpos/neg/ignore\tprecision\trecall\n')
+    out.write('#node\tvalue\tpos/neg/ignore\tprecision\trecall\n')
     # write ranked values
     for item,val,itemtype,prec,rec in PRNode:
         out.write('%s\t%0.5e\t%s\t%0.5e\t%0.5e\n' % (item,val,itemtype,prec,rec))
