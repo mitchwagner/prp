@@ -101,7 +101,6 @@ def readFiles(indir,param,negtype,subsample,pathways,descending,debug):
 
 ############################################################
 def main(args):
-    global VALID_METHODS
 
     usage = '''compute-aggregate-precision-recall.py [options]
 

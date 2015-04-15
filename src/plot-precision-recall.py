@@ -74,23 +74,25 @@ SHAPES = {
 }
 
 ##################################################################
-def plotPR(methodlist,precrecs,f,name,pdf):
+def plotPR(methodlist,precrecs,f,name,pdf,negtypes):
     fig = plt.figure(figsize=(12,12))
 
     subplot = 1
     titles = {
         'node': {
             'none': '%s Pathway Nodes' % (name),
-            'adjacent':'%s Pathway Nodes,\nExclude Pathway-Adjacent Negatives' % (name)
+            'adjacent':'%s Pathway Nodes,\nExclude Pathway-Adjacent Negatives' % (name),
+            'file':'%s Pathway Nodes,\nExclude KEGG Positives' % (name)
         },
         'edge': {
             'none': '%s Pathway Edges' % (name),
-            'adjacent':'%s Pathway Edges,\nExclude Pathway-Adjacent Negatives' % (name)
+            'adjacent':'%s Pathway Edges,\nExclude Pathway-Adjacent Negatives' % (name),
+            'file':'%s Pathway Edges,\nExclude KEGG Positives' % (name)
         },
     }
 
     for display in ['node','edge']:
-        for negtype in ['none','adjacent']:
+        for negtype in negtypes:
             ax = fig.add_subplot(2,2,subplot)
             subplot+=1
             ax.set_xlabel('Recall', size=12)
@@ -156,7 +158,7 @@ def getstyle(alg,increments,nummethods):
 
 #######################################################################
 # to remove dupliates; use OrderedDict.fromkeys() function.
-def readFiles(varyparams,algs,indir,pathway):
+def readFiles(varyparams,algs,indir,pathway,negtypes):
     if varyparams:
         filepatterns = FILELOCATIONS['varyparams']
     else:
@@ -171,7 +173,7 @@ def readFiles(varyparams,algs,indir,pathway):
     nodeprecrec = {}
     edgeprecrec = {}
     methodlist = []
-    for negtype in ['none','adjacent']:
+    for negtype in negtypes:
         nodeprecrec[negtype] = {}
         edgeprecrec[negtype] = {}
         for alg in algs:
@@ -253,7 +255,7 @@ def readFiles(varyparams,algs,indir,pathway):
                          methodlist.append(alg)
 
     ## make all lists unique, but preserve order.
-    for negtype in ['none','adjacent']:
+    for negtype in negtypes:
         for key in nodeprecrec[negtype].keys():
             nodeprecrec[negtype][key] = list(OrderedDict.fromkeys(nodeprecrec[negtype][key]))
             edgeprecrec[negtype][key] = list(OrderedDict.fromkeys(edgeprecrec[negtype][key]))
@@ -296,6 +298,8 @@ def main(args):
                       help='Plot different parameters if specified.')
     parser.add_option('','--seed',type='int',default=123456,\
                       help='seed for selecting colors.  Default is 123456.')
+    parser.add_option('','--ignorefromfile',action='store_true',default=False,\
+                      help='Instead of plotting exclude-adjacent, plot exclude-file. Used when ignoring KEGG positives.')
 
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -312,13 +316,19 @@ def main(args):
     ## set seed
     random.seed(opts.seed)
 
+    ##
+    if opts.ignorefromfile:
+        negtypes = ['none','file']
+    else:
+        negtypes = ['none','adjacent']
+
     ## Read files for nodes and edges
     precrecs = {}
-    precrecs['node'],precrecs['edge'],methodlist = readFiles(opts.varyparams,opts.alg,opts.indir,opts.pathway)
+    precrecs['node'],precrecs['edge'],methodlist = readFiles(opts.varyparams,opts.alg,opts.indir,opts.pathway,negtypes)
 
     if not opts.varyparams:
         ## plot PR
-        plotPR(methodlist,precrecs,opts.outprefix,opts.pathway,opts.pdf)
+        plotPR(methodlist,precrecs,opts.outprefix,opts.pathway,opts.pdf,negtypes)
     else:
         ## plot PR for every algorithm specified.
         for alg in opts.alg:
@@ -326,11 +336,10 @@ def main(args):
             parammethods = [m for m in methodlist if alg in m]
             parammethods.reverse()
             pr = {'node':{},'edge':{}}
-            pr['node']['none'] = {key:precrecs['node']['none'][key] for key in parammethods}
-            pr['node']['adjacent'] = {key:precrecs['node']['adjacent'][key] for key in parammethods}
-            pr['edge']['none'] = {key:precrecs['edge']['none'][key] for key in parammethods}
-            pr['edge']['adjacent'] = {key:precrecs['edge']['adjacent'][key] for key in parammethods}
-            plotPR(parammethods,pr,outprefix,opts.pathway,opts.pdf)
+            for negtype in opts.negtypes:
+                pr['node'][negtype] = {key:precrecs['node'][negtype][key] for key in parammethods}
+                pr['edge'][negtype] = {key:precrecs['edge'][negtype][key] for key in parammethods}
+            plotPR(parammethods,pr,outprefix,opts.pathway,opts.pdf,negtypes)
 
 if __name__=='__main__':
     main(sys.argv)

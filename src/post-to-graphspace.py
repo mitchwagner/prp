@@ -85,8 +85,8 @@ COLORS = { 'inner':'gray',
            'red':'#FE2E2E', 
            'gray':'#C8C6C6',
            'pink':'#F5A9A9',
-           'kegg':'#A9D0F5', #'#5882FA',
-           'netpath':'#0174DF', #'#FAAC58',
+           'kegg':'#D358F7',
+           'netpath':'#01DF01',
            'both':'#CC2EFA',
            'neither':'#848484',
 }
@@ -193,12 +193,17 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             nodeshape = NODESHAPES['inner']
 
         # determine node color:
-        if n in netpathnodes:
-            htmlcolor = COLORS['netpath']
-        elif n in keggnodes:
-            htmlcolor = COLORS['kegg']
+        htmlcolor = COLORS['neither']
+        if nolabels:
+            if n in receptors and n in netpathnodes:
+                htmlcolor = COLORS['source']
+            elif n in tfs and n in netpathnodes:
+                htmlcolor = COLORS['target']
         else:
-            htmlcolor = COLORS['neither']
+            if n in netpathnodes:
+                htmlcolor = COLORS['netpath']
+            elif n in keggnodes:
+                htmlcolor = COLORS['kegg']
         
         edgeswithnode = set([(t,h) for t,h in prededges if t==n or h==n])
         pathswithnode = set([prededges[e] for e in edgeswithnode])
@@ -223,12 +228,14 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             edgedir = True
 
         # determine edge color:
+        edgewidth = 1
+        htmlcolor = COLORS['neither']            
         if tuple(sorted((tail,head))) in netpathedges:
             htmlcolor = COLORS['netpath']
+            edgewidth=2
         elif tuple(sorted((tail,head))) in keggedges:
             htmlcolor = COLORS['kegg']
-        else:
-            htmlcolor = COLORS['neither']
+            edgewidth=2
 
         name = '%s-%s' % (tail,head)
         annotation = getEdgeAnnotation(tail,head, prededges[(tail,head)],evidence,undirected)

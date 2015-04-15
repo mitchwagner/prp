@@ -111,6 +111,8 @@ def main(args):
             pathlinker[u] = int(ksp)
         if v in tfs and v not in pathlinker:
             pathlinker[v] = int(ksp)
+    ## reset tfs to be union of those found in pathlinker:
+    tfs = {u:tfs[u] for u in set(pathlinker.keys())}
     
     # read pagerank edges
     infile = '%s/pagerank/Wnt-q_0.50-node-pagerank.txt' % (opts.indir)
@@ -123,7 +125,7 @@ def main(args):
         i+=1
     
     # read IPA edges
-    infile = '%s/ipa/Wnt-nmax35.out' % (opts.indir)
+    infile = '%s/ipa/Wnt-nmax10.out' % (opts.indir)
     G = nx.Graph()
     G.add_edges_from(readColumns(infile,1,2))
     G.add_node('SOURCE')

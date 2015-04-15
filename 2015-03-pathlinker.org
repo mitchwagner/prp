@@ -346,7 +346,7 @@ These algorithms and values are listed in the VARYPARAMS global variable (dictio
 | ResponseNet | /gamma/ = [10,15,20,25,30]                          |
 | PCSF        | /omega/ = [0, 0.01, 0.1], /prize/ = [1, 3, 5, 7, 9] |
 | ANAT        | /alpha/ = [0, 0.1, 0.25, 0.4, 0.5]                  |
-| IPA         | /nmax/ = [15, 25, 35, 50, 75, 100, 200, 500]        |   
+| IPA         | /nmax/ = [5,10,15, 25, 35, 50, 75, 100, 200, 500]   |   
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg \
 --weightedppi --netpath --responsenet --pcsf --anat --ipa --pagerank\
@@ -374,8 +374,9 @@ Precision and Recall for different methods (considering edges here):
 #+BEGIN_SRC bash
 python src/report-precrec-for-wntexperiments.py
 #+END_SRC
+| ADDING FZD4/FZD6 TO RESULTS  |        |              |           |         |         |         |
 |                              |        |              |   Exclude | Exclude | Exclude | Exclude |
-| Method                       | Thres. |       #Edges | None Prec | NoneRec | AdjPrec |  AdjRec |
+| Method                       | #Edges |    Threshold | None Prec | NoneRec | AdjPrec |  AdjRec |
 |------------------------------+--------+--------------+-----------+---------+---------+---------|
 | *PathLinker (top 200 paths)* |    154 |          202 |     0.676 |   0.137 |   0.920 |   0.137 |
 | PathLinker (top 300 paths)   |    177 |          301 |     0.705 |   0.185 |   0.939 |   0.185 |
@@ -388,10 +389,32 @@ python src/report-precrec-for-wntexperiments.py
 | IPA (nmax=5)                 |     92 |          N/A |     0.652 |   0.089 |   0.882 |   0.089 |
 | *IPA (nmax=10)*              |    212 |          N/A |     0.642 |   0.202 |   0.919 |   0.202 |
 | IPA (nmax=15)                |    348 |          N/A |     0.603 |   0.226 |   0.776 |   0.226 |
-| *ShortestPaths*              |    209 |          N/A |     0.595 |   0.131 |   0.880 |   0.131 |
+| *ShortestPaths*              |    199 |          N/A |     0.618 |   0.125 |   0.840 |   0.125 |
 | *PCSF*                       |     25 |          N/A |     0.000 |   0.000 |   0.000 |   0.000 |
 | *ResponseNet*                |     50 |          N/A |     0.727 |   0.048 |   0.889 |   0.048 |
 | *ANAT*                       |    110 |          N/A |     0.615 |   0.095 |   1.000 |   0.095 |
+
+
+| SYSTEMATIC PRECREC (FROM PR CURVES) |        |              |           |         |         |         |
+|                                     |        |              |   Exclude | Exclude | Exclude | Exclude |
+| Method                              | #Edges |    Threshold | None Prec | NoneRec | AdjPrec |  AdjRec |
+|-------------------------------------+--------+--------------+-----------+---------+---------+---------|
+| PathLinker (top 200 paths)          |    153 |          203 |     0.525 |   0.122 |   0.913 |   0.122 |
+| PathLinker (top 300 paths)          |    201 |          301 |     0.629 |   0.227 |   0.951 |   0.227 |
+| PathLinker (top 800 paths)          |    331 |          801 |     0.659 |   0.326 |   0.949 |   0.326 |
+| PathLinker (top 1000 paths)         |    469 |         1023 |     0.615 |   0.372 |   0.901 |   0.372 |
+| PageRank                            |    153 | 1.335330e-03 |     0.667 |   0.140 |   1.000 |   0.140 |
+| PageRank                            |    201 | 5.359690e-04 |     0.674 |   0.180 |   0.969 |   0.180 |
+| PageRank                            |    331 | 2.441320e-04 |     0.671 |   0.285 |   0.790 |   0.285 |
+| PageRank                            |    469 | 6.202930e-05 |     0.705 |   0.430 |   0.796 |   0.430 |
+| IPA (nmax=5)                        |     93 |          N/A |     0.632 |   0.070 |   0.857 |   0.070 |
+| IPA (nmax=10)                       |    213 |          N/A |     0.708 |   0.198 |   0.944 |   0.198 |
+| IPA (nmax=15)                       |    340 |          N/A |     0.551 |   0.221 |   0.776 |   0.221 |
+| ShortestPaths                       |    175 |          N/A |     0.550 |   0.128 |   0.957 |   0.128 |
+| PCSF                                |     24 |          N/A |     0.000 |   0.000 |   0.000 |   0.000 |
+| ResponseNet                         |     35 |          N/A |     0.636 |   0.041 |   1.000 |   0.041 |
+| ANAT                                |     98 |          N/A |     0.625 |   0.087 |   1.000 |   0.087 |
+
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --graphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet

@@ -91,7 +91,7 @@ def getPredictions(edgefile,edgecol,nodefile,nodecol,descending):
     return epreds.items(),npreds.items()
 
 ############################################################
-def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force):
+def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignorednodefile,ignorededgefile):
 
     #print 'Reading positive node set from %s' % (nodefile)
     nodelines = readColumns(nodefile,1,2) # first column name, second column type
@@ -150,10 +150,17 @@ def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force):
             adjacentNodes.update(set([h for t,h in adjacentEdges]))
             allNegNodes.difference_update(adjacentNodes)
 
+        elif negtype == 'file': # read edges/nodes from ignored files and remove these.
+            #print '  removing negatives from ignored files'
+            ignoredEdges = readColumns(ignorededgefile,1,2)
+            allNegEdges.difference_update(ignoredEdges)
+
+            ignoredNodes = readItemSet(ignorednodefile,1)
+            allNegNodes.difference_update(ignoredNodes)
+
         ## Now, we can sort the edges.
-        #print '  sorting edges'
         ## ANNA CHANGE: in the old scripts, we subsampled with directed edges, then 
-        ## converted to undirected right before we set.
+        ## converted to undirected right before we set. Now we sort before subsampling.
         allNegEdges = set([tuple(sorted([t,h])) for t,h in allNegEdges])
 
         if len(posEdges)*negfactor > len(allNegEdges):
@@ -233,7 +240,11 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
     group.add_option('--ppi',type='string',metavar='STR',\
                      help='PPI to sample negatives from.  Predictions must be a subset of the edges/nodes from this PPI.  Required.')
     group.add_option('--negtype', type='string', metavar='STR',\
-                      help='Specifies which edges to exclude from the set of negatives: none, adjacent. Required.')
+                      help='Specifies which edges to exclude from the set of negatives: none, adjacent, file. Required.')
+    group.add_option('--ignorededgefile',type='string',metavar='STR',\
+                     help='File of edges to ignore. Directed edges are specified as (uv) in columns 1 and 2. Required if "--negtype file" is specified.')
+    group.add_option('--ignorednodefile',type='string',metavar='STR',\
+                     help='File of nodes to ignore in column 1. Required if "--negtype file" is specified.')
     group.add_option('--neg-factor', type='int', default='10', metavar='INT',\
                      help='Select f*|Positives| pairs randomly as negatives, where f is the positive integer value provided with this option.  Default is 10.')
     parser.add_option('','--randseed',type='int',metavar='INT',default=1234567,\
@@ -255,8 +266,10 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
         sys.exit('\nERROR: PPI must be specified.')
     if opts.outprefix == None:
         sys.exit('\nERROR: output file prefix is required.')
-    if opts.negtype not in ['none', 'adjacent']:
-        sys.exit('\nERROR: --negtype must be one of "none", "adjacent"')
+    if opts.negtype not in ['none', 'adjacent','file']:
+        sys.exit('\nERROR: --negtype must be one of "none", "adjacent", or "file"')
+    if opts.negtype == 'file' and (opts.ignorednodefile==None or opts.ignorededgefile==None):
+        sys.exit('\nERROR: if --negtype is "file", then --ignorednodefile and --ignorededgefile must be specified.')
 
     # seed the random number generator
     random.seed(opts.randseed)
@@ -269,7 +282,7 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
     print '%d predicted edges and %d predicted nodes' % (len(predEdges),len(predNodes))
 
     # Get the set of positives and negatives.
-    posEdges,negEdges,posNodes,negNodes = getPosNeg(opts.ppi,opts.trueedgefile,opts.truenodefile,opts.sampledoutprefix,opts.negtype,opts.neg_factor,opts.force)
+    posEdges,negEdges,posNodes,negNodes = getPosNeg(opts.ppi,opts.trueedgefile,opts.truenodefile,opts.sampledoutprefix,opts.negtype,opts.neg_factor,opts.force,opts.ignorednodefile,opts.ignorededgefile)
     print '%d positive edges and %d positive nodes' % (len(posEdges),len(posNodes))
     print '%d negative edges (%.2fX positives) and %d negative nodes (%.2fX positives)'% (len(negEdges),len(negEdges)/float(len(posEdges)),len(negNodes),len(negNodes)/float(len(posNodes)))
     if len(negEdges)/float(len(posEdges)) > opts.neg_factor:
