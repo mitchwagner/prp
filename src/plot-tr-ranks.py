@@ -72,6 +72,30 @@ def plotRanks(tfs,pathlinker,pagerank,ipa,outprefix):
     return
 
 #######################################################################
+def plotDistribution(tfs,receptor,pltfs,plreceptors,prtfs,prreceptors,outprefix):
+    
+    fig = plt.figure(figsize=(4,4))
+    ax = plt.subplot(1,1,1)
+
+    ax.plot(sorted(prreceptors.values()),range(len(prreceptors)),'--rd',label='PageRank Receptors')
+    ax.plot(sorted(plreceptors.values()),range(len(plreceptors)),'--bd',label='PathLinker Receptors')
+
+    ax.plot(sorted(prtfs.values()),range(len(prtfs)),'--rs',label='PageRank TRs')
+    ax.plot(sorted(pltfs.values()),range(len(pltfs)),'--bs',label='PathLinker TRs')
+    
+
+    ax.legend(loc='lower right', prop={'size':8}, numpoints=1)
+    ax.set_xlabel('Ranked Edge')
+    ax.set_ylabel('# Receptors/TRs Found')
+    ax.set_xlim([-100,6000])
+    ax.set_ylim([-.5,15])
+    ax.set_title('Ranked Receptors/TRs')
+    plt.tight_layout()
+    plt.savefig(outprefix+'-distribution.png')
+    print 'Wrote to '+outprefix+'-distribution.png'
+    return
+
+#######################################################################
 def main(args):
     usage = '''plot-tr-ranks.py [options]
 '''
@@ -105,23 +129,32 @@ def main(args):
     # read pathlinker edges
     infile = '%s/pathlinker/Wnt-k_20000-ranked-edges.txt' % (opts.indir)
     lines = readColumns(infile,1,2,3)
-    pathlinker = {}
+    pathlinkertfs = {}
+    pathlinkerreceptors = {}
     for u,v,ksp in lines:
-        if u in tfs and u not in pathlinker:
-            pathlinker[u] = int(ksp)
-        if v in tfs and v not in pathlinker:
-            pathlinker[v] = int(ksp)
+        if u in tfs and u not in pathlinkertfs:
+            pathlinkertfs[u] = int(ksp)
+        if v in tfs and v not in pathlinkertfs:
+            pathlinkertfs[v] = int(ksp)
+
+        if u in receptors and u not in pathlinkerreceptors:
+            pathlinkerreceptors[u] = int(ksp)
+        if v in receptors and v not in pathlinkerreceptors:
+            pathlinkerreceptors[v] = int(ksp)
     ## reset tfs to be union of those found in pathlinker:
-    tfs = {u:tfs[u] for u in set(pathlinker.keys())}
+    tfs = {u:tfs[u] for u in set(pathlinkertfs.keys())}
     
     # read pagerank edges
     infile = '%s/pagerank/Wnt-q_0.50-node-pagerank.txt' % (opts.indir)
     lines = readColumns(infile,1,2)
     i=1
-    pagerank = {}
+    pageranktfs = {}
+    pagerankreceptors = {}
     for n,p in sorted(lines,key=lambda x:float(x[1]),reverse=True):
-        if n in tfs:
-            pagerank[n] = i
+        if n in tfs and n not in pageranktfs:
+            pageranktfs[n] = i
+        if n in receptors and n not in pagerankreceptors:
+            pagerankreceptors[n] = i
         i+=1
     
     # read IPA edges
@@ -133,10 +166,12 @@ def main(args):
         G.add_edge('SOURCE',r)
     ipa = set([tf for tf in tfs if nx.has_path(G,'SOURCE',tf)])
 
-    for tf,val in sorted(pagerank.items(), key=lambda x:x[1]):
-        print tf,tfs[tf],val,pathlinker.get(tf,'NA'),tf in ipa
+    for tf,val in sorted(pageranktfs.items(), key=lambda x:x[1]):
+        print tf,tfs[tf],val,pathlinkertfs.get(tf,'NA'),tf in ipa
 
-    plotRanks(tfs,pathlinker,pagerank,ipa,opts.outprefix)
+    plotRanks(tfs,pathlinkertfs,pageranktfs,ipa,opts.outprefix)
+
+    plotDistribution(tfs,receptors,pathlinkertfs,pathlinkerreceptors,pageranktfs,pagerankreceptors,opts.outprefix)
     
 
     

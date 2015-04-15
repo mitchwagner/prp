@@ -332,6 +332,7 @@ Note that these may be run on different machines: ~--weightedppi --onlynetpathwn
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --ranktfs
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/misc/tr-ranks.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/misc/tr-ranks-distribution.png]]
 ** Run All Algorithms on All NetPath Pathways using Weighted PPI
 #+BEGIN_SRC bash 
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath \
@@ -421,8 +422,18 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 #+END_SRC
 Posts the runs in bold to GraphSpace.  Parameters are included in the naming conventions.  These are hard-coded except for pathlinker, which is determined by the ~--topk~ variable. To run the top 800 paths:
 #+BEGIN_SRC bash
-python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg --graphspace --pathlinker --topk 800
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--graphspace --pathlinker --topk 800
 #+END_SRC
+** Evaluate NetPath Inputs on KEGG
+*Ignore KEGG Positives:*
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-ignorekeggpositives.png]]
+
+*Take KEGG/NEtPath Union As POsitives:*
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-netpathkeggunion.png]]
+
+*Above Plots in a single figure:*
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-keggevaluations-singleplot.png]]
 ** Run PathLinker on KEGG pathways
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \

@@ -580,13 +580,9 @@ def main(args):
                 subprocess.check_call(cmd.split())
 
     ## Post Wnt Pathways to Graphspace
-    ## Post two different visualizations of networks for two different Wnt pathway runs.
-    ## Pathway Runs:
+    ## Post two different Wnt pathway runs.
     ## - Post NetPath Wnt pathways, used to compute precision and recall.  These are prepended with "pr"
     ## - Post wnt-all-receptors pathways, used to explore false positives for experimental followup
-    ## Visualizations:
-    ## - Post annotated networks with gene names and ranked value, if predictions are ranked.
-    ## - Post un-annotated networks with labels removed.
     if opts.graphspace:
         print 'Posting to GraphSpace...'
         
@@ -756,7 +752,7 @@ def main(args):
 
 ############################################################
 ## Parses (lots and lots) of options.  
-def parseOptions():
+def parseArguments(args):
     usage = 'master-script.py [options]\n'
     parser = OptionParser(usage=usage)
 
@@ -1122,6 +1118,14 @@ def rerankPathLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     return
 
 ############################################################
+## Run PageRank
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## q: teleportation probability
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
 def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
@@ -1151,6 +1155,14 @@ def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     return
 
 ############################################################
+## Runs EQED
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## inputcurrent: amount of current to "inject" into receptors
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
 def runEQED(pathway,resultdir,datadir,ppidir,inputcurrent,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
 
@@ -1178,6 +1190,14 @@ def runEQED(pathway,resultdir,datadir,ppidir,inputcurrent,forcealg,printonly):
 
 
 ############################################################
+## Run ResponseNet
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## gamma: parameter that varies the penalty for additional edges with flow
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
 def runResponseNet(pathway,resultdir,datadir,ppidir,gamma,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
@@ -1207,6 +1227,15 @@ def runResponseNet(pathway,resultdir,datadir,ppidir,gamma,forcealg,printonly):
     return
 
 ############################################################
+## Run PCSF
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## prize: prize to place on TFs (terminal nodes)
+## omega: penalty for adding aditional trees to the forest
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
 def runPCSF(pathway,resultdir,datadir,ppidir,prize,omega,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
@@ -1234,6 +1263,14 @@ def runPCSF(pathway,resultdir,datadir,ppidir,prize,omega,forcealg,printonly):
     return
 
 ############################################################
+## Run ANAT
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## alpha: parameter for the tradeoff between shortest-paths and steiner trees.
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
 def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
@@ -1262,7 +1299,14 @@ def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
     return
 
 ############################################################
-## TODO make sure ipa works on an undirected graph.
+## Run IPA
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## nmax: maximum sub-network size
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
 def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
                    
@@ -1290,6 +1334,9 @@ def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
     return
 
 ############################################################
+## Auxiliary function to get the Precision/Recall output 
+## directory, depending on whether --netpathkeggunion is
+## specified.
 def getPRoutdir(alg,resultdir,netpathkeggunion):
     if netpathkeggunion:
         return '%s/precision-recall/netpathkeggunion/%s/' % (resultdir,alg)
@@ -1297,6 +1344,9 @@ def getPRoutdir(alg,resultdir,netpathkeggunion):
         return '%s/precision-recall/%s/' % (resultdir,alg)
 
 ############################################################
+## Auxiliary function to get the PRecision/Recall subsample
+## file prefix, depending on whether this result directory
+## is for --wntforexperiments (contains "wnt-all-receptors")
 def getPRsubsampleprefix(wntsampledir,sampledir,pathway):
     if 'wnt-all-receptors' in resultdir:
         return '%s/%s' % (wntsampledir,pathway)
@@ -1304,21 +1354,38 @@ def getPRsubsampleprefix(wntsampledir,sampledir,pathway):
         return '%s/%s' % (sampledir,pathway)
 
 ############################################################
-def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=False,decrease=False,undirected=False,allreceptors=True):
+## Posts Wnt Reconstructions to GraphSpace
+## Posts two different visualizations:
+## - Post annotated networks with gene names and ranked value, if predictions are ranked.
+## - Post un-annotated networks with labels removed.
+##
+## infile: file of edges, which may be ranked by a 3rd column
+## thres: if increase==True or decrease==True, use this threshold
+## gsid: GraphSpace ID
+## printonly: if True, will never execute command.
+## increase: if True, rank edges in inceasing order
+## decrease: if True, rank edges in decreasing order
+## (note: if increase==False and decrease==False, then the edges
+## are considered an entire set and not ranked by thres)
+## undirected: if True, checks both (u,v) and (v,u) for evidence sources
+## allreceptors: if True, takes Wnt interactome from wnt-all-receptors/ instead of netpath/
+def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=False,\
+            decrease=False,undirected=False,allreceptors=True):
     if allreceptors:
         ppifile = 'data/pathway-specific-interactomes/pathlinker-signaling-children-reg/weighted/wnt-all-receptors/Wnt-interactome.txt'
     else:
         ppifile = 'data/pathway-specific-interactomes/pathlinker-signaling-children-reg/weighted/netpath/Wnt-interactome.txt'
 
+    ## print annotated
     cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath Wnt --kegg Wnt ' % \
           (infile,ppifile,PPIVERSION,DATADIR,gsid)
-    if allreceptors:
+    if allreceptors: ## add FZD4/FZD6 as receptors
         cmd += ' --addfzd'
     if increase: # ranked list - pass the threshold
         cmd += ' --increase --thres %f' % (thres)
-    if decrease:
+    if decrease: # ranked list - pass the threshold
         cmd += ' --decrease --thres %f' % (thres)
-    if undirected:
+    if undirected: 
         cmd += ' --undirected'
     print cmd
     if not printonly:
@@ -1342,6 +1409,23 @@ def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=Fals
     return
 
 ############################################################
+## Computes precision and recall and writes values to file.
+## pathway: pathway to compute precision and recall for (e.g., Wnt).
+## datadir: directory for true edge file and true node file for pathway
+## ppidir: directory for pathway-specific interactomes
+## edgefile: predicted edges
+## outdir: output directory
+## edgesortcol: sort column for edges. If None, then take edges as a set.
+## negtype: one of 'none','adjacent', or 'file'.
+## sampleoutprefix: prefix of subsampled negatives and positives for the pathway
+## subsamplefps: Number of negatives to sample (a factor of the size of the positives)
+## forceprecrec: Continue even if files have been written
+## printonly: if True, never execute commands
+## nodefile: predicted nodes (if different from edgefile)
+## nodesortcol: sort column for nodes
+## descending: if True, rank in descending order
+## param: additional string to append to outfile
+## union: if True, use union of NetPath & KEGG as positives.
 def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,sampleoutprefix,\
                            subsamplefps,forceprecrec,printonly,nodefile=None,nodesortcol=None,\
                            descending=False,param=None,union=False):
@@ -1407,6 +1491,14 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
     return
 
 ############################################################
+## Computes aggregate precision and recall
+## inputdir: directory of precision-recall files for individual pathways
+## negtype: one of 'none' or 'adjacent'
+## subsamplefps: Number of negatives to sample (a factor of the size of the positives)
+## forceprecrec: Continue even if files have been written
+## printonly: if True, never execute commands
+## descending: if True, rank in descending order
+## param: additional string to append to outfile
 def computeAggregatePrecisionRecall(inputdir,negtype,subsamplefps,forceprecrec,printonly,descending=True,param=None):
 
     ## check to see if the file exists:
@@ -1427,5 +1519,7 @@ def computeAggregatePrecisionRecall(inputdir,negtype,subsamplefps,forceprecrec,p
         subprocess.check_call(cmd.split())
     return
 
+
+############################################################
 if __name__=='__main__':
     main(sys.argv)
