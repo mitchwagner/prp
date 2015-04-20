@@ -324,6 +324,23 @@ We can compare PathLinker to
 - KSP on a weighted network re-weighted by PageRank
 ** Degree, InducedSubgraph, and EQED
 We have run all these methods at some point.  We no longer put them in the paper.  InducedSubgraph (as well as rerank) are implemented. EQED is also implemente,d but ofter returns a trivial result.  Finally, DEG has been commented out completely.
+** Run PathLinker on KEGG pathways
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--kegg --pathlinker --computeprecrec --precrecviz
+#+END_SRC
+** Evaluate NetPath Inputs on NetPAth/KEGG Union
+*Take KEGG/NetPath Union As POsitives:*
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
+--onlynetpathwnt --netpathkeggunion --pathlinker --pagerank --shortestpaths \
+--responsenet --pcsf --anat --ipa --computeprecrec --precrecviz
+#+END_SRC
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-netpathkeggunion.png]]
+
+*Above Plots in a single figure:*
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-keggevaluations-singleplot.png]]
+
 * Results
 If the files exist in the directories, they will not be overwritten.  To execute all algorithms and overwrite files, use the ~--forcealg~ and ~--forceprecrec~ options.  To only print what /would/ be executed, use the ~--printonly~ option.  Both of these have become *extremely useful* for a project such as this.
 ** Run All Algorithms on NetPath Wnt Pathway using Weighted PPI
@@ -335,7 +352,7 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 #+END_SRC
 Note that these may be run on different machines: ~--weightedppi --onlynetpathwnt~ arguments must always be specified.
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt.png]]
-** Rank TFs/Receptors in PathLinker, IPA, and PageRank
+*** Rank TFs/Receptors in PathLinker, IPA, and PageRank
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --ranktfs
 #+END_SRC
@@ -370,7 +387,22 @@ Aggregate Varying Parameters (IPA is shown in main figures):
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-anat.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-pagerank.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-pcsf.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-responsenet.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-responsenet.png]
+*** Visualize False Positives
+#+BEGIN_SRC bash
+python master-script.py --netpath --ppiversion pathlinker-signaling-children-reg \
+--weightedppi --falsepos
+#+END_SRC
+*Undirected:*
+
+[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges-cost-distributions.png]]
+
+*Directed:*
+
+[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges-cost-distributions.png]]
+
 ** Visualize Wnt Networks
 This takes a special Wnt nodes file that includes FZD4 and FZD6.
 #+BEGIN_SRC bash
@@ -453,29 +485,15 @@ Posts the runs in bold to GraphSpace.  Parameters are included in the naming con
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --graphspace --pathlinker --topk 800
 #+END_SRC
-** Evaluate NetPath Inputs on KEGG
-*Ignore KEGG Positives:*
+** Evaluate NetPath Inputs, ignoring KEGG positives
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
---onlynetpathwnt --ignorekeggpositives --pathlinker --pagerank --shortestpaths \
+--netpath --ignorekeggpositives --pathlinker --pagerank --shortestpaths \
 --responsenet --pcsf --anat --ipa --computeprecrec --precrecviz
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-ignorekeggpositives.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-ignorekeggpositives.png]]
 
-*Take KEGG/NEtPath Union As POsitives:*
-#+BEGIN_SRC bash
-python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
---onlynetpathwnt --netpathkeggunion --pathlinker --pagerank --shortestpaths \
---responsenet --pcsf --anat --ipa --computeprecrec --precrecviz
-#+END_SRC
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-netpathkeggunion.png]]
-
-*Above Plots in a single figure:*
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-keggevaluations-singleplot.png]]
-** Run PathLinker on KEGG pathways
-#+BEGIN_SRC bash
-python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
---kegg --pathlinker --computeprecrec --precrecviz
 #+END_SRC
 ** Sample TFs/receptors (Nick)
 Here, we under- and over-sample TRs and Receptors and evaluate how robust PathLinker is to these missing/extra inputs across all pathways.
@@ -494,17 +512,3 @@ python /home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py \
 /data/annaritz/datasets/svn-data//interactions/netpath/pathways//Wnt-nodes.txt
 #+END_SRC
 Add your commands here.
-** Visualize False Positives
-#+BEGIN_SRC bash
-python master-script.py --netpath --ppiversion pathlinker-signaling-children-reg \
---weightedppi --falsepos
-#+END_SRC
-*Undirected:*
-
-[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges-cost-distributions.png]]
-
-*Directed:*
-
-[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/false-positives/undirected-aggregate-edges-cost-distributions.png]]
