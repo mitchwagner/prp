@@ -77,22 +77,44 @@ def plotDistribution(tfs,receptor,pltfs,plreceptors,prtfs,prreceptors,outprefix)
     fig = plt.figure(figsize=(4,4))
     ax = plt.subplot(1,1,1)
 
-    ax.plot(sorted(prreceptors.values()),range(len(prreceptors)),'--rd',label='PageRank Receptors')
-    ax.plot(sorted(plreceptors.values()),range(len(plreceptors)),'--bd',label='PathLinker Receptors')
+    ## from plot-precision-recall.py
+    plcolor = '#009933'  # medium green
+    prcolor = '#99CCFF'  # light blue
+    receptorcolor = '#8CE1DC' #blue
+    tfcolor = '#FFFF60' #yellow
+    ax.plot([-100,6050],[len(prreceptors)-1,len(prreceptors)-1],'-',color=receptorcolor,
+            linewidth=2,label='Max Receptors')
+    ax.plot([-100,6050],[len(prtfs)-1,len(prtfs)-1],'-',color=tfcolor,linewidth=2,label='Max TRs')
 
-    ax.plot(sorted(prtfs.values()),range(len(prtfs)),'--rs',label='PageRank TRs')
-    ax.plot(sorted(pltfs.values()),range(len(pltfs)),'--bs',label='PathLinker TRs')
+    ax.plot(sorted(prreceptors.values()),range(len(prreceptors)),'-d',color=prcolor,
+            label='PageRank Receptors',lw=2)
+    ax.plot(sorted(plreceptors.values()),range(len(plreceptors)),'-d',color=plcolor,
+            label='PathLinker Receptors',lw=2)
+
+    ax.plot(sorted(prtfs.values()),range(len(prtfs)),'-s',color=prcolor,label='PageRank TRs',lw=2)
+    ax.plot(sorted(pltfs.values()),range(len(pltfs)),'-s',color=plcolor,label='PathLinker TRs',lw=2)
     
-
     ax.legend(loc='lower right', prop={'size':8}, numpoints=1)
-    ax.set_xlabel('Ranked Edge')
-    ax.set_ylabel('# Receptors/TRs Found')
-    ax.set_xlim([-100,6000])
-    ax.set_ylim([-.5,15])
-    ax.set_title('Ranked Receptors/TRs')
+    ax.set_xlabel('Ranked Interaction',size=10)
+    ax.set_ylabel('#',size=10)
+    #ax.set_xlim([-100,6000]) # to view entire range
+    ax.set_xlim([-50,1050])
+    ax.set_ylim([-.5,14])
+    ax.set_yticks(range(14))
+    ax.set_yticklabels(range(1,15))
+
+    ax.set_title('Receptors/TRs in the Wnt Reconstruction',size=12)
     plt.tight_layout()
     plt.savefig(outprefix+'-distribution.png')
     print 'Wrote to '+outprefix+'-distribution.png'
+    plt.savefig(outprefix+'-distribution.pdf')
+    print 'Wrote to '+outprefix+'-distribution.pdf'
+
+    ax.set_xlim([-100,6000]) # to view entire range
+    plt.savefig(outprefix+'-distribution-full.png')
+    print 'Wrote to '+outprefix+'-distribution-full.png'
+    plt.savefig(outprefix+'-distribution-full.pdf')
+    print 'Wrote to '+outprefix+'-distribution-full.pdf'
     return
 
 #######################################################################
@@ -108,8 +130,6 @@ def main(args):
         help='A string to prepend to all output files. Required.')
     parser.add_option('','--indir',type='string',metavar='STR',\
                       help='Input directory.')
-    parser.add_option('', '--pdf', action='store_true', default=False,\
-        help='Output images in PDF as well as PNG.')
 
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -166,6 +186,13 @@ def main(args):
         G.add_edge('SOURCE',r)
     ipa = set([tf for tf in tfs if nx.has_path(G,'SOURCE',tf)])
 
+    print '\nReceptors:'
+    print 'Rec Name PRval PLval'
+    for receptor,val in sorted(pagerankreceptors.items(), key=lambda x:x[1]):
+        print receptor,receptors[receptor],val,pathlinkerreceptors.get(receptor,'NA')
+
+    print '\nTRs:'
+    print 'TR Name PRval PLval IPAfromreceptor?'
     for tf,val in sorted(pageranktfs.items(), key=lambda x:x[1]):
         print tf,tfs[tf],val,pathlinkertfs.get(tf,'NA'),tf in ipa
 

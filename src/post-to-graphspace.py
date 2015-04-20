@@ -85,10 +85,10 @@ COLORS = { 'inner':'gray',
            'red':'#FE2E2E', 
            'gray':'#C8C6C6',
            'pink':'#F5A9A9',
-           'kegg':'#D358F7',
-           'netpath':'#01DF01',
+           'kegg':'#FAAC58',
+           'netpath':'#31B404',
            'both':'#CC2EFA',
-           'neither':'#848484',
+           'neither':'#D8D8D8',#'#848484',
 }
 NODESHAPES = { 'target':'Square',
                'source':'Diamond',
@@ -214,7 +214,6 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         graph.add_node(node) 
 
     # Add edges to graph
-    edgewidth = 1
     seen = set()
     for (tail,head) in prededges:       
         if (head,tail) in seen:
@@ -228,7 +227,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             edgedir = True
 
         # determine edge color:
-        edgewidth = 1
+        edgewidth = 2
         htmlcolor = COLORS['neither']            
         if tuple(sorted((tail,head))) in netpathedges:
             htmlcolor = COLORS['netpath']

@@ -292,6 +292,8 @@ def main(args):
             if opts.wntforexperiments:
                 wntsampledir = '%s/wntforexperiments-samples-exclude-%s' % (resultprefix,negtype)
                 checkDir(wntsampledir)
+            else:
+                wntsampledir = ''
             
             ## For every algorithm, do the following:
             ## (1) determine the columns to sort on
@@ -314,7 +316,7 @@ def main(args):
                 for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/pathlinker/%s-k_%s-ranked-edges.txt' % (resultdir,pathway,opts.k)
                     outdir = getPRoutdir('pathlinker',resultdir,opts.netpathkeggunion)
-                    sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
@@ -329,7 +331,7 @@ def main(args):
                 for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/shortestpaths/%s-shortest-paths.txt' % (resultdir,pathway)
                     outdir = getPRoutdir('shortestpaths',resultdir,opts.netpathkeggunion)
-                    sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
@@ -344,7 +346,7 @@ def main(args):
                 for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/inducedsubgraph/%s-induced-subgraph.txt' % (resultdir,pathway)
                     outdir = getPRoutdir('inducedsubgraph',resultdir,opts.netpathkeggunion)
-                    sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
@@ -367,7 +369,7 @@ def main(args):
                         edgefile = '%s/pagerank/%s-%s-edge-fluxes.txt' % (resultdir,pathway,param)
                         nodefile = '%s/pagerank/%s-%s-node-pagerank.txt' % (resultdir,pathway,param)
                         outdir = getPRoutdir('pagerank',resultdir,opts.netpathkeggunion)
-                        sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,\
@@ -389,7 +391,7 @@ def main(args):
                     edgefile = '%s/eqed/%s-eqed-edges.out' % (resultdir,pathway)
                     nodefile = '%s/eqed/%s-eqed-nodes.out' % (resultdir,pathway)
                     outdir = getPRoutdir('eqed',resultdir,opts.netpathkeggunion)
-                    sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                            opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,descending=True,\
@@ -412,7 +414,7 @@ def main(args):
                     for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/reponsenet/%s-%s_responsenet-edges.out' % (resultdir,pathway,param)
                         outdir = getPRoutdir('responsent',resultdir,opts.netpathkeggunion)
-                        sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param,\
@@ -437,7 +439,7 @@ def main(args):
                     for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/pcsf/%s-%s_PCSF-edges.out' % (resultdir,pathway,param)
                         outdir = getPRoutdir('pcsf',resultdir,opts.netpathkeggunion)
-                        sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param,\
@@ -459,7 +461,7 @@ def main(args):
                     for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/anat/%s-%s-edges.out' % (resultdir,pathway,param)
                         outdir = getPRoutdir('anat',resultdir,opts.netpathkeggunion)
-                        sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param,\
@@ -486,7 +488,7 @@ def main(args):
                     for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/ipa/%s-%s.out' % (resultdir,pathway,param)
                         outdir = getPRoutdir('ipa',resultdir,opts.netpathkeggunion)
-                        sampleoutprefix = getPRsubsampleprefix(wntsampledir,sampledir,pathway)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,descending=True,param=param,\
@@ -548,7 +550,7 @@ def main(args):
                 outprefix = 'viz/precision-recall/%s' % (pathway)
 
             ## Consruct the command.  
-            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s' % \
+            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s --pdf' % \
                   (indir,outprefix,pathway,algcmd)
             if opts.ignorekeggpositives:
                 cmd += ' --ignorefromfile'
@@ -571,7 +573,7 @@ def main(args):
         ## If --netpath is specified, plot the aggregate precision-recall plots.
         if opts.netpath: 
             outprefix = 'viz/precision-recall/aggregate'
-            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s' % \
+            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
                   (indir,outprefix,algcmd)
             if opts.varyparams:
                 cmd += '  --varyparams'
@@ -665,18 +667,38 @@ def main(args):
         if not opts.printonly:
             subprocess.check_call(cmd.split())
 
-    if opts.bullseye:
-        print 'Bullseye Plots'# at a recall of %.2f' % (opts.bullseyerecall)
+    if opts.falsepos:
+        print 'Plotting false positives'
         
-        ## Do this ONCE: python ../2014-06-linker/src/shortest-paths-for-bullseye.py
-        if not os.path.isfile('data/shortest-paths-for-false-positives/Wnt-dist.txt'):
-            cmd = 'python src/shortest-paths-for-false-positives.py'
+        ## compute distances
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            if opts.forceviz or not os.path.isfile('data/shortest-paths-for-false-positives/%s-edge-dists-undirected.txt' % (pathway)):
+                cmd = 'python src/shortest-paths-for-false-positives.py --datadir %s --ppidir %s --pathway %s' % \
+                      (datadir,ppidir,pathway)
+                print cmd
+                if not opts.printonly:
+                    subprocess.check_call(cmd.split())
+            else:
+                print 'Shortest Paths from nodes to pathways for %s are already computed.' % (pathway)
+
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            if pathway != 'Wnt':
+                print 'Warning: not plotting false positives for pathways other than Wnt.'
+                continue
+                
+            indir = '%s/precision-recall/' % (resultdir)
+            cmd = 'python src/plot-false-positive-distances.py --outprefix viz/false-positives/directed- --indir %s --pathway aggregate --pathway %s --pdf --edges -r 0.10 -r 0.20 -r 0.30 -r 0.40 -r 0.50 -r 0.60 -r 0.70  --alg pathlinker --alg pagerank' % (indir,pathway)
             print cmd
             if not opts.printonly:
                 subprocess.check_call(cmd.split())
-        else:
-            print 'Shortest Paths from nodes to pathways are already computed.'
 
+            cmd = 'python src/plot-false-positive-distances.py --outprefix viz/false-positives/undirected- --indir %s --pathway aggregate --pathway %s --pdf --edges -r 0.10 -r 0.20 -r 0.30 -r 0.40 -r 0.50 -r 0.60 -r 0.70  --alg pathlinker --alg pagerank --undirected' % (indir,pathway)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
+        sys.exit()
+        
         cmd = 'python ../2014-06-linker/src/bullseye-to-bar.py -o viz/bullseye-to-bar/aggregate- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway aggregate --pdf --edges --nodes -r 0.30 -r 0.60 --alg PRflux+KSP --alg PRflux --alg KSP --alg NG'
         print cmd
         if not opts.printonly:
@@ -761,6 +783,8 @@ def parseArguments(args):
                           help='Run algorithms even if they will overwrite existing files.  Default is that algorithms are not run if output files exist.')
     parser.add_option('','--forceprecrec',action='store_true',default=False,\
                       help='Run computations of precision and recall, even if they will overwrite existing files. Default is that precision and recall are not run if output files exist.')
+    parser.add_option('','--forceviz',action='store_true',default=False,\
+                      help='Run visualizations, even if they will overwrite existing files. Default is that some viz computations are not run if files exist..')
     parser.add_option('','--printonly',action='store_true',default=False,\
                           help='Print the commands to stdout, but do not execute.')
 
@@ -825,8 +849,8 @@ def parseArguments(args):
                      help='Compute & visualize precision/recall using both NetPath and KEGG as positives.')
     group.add_option('','--ranktfs',action='store_true',default=False,\
                      help='Plot TF ranks for PageRank, PathLinker, and IPA.')
-    group.add_option('','--bullseye',action='store_true',default=False,\
-                         help='Make bullseye plots.')
+    group.add_option('','--falsepos',action='store_true',default=False,\
+                         help='Visualize distances of false positives to true network.')
     group.add_option('','--falsenegs',action='store_true',default=False,\
                          help='Make false negative plots.')
     group.add_option('','--venn',action='store_true',default=False,\
@@ -1347,7 +1371,7 @@ def getPRoutdir(alg,resultdir,netpathkeggunion):
 ## Auxiliary function to get the PRecision/Recall subsample
 ## file prefix, depending on whether this result directory
 ## is for --wntforexperiments (contains "wnt-all-receptors")
-def getPRsubsampleprefix(wntsampledir,sampledir,pathway):
+def getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway):
     if 'wnt-all-receptors' in resultdir:
         return '%s/%s' % (wntsampledir,pathway)
     else:
