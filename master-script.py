@@ -769,6 +769,11 @@ def main(args):
         if not opts.printonly:
             subprocess.check_call(cmd.split())
 
+    ## perform the subsampling analysis
+    if opts.sample_sources_targets:
+        subSamplingDir = "/data/annaritz/subsampling/"
+        performSubsampling(pathways, opts.k, subSamplingDir, opts.forcealg, opts.printonly, opts.batch_run)
+
     print 'DONE'
     return
 
@@ -835,6 +840,16 @@ def parseArguments(args):
                          help='Compute degree of PPI')
     group.add_option('','--ipa',action='store_true',default=False,\
                          help='Compute IPA\'s Network Generation Algorithm on the undirected PPI.')
+    parser.add_option_group(group)
+
+    ## Subsampling
+    group = OptionGroup(parser,'Subsampling')
+    
+    group.add_option('','--sample-sources-targets',action='store_true',default=False,\
+                          help='Run a subsampling analysis')
+    group.add_option('','--batch-run',action='store_true',default=False,\
+                          help='Mark files so that many instances can be run in parallel. This means that force-killing the script can leave result files in a bad state.')
+    
     parser.add_option_group(group)
 
     ## Precision Recall and Other Visualizations
@@ -1542,6 +1557,148 @@ def computeAggregatePrecisionRecall(inputdir,negtype,subsamplefps,forceprecrec,p
     if not printonly:
         subprocess.check_call(cmd.split())
     return
+
+############################################################
+## Performs a subsampling analysis
+## stuff: docs
+def performSubsampling(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun):
+
+    print("TODO: Not yet fully implemented")
+
+    print("Subsampling over pathways " + str(pathways))
+
+    # Generate upsampled and downsampled node sets
+    sampleNodeSets(pathways, subsamplingDir, forceRecalc, printonly)
+
+    # Run PathLinker on every sampled nodesets
+    runPathLinkerSampledSets(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun)
+
+############################################################
+## Create sampled TR/Rec node sets for each pathway.
+def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly):
+        
+        # Sample sizes/increments are hardcoded constants for now # FIXME in two places
+        sampleSizes = [50, 70, 90, 100, 110, 130, 150]
+        nSamples = 3 # FIXME
+    
+        ## Create the master list of all TFs and RECs in the network
+        # TODO This could cause problems if it is called with a smaller pathway set
+        print("\n === Creating master receptor and TF sets ===")
+        
+        pathwayPathsList = " ".join([path + name + "-nodes.txt" for (name,_,path,_) in pathways])
+        masterListsLoc = sampledSetDir + "master-"
+        
+        cmd = 'python src/create-master-TF-REC-lists.py -o %s %s'%(masterListsLoc, pathwayPathsList)
+        if(forceRecalc):
+            cmd += " --force-recalc"    
+
+        print(cmd)
+        if(not printonly):
+            subprocess.check_call(cmd.split())
+            
+        
+        ## Generate the sampled nodeset for each pathway
+        print("\n === Creating sampled nodesets ===")
+        masterTFLoc = masterListsLoc + "TFs.txt"
+        masterRECLoc = masterListsLoc + "RECs.txt"
+        
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+       
+            # Get the pathway specific interactome
+            ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+ 
+            # Ensure the output directory exists
+            pathwayDir = sampledSetDir + "/" + pathway
+            if not printonly:
+                checkDir(pathwayDir)
+
+            for sampSize in sampleSizes:
+
+                # Ensure the output directory exists
+                sampleSizeDir = pathwayDir + "/" + str(sampSize)
+                if not printonly:
+                    checkDir(sampleSizeDir)
+                sampleDir = sampleSizeDir + "/sampled-nodesets/"
+                if not printonly:
+                    checkDir(sampleDir)
+
+                # Perform the sampling
+                nodeFile = datadir + pathway + "-nodes.txt"
+                cmd = 'python src/create-sample-sets.py %s -o %s -n %s -p %s --ppi %s --all-TFs %s --all-Recs %s'%(nodeFile, sampleDir, nSamples, sampSize, ppifile, masterTFLoc, masterRECLoc)
+
+                if(forceRecalc):
+                    cmd += " --force-recalc"    
+
+                print("\n" + cmd)
+                if(not printonly):
+                    subprocess.check_call(cmd.split())
+                
+            
+        print 'Done creating sampled nodesets\n'
+
+############################################################
+## Create PathLinker on each of the sampled nodesets
+def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly, batchrun):
+        
+        # Sample sizes/increments are hardcoded constants for now
+        sampleSizes = [50, 70, 90, 100, 110, 130, 150]
+        nSamples = 3 # FIXME
+    
+        print("\n === Running PathLinker for all sampled sets ===")
+
+        # Run PathLinker for each pathway x percent x sample
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+       
+            # Get the pathway specific interactome
+            ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+            pathwayDir = sampledSetDir + "/" + pathway
+
+            for sampSize in sampleSizes:
+
+                sampleSizeDir = pathwayDir + "/" + str(sampSize)
+                sampleDir = sampleSizeDir + "/sampled-nodesets/"
+
+                outDir = sampleSizeDir + "/pathlinker-results/"
+                if not printonly:
+                    checkDir(outDir)
+
+                for iSamp in range(nSamples):
+
+                    sampledNodeFile = sampleDir + "sample_%s-%s-nodes.txt"%(sampSize, iSamp)
+                    outprefix = outDir + "sample-%s_%s-%s-"%(pathway, sampSize, iSamp)
+
+                    # pathlinker command
+                    testFile = '%sk_%d-paths.txt' % (outprefix,k)
+                    if forceRecalc or not os.path.isfile(testFile):
+
+                        # Mark the file, to stop another instance of this program from overwriting 
+                        # it when run simultaneously. (Note: this is not a good solution to this problem,
+                        # but it works well enough here)
+                        if batchrun and not printonly:
+                            testF = open(testFile, 'w')
+                            testF.write("Working...\n")
+                            testF.close()
+
+                        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
+                        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,sampledNodeFile) 
+                        print("\n" + cmd)
+                        if not printonly:
+                            subprocess.check_call(cmd.split())
+                    else:
+                        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ############################################################
