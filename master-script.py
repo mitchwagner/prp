@@ -9,6 +9,7 @@ import sys
 import os
 import os.path
 import subprocess
+import glob
 
 ##############################################################
 ## GLOBAL VARIABLES
@@ -33,6 +34,11 @@ ALLOWEDVERSIONS = [#'2013linker', # Chris's version w/ vinayagam, etc.\
 ## DATADIR is the path to the data/ directory checked into SVN.  
 ## The interactomes, KEGG, and NetPath edge files are all checked in.
 DATADIR = '/data/annaritz/datasets/svn-data/'
+
+## ORIGINALPPI is the name of the original interactome, before making the pathway
+## specific interactomes. THis is used when posting to GrpahSpace so the directionality
+## of the edges reflects the original interactome.  It is set in the main method.
+ORIGINALPPI = ''
 
 ## PPIDIR is the directory that contains the pathway-specific interactomes.
 ## For each NetPath pathway, we take the PPIVERSION network and remove incoming 
@@ -70,14 +76,12 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],  ## PageRank teleportation proba
 ##############################################################
 ## The main method parses all parameters and runs all experiments.
 def main(args):
-    global PPIVERSION, PPIDIR
+    global PPIVERSION, PPIDIR, ORIGINALPPI
 
     ## parse arguments
     opts = parseArguments(args)
 
     ## set the PPIVERSION. 
-    if opts.ppiversion not in ALLOWEDVERSIONS:
-        sys.exit('ERROR: --ppiversion must be one of %s. You have %s. Exiting.' % (','.join(ALLOWEDVERSIONS),opts.ppiversion))
     PPIVERSION = opts.ppiversion
 
     ## BACKGROUND INTERACTOME
@@ -95,6 +99,7 @@ def main(args):
         ppifile = '/data/annaritz/datasets/svn-data/interactomes/human/%s.txt' % (PPIVERSION)
         resultprefix = 'results/%s/unweighted/' % (PPIVERSION)
         PPIDIR = '%s/%s/unweighted/' % (PPIDIR,PPIVERSION)
+    ORIGINALPPI = ppifile
     ## Make sure the directories exist; if they don't, create them.
     checkDir(resultprefix)
     checkDir(PPIDIR)
@@ -106,8 +111,8 @@ def main(args):
     ## pathways is a set() of (pathwayname,resultdir,datadir,ppidir) tuples.
     pathways = set()
     kegg2netpath = {} # will be populated if kegg pathways are specified.
-    if opts.netpath or opts.onlynetpathwnt or opts.dbcompare:
-        pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.dbcompare)
+    if opts.netpath or opts.onlynetpathwnt:
+        pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.ignorekeggpositives or opts.netpathkeggunion)
         resultdir = '%s/netpath/' %(resultprefix)
         checkDir(resultdir) 
         datadir = NETPATHDIR
@@ -121,8 +126,8 @@ def main(args):
         ppidir = '%s/wnt-all-receptors/' % (PPIDIR)
         pathways.update([('Wnt',resultdir,datadir,ppidir)])
         print 'Running 1 wnt-all-receptors pathway'
-    if opts.kegg or opts.dbcompare:
-        pathwaynames,kegg2netpath = getKEGGPathways() 
+    if opts.kegg:
+        pathwaynames,kegg2netpath = getKEGGPathways(opts.ignorenetpathpositives or opts.netpathkeggunion) 
         resultdir = '%s/kegg/' % (resultprefix)
         checkDir(resultdir) 
         datadir = KEGGDIR
@@ -140,7 +145,7 @@ def main(args):
     ## and cal the run() method.
 
     ## PathLinker ##
-    if opts.pathlinker and not opts.missingnpkegg:
+    if opts.pathlinker:
         print 'Running PathLinker:'
         for (pathway,resultdir,datadir,ppidir) in pathways:
             runPathLinker(pathway,resultdir,datadir,ppidir,opts.k,opts.forcealg,opts.printonly)
@@ -177,7 +182,7 @@ def main(args):
             for varyq in VARYPARAMS['q']:
                 for (pathway,resultdir,datadir,ppidir) in pathways:
                     runPageRank(pathway,resultdir,datadir,ppidir,varyq,opts.forcealg,opts.printonly)
-        print 'Done runing PageRank.\n'
+        print 'Done running PageRank.\n'
 
     ## EQED ##
     if opts.eqed:
@@ -267,7 +272,7 @@ def main(args):
         ## edges as ignored files along with the 'exclude-file'
         ## parameter.  Add 'file' to the negtypes.
         negtypes = ['none','adjacent']
-        if opts.ignorekeggpositives:
+        if opts.ignorekeggpositives or opts.ignorenetpathpositives:
             negtypes.append('file')
 
         ## Compute precision and recall for each negtype described above.
@@ -318,12 +323,24 @@ def main(args):
                     outdir = getPRoutdir('pathlinker',resultdir,opts.netpathkeggunion)
                     sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
                     ## compute aggregate for NetPath
-                    inputdir = '%s/netpath/precision-recall/pathlinker/' % (resultprefix)
-                    computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,opts.forceprecrec,opts.printonly)
+                    inputdir = getPRoutdir('pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion)
+
+                if opts.kegg:
+                    ## compute aggregate for KEGG
+                    inputdir = getPRoutdir('pathlinker',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,netpath=False,\
+                                                    union=opts.netpathkeggunion)
                     
             ## Shortest Paths ##
             if opts.shortestpaths:
@@ -333,12 +350,23 @@ def main(args):
                     outdir = getPRoutdir('shortestpaths',resultdir,opts.netpathkeggunion)
                     sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
                     ## compute aggregate for NetPath
-                    inputdir = '%s/netpath/precision-recall/shortestpaths/' % (resultprefix)
-                    computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,opts.forceprecrec,opts.printonly)
+                    inputdir = getPRoutdir('shortestpaths',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion)
+                if opts.kegg:
+                    ## compute aggregate for NetPath
+                    inputdir = getPRoutdir('shortestpaths',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,netpath=False,\
+                                                    union=opts.netpathkeggunion)
             
             ## Induced Subgraph ##
             if opts.inducedsubgraph:
@@ -348,12 +376,23 @@ def main(args):
                     outdir = getPRoutdir('inducedsubgraph',resultdir,opts.netpathkeggunion)
                     sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
                     ## compute aggregate for NetPath
-                    inputdir = '%s/netpath/precision-recall/inducedsubgraph/' % (resultprefix)
-                    computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,opts.forceprecrec,opts.printonly)
+                    inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion)
+                if opts.kegg:
+                    ## compute aggregate for NetPath
+                    inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,netpath=False,\
+                                                    union=opts.netpathkeggunion)
 
             ## PageRank ##
             if opts.pagerank:
@@ -371,16 +410,28 @@ def main(args):
                         outdir = getPRoutdir('pagerank',resultdir,opts.netpathkeggunion)
                         sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,\
                                                descending=True,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
                         ## compute aggregate for NetPath
-                        inputdir = '%s/netpath/precision-recall/pagerank/' % (resultprefix)
-                        computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,\
+                        inputdir = getPRoutdir('pagerank',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,descending=True,
-                                                        param=param)
+                                                        param=param,\
+                                                    union=opts.netpathkeggunion)
+
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('pagerank',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,\
+                                                        opts.subsamplefps,opts.forceprecrec,opts.printonly,\
+                                                        descending=True,param=param,netpath=False,\
+                                                    union=opts.netpathkeggunion)
 
             ## eQED ##
             if opts.eqed:
@@ -393,13 +444,25 @@ def main(args):
                     outdir = getPRoutdir('eqed',resultdir,opts.netpathkeggunion)
                     sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                     computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                            opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,descending=True,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
                     ## compute aggregate for NetPath
-                    inputdir = '%s/netpath/precision-recall/eqed/' % (resultprefix)
-                    computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,opts.forceprecrec,opts.printonly,descending=True)
+                    inputdir = getPRoutdir('eqed',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,descending=True,\
+                                                    union=opts.netpathkeggunion)
+
+                if opts.kegg:
+                    ## compute aggregate for KEGG
+                    inputdir = getPRoutdir('eqed',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,descending=True,netpath=False,\
+                                                    union=opts.netpathkeggunion)
 
             ## ResponseNet ##
             if opts.responsenet:
@@ -413,18 +476,30 @@ def main(args):
                 for param in params:
                     for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/reponsenet/%s-%s_responsenet-edges.out' % (resultdir,pathway,param)
-                        outdir = getPRoutdir('responsent',resultdir,opts.netpathkeggunion)
+                        outdir = getPRoutdir('responsenet',resultdir,opts.netpathkeggunion)
                         sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
                         ## compute aggregate for NetPath
-                        inputdir = '%s/netpath/precision-recall/responsenet/' % (resultprefix)
-                        computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,\
+                        inputdir = getPRoutdir('responsenet',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
-                                                        param=param)
+                                                        param=param,\
+                                                    union=opts.netpathkeggunion)
+
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('responsenet',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,netpath=False,\
+                                                    union=opts.netpathkeggunion)
             ## PCSF ##
             if opts.pcsf:
                 sortcol = None # no sorting; entire file is shortest paths subgraph.
@@ -441,15 +516,27 @@ def main(args):
                         outdir = getPRoutdir('pcsf',resultdir,opts.netpathkeggunion)
                         sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
                         ## compute aggregate for NetPath
-                        inputdir = '%s/netpath/precision-recall/pcsf/' % (resultprefix)
-                        computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,\
+                        inputdir = getPRoutdir('pcsf',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
-                                                        param=param)
+                                                        param=param,\
+                                                    union=opts.netpathkeggunion)
+
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('pcsf',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,netpath=False,\
+                                                    union=opts.netpathkeggunion)
             ## ANAT ##
             if opts.anat:
                 sortcol = None # no sorting; entire file is shortest paths subgraph.
@@ -463,15 +550,26 @@ def main(args):
                         outdir = getPRoutdir('anat',resultdir,opts.netpathkeggunion)
                         sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
                         ## compute aggregate for NetPath
-                        inputdir = '%s/netpath/precision-recall/anat/' % (resultprefix)
-                        computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,\
+                        inputdir = getPRoutdir('anat',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
-                                                        param=param)
+                                                        param=param,\
+                                                    union=opts.netpathkeggunion)
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('anat',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,netpath=False,\
+                                                    union=opts.netpathkeggunion)
             ## DEGREE ##
             if opts.degree:
                 sys.exit('ERROR: DEGREE is not implemented in this version. Exiting.')
@@ -490,15 +588,27 @@ def main(args):
                         outdir = getPRoutdir('ipa',resultdir,opts.netpathkeggunion)
                         sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
                         computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
                                                sampleoutprefix,opts.subsamplefps,opts.forceprecrec,\
                                                opts.printonly,descending=True,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
                         ## compute aggregate for NetPath
-                        inputdir = '%s/netpath/precision-recall/ipa/' % (resultprefix)
-                        computeAggregatePrecisionRecall(inputdir,negtype,opts.subsamplefps,\
+                        inputdir = getPRoutdir('ipa',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
-                                                        descending=True,param=param)
+                                                        descending=True,param=param,\
+                                                    union=opts.netpathkeggunion)
+
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('ipa',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        descending=True,param=param,netpath=False,\
+                                                    union=opts.netpathkeggunion)
 
     ## Plot precision and recall, once the values have been computed.
     if opts.precrecviz:
@@ -528,10 +638,13 @@ def main(args):
         ## Speficy the input directory to read the precision-recall values from.
         ## if --netpathkeggunion is specified, add the netpathkeggunion directory
         ## so we look in the correct place.
-        if opts.netpathkeggunion:
-            indir = '%s/netpath/precision-recall/netpathkeggunion/' % (resultprefix)
-        else:
-            indir = '%s/netpath/precision-recall/' % (resultprefix)
+        if opts.netpath or opts.onlynetpathwnt:
+            if opts.netpathkeggunion:
+                indir = '%s/netpath/precision-recall/netpathkeggunion/' % (resultprefix)
+            else:
+                indir = '%s/netpath/precision-recall/' % (resultprefix)
+        elif opts.kegg:
+            indir = '%s/kegg/precision-recall/' % (resultprefix)
 
         ## For each pathway, determine the output prefix, construct the call to 
         ## plot-precision-recall.py, and execute it.
@@ -540,46 +653,83 @@ def main(args):
             ## to label. If --ignorekeggpositives is specified, add "ignorekeggpositives"
             ## to label.  if --netpathkeggunion is specified, add "netpathkeggunion" to label.
             ## Otherwise, label is simply the pathway name.
-            if opts.wntforexperiments and 'wnt-all-receptors' in resultdir:
-                outprefix = 'viz/precision-recall/%s-all-receptors' % (pathway)
-            elif opts.ignorekeggpositives:
-                outprefix = 'viz/precision-recall/%s-ignorekeggpositives' % (pathway)
-            elif opts.netpathkeggunion:
-                outprefix = 'viz/precision-recall/%s-netpathkeggunion' % (pathway)
+            if 'netpath' in datadir:
+                outprefix = 'viz/precision-recall/netpath/%s' % (pathway)
             else:
-                outprefix = 'viz/precision-recall/%s' % (pathway)
+                outprefix = 'viz/precision-recall/kegg/%s' % (pathway)
+            if opts.wntforexperiments and 'wnt-all-receptors' in resultdir:
+                outprefix += '-all-receptors'
+            elif opts.ignorekeggpositives:
+                outprefix += '-ignorekeggpositives' 
+            elif opts.ignorenetpathpositives:
+                outprefix += '-ignorenetpathpositives' 
+            elif opts.netpathkeggunion:
+                outprefix += '-netpathkeggunion'
+            if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
+                ## Consruct the command.  
+                cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s --pdf' % \
+                      (indir,outprefix,pathway,algcmd)
+                if opts.ignorekeggpositives:
+                    cmd += ' --ignorekegg'
+                if opts.ignorenetpathpositives:
+                    cmd += ' --ignorenetpath'
 
-            ## Consruct the command.  
-            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s --pdf' % \
-                  (indir,outprefix,pathway,algcmd)
-            if opts.ignorekeggpositives:
-                cmd += ' --ignorefromfile'
-
-            ## Only plot the varying parameters for Wnt.  This reduces the amount of 
-            ## clutter in the viz/ directory.
-            if opts.varyparams:
-                if pathway != 'Wnt':
-                    print 'WARNING: not plotting non-Wnt pathway %s with varying parameters' % (pathway)
+                ## Only plot the varying parameters for Wnt.  This reduces the amount of 
+                ## clutter in the viz/ directory.
+                if opts.varyparams:
+                    if pathway != 'Wnt':
+                        print 'WARNING: not plotting non-Wnt pathway %s with varying parameters' % (pathway)
+                    else:
+                        cmd += '  --varyparams'
+                        print cmd
+                        if not opts.printonly:
+                            subprocess.check_call(cmd.split())
                 else:
-                    cmd += '  --varyparams'
                     print cmd
                     if not opts.printonly:
                         subprocess.check_call(cmd.split())
             else:
-                print cmd
-                if not opts.printonly:
-                    subprocess.check_call(cmd.split())
+                print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
                 
         ## If --netpath is specified, plot the aggregate precision-recall plots.
         if opts.netpath: 
-            outprefix = 'viz/precision-recall/aggregate'
-            cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
-                  (indir,outprefix,algcmd)
-            if opts.varyparams:
-                cmd += '  --varyparams'
-            print cmd
-            if not opts.printonly:
-                subprocess.check_call(cmd.split())
+            outprefix = 'viz/precision-recall/netpath/aggregate'
+            if opts.ignorekeggpositives:
+                outprefix += '-ignorekeggpositives' 
+            elif opts.netpathkeggunion:
+                outprefix += '-netpathkeggunion'                
+            if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
+                cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
+                      (indir,outprefix,algcmd)
+                if opts.varyparams:
+                    cmd += '  --varyparams'
+                if opts.ignorekeggpositives:
+                    cmd += ' --ignorekegg'
+                print cmd
+                if not opts.printonly:
+                    subprocess.check_call(cmd.split())
+            else:
+                print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
+
+        ## If --kegg is specified, plot the aggregate precision-recall plots.
+        if opts.kegg: 
+            outprefix = 'viz/precision-recall/kegg/aggregate'
+            if opts.ignorenetpathpositives:
+                outprefix += '-ignorenetpathpositives' 
+            elif opts.netpathkeggunion:
+                outprefix += '-netpathkeggunion'        
+            if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
+                cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
+                      (indir,outprefix,algcmd)
+                if opts.varyparams:
+                    cmd += '  --varyparams'
+                if opts.ignorenetpathpositives:
+                    cmd += ' --ignorenetpath'
+                print cmd
+                if not opts.printonly:
+                    subprocess.check_call(cmd.split())
+            else:
+                print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
 
     ## Post Wnt Pathways to Graphspace
     ## Post two different Wnt pathway runs.
@@ -591,11 +741,19 @@ def main(args):
         if opts.pathlinker:
             infile = '%s/wnt-all-receptors/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
             gsid = 'Wnt-pathlinker-top%dpaths' % (opts.topk)
-            postWntReconstructionsToGraphSpace(infile,opts.topk,gsid,opts.printonly,increase=True)
+            postReconstructionsToGraphSpace('Wnt',infile,opts.topk,gsid,opts.printonly,increase=True,postunlabeled=False)
 
             infile = '%s/netpath/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
             gsid = 'pr-Wnt-pathlinker-top%dpaths' % (opts.topk)
-            postWntReconstructionsToGraphSpace(infile,opts.topk,gsid,opts.printonly,increase=True,allreceptors=False)
+            postReconstructionsToGraphSpace('Wnt',infile,opts.topk,gsid,opts.printonly,\
+                                            increase=True,allreceptors=False,postannotated=False)
+
+            if opts.ignorekeggpositives: # post all overlapping
+                for (pathway,resultidir,datadir,ppifile) in pathways:
+                    infile = '%s/netpath/pathlinker/%s-k_%d-ranked-edges.txt' % (resultprefix,pathway,opts.k)
+                    gsid = 'pr-%s-pathlinker-top%dpaths' % (pathway,opts.topk)
+                    postReconstructionsToGraphSpace(pathway,infile,opts.topk,gsid,opts.printonly,\
+                                                    increase=True,allreceptors=False,postunlabeled=False)
 
         if opts.pagerank: # Manually-determined threshold
             ## threshold is set to 154, 270 edges (200,800 paths)
@@ -764,7 +922,7 @@ def main(args):
 
     ## make venn diagrams
     if opts.venn:
-        cmd = 'python ../2014-06-linker/src/make-venn.py'
+        cmd = 'python src/make-venn.py --datadir %s --inputdir %s' % (DATADIR,'%s/netpath/precision-recall/pathlinker/' % (resultprefix))
         print cmd
         if not opts.printonly:
             subprocess.check_call(cmd.split())
@@ -796,8 +954,7 @@ def parseArguments(args):
     ## Datasets.  
     group = OptionGroup(parser,'Datasets')
     group.add_option('','--ppiversion',type='string',default='pathlinker-signaling-children-reg',\
-                     help='Version of the PPI to run.  Options are %s. Default is "pathlinker-signaling-children-reg."' % \
-                     (', '.join(ALLOWEDVERSIONS)))
+                     help='Version of the PPI to run.  Options are %s. Default is "pathlinker-signaling-children-reg."' % (', '.join(ALLOWEDVERSIONS)))
     group.add_option('','--weightedppi',action='store_true',default=False,\
                          help='Run with weighted PPI.')
     group.add_option('','--onlynetpathwnt',action='store_true',default=False,\
@@ -808,12 +965,10 @@ def parseArguments(args):
                          help='Run with KEGG inputs.')
     group.add_option('','--wntforexperiments',action='store_true',default=False,\
                      help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.')
-    group.add_option('','--dbcompare',action='store_true',default=False,\
-                     help='Run the 6 KEGG and NetPath pathways in common.')
-    group.add_option('','--aggunion',action='store_true',default=False,\
-                         help='Run aggregate union special runs')
-    group.add_option('','--missingnpkegg',action='store_true',default=False,\
-                         help='Run Linker for interactomes with missing evidence.')
+    #group.add_option('','--aggunion',action='store_true',default=False,\
+    #                     help='Run aggregate union special runs')
+    #group.add_option('','--missingnpkegg',action='store_true',default=False,\
+    #                     help='Run Linker for interactomes with missing evidence.')
     parser.add_option_group(group)
 
     ## Algorithms
@@ -859,7 +1014,9 @@ def parseArguments(args):
     group.add_option('','--precrecviz',action='store_true',default=False,\
                          help='Display precision recall curves.')
     group.add_option('','--ignorekeggpositives',action='store_true',default=False,\
-                     help='Ignore KEGG positives when computing & visualizing precision/recall. Will ignore pathways that do not appear in KEGG.')
+                     help='Ignore KEGG positives when computing & visualizing precision/recall (--netpath or --onlynetpathwnt options). Will ignore pathways that do not appear in KEGG.')
+    group.add_option('','--ignorenetpathpositives',action='store_true',default=False,\
+                     help='Ignore NetPath positives when computing & visualizing precision/recall (--kegg option). Will ignore pathways that do not appear in NetPath.')
     group.add_option('','--netpathkeggunion',action='store_true',default=False,\
                      help='Compute & visualize precision/recall using both NetPath and KEGG as positives.')
     group.add_option('','--ranktfs',action='store_true',default=False,\
@@ -909,6 +1066,12 @@ def parseArguments(args):
     # parse the command line arguments
     (opts, args) = parser.parse_args()
 
+    ## check arguments
+    if opts.ppiversion not in ALLOWEDVERSIONS:
+        sys.exit('ERROR: --ppiversion must be one of %s. You have %s. Exiting.' % (','.join(ALLOWEDVERSIONS),opts.ppiversion))
+    if opts.ignorekeggpositives and opts.ignorenetpathpositives: 
+        sys.exit('ERROR: cannot ignore both KEGG positives and NetPath positives. Exiting.')
+
     return opts
 
 ############################################################
@@ -930,14 +1093,19 @@ def generatePathwaySpecificInteractomes(ppifile):
 
     ## Make NetPath interactomes, if not already present
     checkDir(PPIDIR+'/netpath/')
-    pathways = getNetPathPathways(False,False)
+    pathways = getAllNetPathPathways()
     for p in pathways:
         interactomefile = '%s/netpath/%s-interactome.txt' % (PPIDIR,p)
         if not os.path.isfile(interactomefile):
             print 'Making NetPath %s Interactome' % (p)
             nodefile = '%s/%s-nodes.txt' % (NETPATHDIR,p)
             generatePPI(edges,nodefile,interactomefile,header)
-
+    ## Get Min Cut values:
+    if not os.path.isfile('data/min-cuts/netpath.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/netpath/pathways/ --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (DATADIR,PPIDIR)
+        print cmd
+        os.system(cmd)
+        
     ## Make wnt-all-receptors interactome, if not already present.
     checkDir(PPIDIR+'/wnt-all-receptors/')
     interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (PPIDIR)
@@ -948,13 +1116,20 @@ def generatePathwaySpecificInteractomes(ppifile):
 
     ## Make KEGG interactomes, if not already present.
     checkDir(PPIDIR+'/kegg/')
-    pathways,keggids = getKEGGPathways()
+    pathways = getAllKEGGPathways()
     for p in pathways:
         interactomefile = '%s/kegg/%s-interactome.txt' % (PPIDIR,p)
         if not os.path.isfile(interactomefile):
-            print 'Making KEGG %s (%s) Interactome' % (p,keggids[p])
+            print 'Making KEGG %s Interactome' % (p)
             nodefile = '%s/%s-nodes.txt' % (KEGGDIR,p)
             generatePPI(edges,nodefile,interactomefile,header)
+    ## Get Min Cut values:
+    if not os.path.isfile('data/min-cuts/kegg.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/kegg/2015-03-23/hsa/edge-files/ --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (DATADIR,PPIDIR,DATADIR)
+        print cmd
+        os.system(cmd)
+
+
     return
 
 ############################################################
@@ -1001,10 +1176,10 @@ def checkDir(dirname):
 ## them as a list.
 ## onlynetpathwnt: if True, only return Wnt
 ## dbcompare: if True, only return the 6 pathways in common with KEGG
-def getNetPathPathways(onlynetpathwnt,dbcompare):
+def getNetPathPathways(onlynetpathwnt,overlapwithkegg):
     if onlynetpathwnt:
         return ['Wnt']
-    if dbcompare: # only return the 6 pathways in common with KEGG.
+    if overlapwithkegg: # only return the 6 pathways in common with KEGG.
         analyzedpathwayfile = 'data/netpath-dbcompare-pathways.txt'
     else:
         analyzedpathwayfile = 'data/netpath-analyzed-pathways.txt'
@@ -1012,15 +1187,36 @@ def getNetPathPathways(onlynetpathwnt,dbcompare):
     return pathways
 
 ############################################################
+## getAllNetPathPathways reads the pathways in the NETPATHDIR 
+## directory and outputs them.
+def getAllNetPathPathways():
+    pathways = glob.glob('%s/*-nodes.txt' % (NETPATHDIR))
+    pathways = [p.split('/')[-1] for p in pathways]
+    pathways = [p.replace('-nodes.txt','') for p in pathways]
+    return pathways
+
+############################################################
 ## getKEGGPathways reads the pathways for KEGG and returns
 ## them as a list. It also returns a dictionary of {keggid:netpathname}
-def getKEGGPathways():
-    analyzedpathwayfile = 'data/kegg-analyzed-pathways.txt'
+def getKEGGPathways(overlapwithnetpath):
+    if overlapwithnetpath:
+        analyzedpathwayfile = 'data/kegg-dbcompare-pathways.txt'
+    else:
+        analyzedpathwayfile = 'data/kegg-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,2)]
     # dictionary of keggnames to netpath names.
     kegg2netpath = readDict(analyzedpathwayfile,2,1)
     return pathways,kegg2netpath
 
+############################################################
+## getAllKEGGPathways reads the pathways in the KEGGDIR
+## directory and outputs them.
+def getAllKEGGPathways():
+    pathways = glob.glob('%s/*-nodes.txt' % (KEGGDIR))
+    pathways = [p.split('/')[-1] for p in pathways]
+    pathways = [p.replace('-nodes.txt','') for p in pathways]
+    return pathways
+   
 ############################################################
 ## Run PathLinker
 ## pathway: pathway to run (e.g., Wnt)
@@ -1408,42 +1604,43 @@ def getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway):
 ## are considered an entire set and not ranked by thres)
 ## undirected: if True, checks both (u,v) and (v,u) for evidence sources
 ## allreceptors: if True, takes Wnt interactome from wnt-all-receptors/ instead of netpath/
-def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=False,\
-            decrease=False,undirected=False,allreceptors=True):
-    if allreceptors:
-        ppifile = 'data/pathway-specific-interactomes/pathlinker-signaling-children-reg/weighted/wnt-all-receptors/Wnt-interactome.txt'
-    else:
-        ppifile = 'data/pathway-specific-interactomes/pathlinker-signaling-children-reg/weighted/netpath/Wnt-interactome.txt'
+def postReconstructionsToGraphSpace(pathway,infile,thres,gsid,printonly,increase=False,\
+                                       decrease=False,undirected=False,allreceptors=True,\
+                                       postannotated=True,postunlabeled=True):
+
+    ## PPI FILE is original interactome; this ensures that edges are directed as they were originally
+    ## (not necessarily as they were after removing outgoing edges from TRs and incoming edges to receptors)
 
     ## print annotated
-    cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath Wnt --kegg Wnt ' % \
-          (infile,ppifile,PPIVERSION,DATADIR,gsid)
-    if allreceptors: ## add FZD4/FZD6 as receptors
-        cmd += ' --addfzd'
-    if increase: # ranked list - pass the threshold
-        cmd += ' --increase --thres %f' % (thres)
-    if decrease: # ranked list - pass the threshold
-        cmd += ' --decrease --thres %f' % (thres)
-    if undirected: 
-        cmd += ' --undirected'
-    print cmd
-    if not printonly:
-        subprocess.check_call(cmd.split())
+    if postannotated:
+        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s ' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+        if allreceptors: ## add FZD4/FZD6 as receptors
+            cmd += ' --addfzd'
+        if increase: # ranked list - pass the threshold
+            cmd += ' --increase --thres %f' % (thres)
+        if decrease: # ranked list - pass the threshold
+            cmd += ' --decrease --thres %f' % (thres)
+        if undirected: 
+            cmd += ' --undirected'
+        print cmd
+        if not printonly:
+            subprocess.check_call(cmd.split())
 
     ##print unlabeled
-    cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath Wnt --kegg Wnt --nolabels' % \
-          (infile,ppifile,PPIVERSION,DATADIR,gsid+'-nolabels')
-    if allreceptors:
-        cmd += ' --addfzd'
-    if increase: # ranked list - pass the threshold
-        cmd += ' --increase --thres %f' % (thres)
-    if decrease:
-        cmd += ' --decrease --thres %f' % (thres)
-    if undirected:
-        cmd += ' --undirected'
-    print cmd
-    if not printonly:
-        subprocess.check_call(cmd.split())
+    if postunlabeled:
+        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % \
+              (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid+'-nolabels',pathway,pathway)
+        if allreceptors:
+            cmd += ' --addfzd'
+        if increase: # ranked list - pass the threshold
+            cmd += ' --increase --thres %f' % (thres)
+        if decrease:
+            cmd += ' --decrease --thres %f' % (thres)
+        if undirected:
+            cmd += ' --undirected'
+        print cmd
+        if not printonly:
+            subprocess.check_call(cmd.split())
 
     return
 
@@ -1456,8 +1653,10 @@ def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=Fals
 ## outdir: output directory
 ## edgesortcol: sort column for edges. If None, then take edges as a set.
 ## negtype: one of 'none','adjacent', or 'file'.
+## ignorekeggpos: ignore KEGG positives when sampling negatives (negtype=='file')
+## ignorenetpathpos: ignore NetPath positives when sampling negatives (negtype='file')
 ## sampleoutprefix: prefix of subsampled negatives and positives for the pathway
-## subsamplefps: Number of negatives to sample (a factor of the size of the positives)
+## subsamplefps: Number of negatives to sample (a factor of the size of the positives
 ## forceprecrec: Continue even if files have been written
 ## printonly: if True, never execute commands
 ## nodefile: predicted nodes (if different from edgefile)
@@ -1465,9 +1664,10 @@ def postWntReconstructionsToGraphSpace(infile,thres,gsid,printonly,increase=Fals
 ## descending: if True, rank in descending order
 ## param: additional string to append to outfile
 ## union: if True, use union of NetPath & KEGG as positives.
-def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,sampleoutprefix,\
-                           subsamplefps,forceprecrec,printonly,nodefile=None,nodesortcol=None,\
-                           descending=False,param=None,union=False):
+def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,ignorekeggpos,\
+                           ignorenetpathpos,sampleoutprefix,\
+                           subsamplefps,forceprecrec,printonly,\
+                           nodefile=None,nodesortcol=None,descending=False,param=None,union=False):
 
     ## Get true edge file and true node file from the data directory.
     if union:
@@ -1489,7 +1689,7 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
         outprefix = '%s%s-%s' % (outdir,pathway,param)
 
     ## check to see if the file exists:
-    finalfile = '%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (outprefix,negtype,subsamplefps)
+    finalfile = '%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (outprefix,negtype,subsamplefps)
     if not forceprecrec and os.path.isfile(finalfile):
         print 'Skipping %s exclude %s: file exists. Use --forceprecrec to override.' % (pathway,negtype)
         return
@@ -1497,16 +1697,21 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
     ## pathway-specific interactome
     ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
 
-    ## if negtype == 'file', add kegg ignored nodes and edges
+    ## if negtype == 'file', add kegg or netpath ignored nodes and edges
     if negtype == 'file':
-        pathwaynames,kegg2netpath = getKEGGPathways() 
-        keggid = [k for k in kegg2netpath if kegg2netpath[k]==pathway]
-        if len(keggid)==0:
-            print 'Skipping %s exclude %s: KEGG pathway does not exist.' % (pathway,negtype)
-            return
-        keggid = keggid[0]
-        ignorededgefile = '%s/%s-edges.txt' % (KEGGDIR,keggid)
-        ignorednodefile = '%s/%s-nodes.txt' % (KEGGDIR,keggid)
+        pathwaynames,kegg2netpath = getKEGGPathways(opts.ignorenetpathpostives or opts.netpathkeggunion) 
+        if ignorekeggpos:
+            keggid = [k for k in kegg2netpath if kegg2netpath[k]==pathway]
+            if len(keggid)==0:
+                sys.exit('ERROR: Pathway %s does not exist in kegg. Exiting.' % (pathway))
+            keggid = keggid[0]
+            ignorededgefile = '%s/%s-edges.txt' % (KEGGDIR,keggid)
+            ignorednodefile = '%s/%s-nodes.txt' % (KEGGDIR,keggid)
+        elif ignorenetpathpos:
+            ignorededgefile = '%s/%s-edges.txt' % (NETPATHDIR,kegg2netpath[pathway])
+            ignorednodefile = '%s/%s-nodes.txt' % (NETPATHDIR,kegg2netpath[pathway])
+        else:
+            sys.exit('ERROR: if "file" is specified, either --ignorenetpathpositives or --ignorekeggpositives must be specified. Exiting.')
 
     ## compute-precision-recally.py simply uses ppifile to get
     ## all possible edges.
@@ -1533,26 +1738,56 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
 ## Computes aggregate precision and recall
 ## inputdir: directory of precision-recall files for individual pathways
 ## negtype: one of 'none' or 'adjacent'
+## ignorekeggpos: ignore KEGG positives when sampling negatives (negtype=='file' and netpath = True)
+## ignorenetpathpos: ignore NetPath positives when sampling negatives (negtype='file' and netpath=False)
 ## subsamplefps: Number of negatives to sample (a factor of the size of the positives)
 ## forceprecrec: Continue even if files have been written
 ## printonly: if True, never execute commands
 ## descending: if True, rank in descending order
 ## param: additional string to append to outfile
-def computeAggregatePrecisionRecall(inputdir,negtype,subsamplefps,forceprecrec,printonly,descending=True,param=None):
+## netpath: if True, run NetPath aggregate. Otherwise run KEGG aggregate.
+## union: if True, use union of NetPath & KEGG as positives.
+def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpathpos,subsamplefps,forceprecrec,printonly,descending=True,param=None,netpath=True,union=False):
+
+    if ignorekeggpos and not netpath:
+        sys.exit('ERROR: cannot ignore kegg positives with kegg datasets. Exiting.')
+    if ignorenetpathpos and netpath:
+        sys.exit('ERROR: cannot ignore netpath positives with netpath datasets. Exiting.')        
 
     ## check to see if the file exists:
     if param == None:
-        finalfile = '%saggregate-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
+        if ignorekeggpos:
+            finalfile = '%saggregate-pathways_shared_with_kegg-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
+        elif ignorenetpathpos:
+            finalfile = '%saggregate-pathways_shared_with_netpath-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
+        else:
+            finalfile = '%saggregate-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
     else:
-       finalfile = '%saggregate-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
+        if ignorekeggpos:
+            finalfile = '%saggregate-pathways_shared_with_kegg-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
+        elif ignorenetpathpos:
+             finalfile = '%saggregate-pathways_shared_with_netpath-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
+        else:
+            finalfile = '%saggregate-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
     if not forceprecrec and os.path.isfile(finalfile):
-        print 'Skipping aggregate for NetPath, file exists. Use --forceprecrec to override.'
+        print 'Skipping aggregate, file exists. Use --forceprecrec to override.'
         return
-    cmd = 'python src/compute-aggregate-precision-recall.py --inputdir %s --netpath --negtype %s --neg-factor %d' % (inputdir,negtype,subsamplefps)
+    #print '%s does not exist. Continuing.' % (finalfile)
+    cmd = 'python src/compute-aggregate-precision-recall.py --inputdir %s --negtype %s --neg-factor %d' % (inputdir,negtype,subsamplefps)
+    if netpath:
+        cmd += ' --netpath'
+    else:
+        cmd += ' --kegg'
     if param != None:
         cmd += ' --param %s' % (param)
     if descending:
         cmd += ' --descending'
+    if ignorekeggpos:
+        cmd += ' --ignorekegg'
+    if ignorenetpathpos:
+        cmd += ' --ignorenetpath'
+    if union:
+        cmd += ' --union'
     print cmd
     if not printonly:
         subprocess.check_call(cmd.split())

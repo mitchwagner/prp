@@ -140,7 +140,7 @@ def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignore
         
         #print '  removing edges that have a tf in the tail or a receptor in the head'
         allNegEdges.difference_update(removedEdges)
-
+        before = len(allNegEdges)
         if negtype == 'adjacent': # remove edges where one node is a positive.
             #print '  removing pathway-adjacent negatives'
             adjacentEdges = set([(tail,head) for tail,head in ppiEdges if tail in posNodes or head in posNodes])
@@ -157,7 +157,7 @@ def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignore
 
             ignoredNodes = readItemSet(ignorednodefile,1)
             allNegNodes.difference_update(ignoredNodes)
-
+        
         ## Now, we can sort the edges.
         ## ANNA CHANGE: in the old scripts, we subsampled with directed edges, then 
         ## converted to undirected right before we set. Now we sort before subsampling.
@@ -300,13 +300,21 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
     # write ranked values
     for item,val,itemtype,prec,rec in PREdge:
         out.write('%s\t%s\t%0.5e\t%s\t%0.5e\t%0.5e\n' % (item[0],item[1],val,itemtype,prec,rec))
-    # write unranked positives.
-    for item in posEdges.difference(set([e for e,t in predEdges])):
-        out.write('%s\t%s\tInf\tpos\t%0.5e\t%0.5e\n' % (item[0],item[1],PREdge[-1][3],PREdge[-1][4]))
-    # write unranked negatives.
-    for item in negEdges.difference(set([e for e,t in predEdges])):
-        out.write('%s\t%s\tInf\tneg\t%0.5e\t%0.5e\n' % (item[0],item[1],PREdge[-1][3],PREdge[-1][4]))
-
+ 
+    if len(PREdge)==0:   
+        # write unranked positives.
+        for item in posEdges.difference(set([e for e,t in predEdges])):
+            out.write('%s\t%s\tInf\tpos\t%0.5e\t%0.5e\n' % (item[0],item[1],0,0))
+        # write unranked negatives.
+        for item in negEdges.difference(set([e for e,t in predEdges])):
+            out.write('%s\t%s\tInf\tneg\t%0.5e\t%0.5e\n' % (item[0],item[1],0,0))
+    else:
+        # write unranked positives.
+        for item in posEdges.difference(set([e for e,t in predEdges])):
+            out.write('%s\t%s\tInf\tpos\t%0.5e\t%0.5e\n' % (item[0],item[1],PREdge[-1][3],PREdge[-1][4]))
+        # write unranked negatives.
+        for item in negEdges.difference(set([e for e,t in predEdges])):
+            out.write('%s\t%s\tInf\tneg\t%0.5e\t%0.5e\n' % (item[0],item[1],PREdge[-1][3],PREdge[-1][4]))
     print 'Wrote to %s' % (outfile)
 
     print 'Computing precision and recall for nodes...'
@@ -318,12 +326,20 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
     # write ranked values
     for item,val,itemtype,prec,rec in PRNode:
         out.write('%s\t%0.5e\t%s\t%0.5e\t%0.5e\n' % (item,val,itemtype,prec,rec))
-    # write unranked positives.
-    for item in posNodes.difference(set([n for n,t in predNodes])):
-        out.write('%s\tInf\tpos\t%0.5e\t%0.5e\n' % (item,PRNode[-1][3],PRNode[-1][4]))
-    # write unranked negatives.
-    for item in negNodes.difference(set([n for n,t in predNodes])):
-        out.write('%s\tInf\tneg\t%0.5e\t%0.5e\n' % (item,PRNode[-1][3],PRNode[-1][4]))
+    if len(PRNode)==0:
+        # write unranked positives.
+        for item in posNodes.difference(set([n for n,t in predNodes])):
+            out.write('%s\tInf\tpos\t%0.5e\t%0.5e\n' % (item,0,0))
+        # write unranked negatives.
+        for item in negNodes.difference(set([n for n,t in predNodes])):
+            out.write('%s\tInf\tneg\t%0.5e\t%0.5e\n' % (item,0,0))
+    else:
+        # write unranked positives.
+        for item in posNodes.difference(set([n for n,t in predNodes])):
+            out.write('%s\tInf\tpos\t%0.5e\t%0.5e\n' % (item,PRNode[-1][3],PRNode[-1][4]))
+        # write unranked negatives.
+        for item in negNodes.difference(set([n for n,t in predNodes])):
+            out.write('%s\tInf\tneg\t%0.5e\t%0.5e\n' % (item,PRNode[-1][3],PRNode[-1][4]))
         
     print 'Wrote to %s' % (outfile)  
 

@@ -77,7 +77,7 @@ SHAPES = {
 }
 
 NAMES = {
-    'pagerank' : 'PageRank',
+    'pagerank' : 'RWR',
     'pathlinker' : 'PathLinker', 
     'eqed' : 'eQED',
     'pcsf' : 'PCSF',
@@ -89,36 +89,69 @@ NAMES = {
 }
 
 ##################################################################
-def plotPR(methodlist,precrecs,f,name,pdf,negtypes):
+def getTitle(name,ignorekegg,ignorenetpath,numpathways):
+    if name != 'aggregate':
+        if ignorekegg:
+            titles = {
+                'node': {
+                    'none': 'Proteins in the %s Reconstruction' % (name),
+                    'adjacent':'Proteins in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
+                    'file':'Proteins in the NetPath %s Reconstruction\nIgnoring Proteins in KEGG' % (name)
+                },
+                'edge': {
+                    'none': 'Interactions in the %s Reconstruction' % (name),
+                    'adjacent':'Interactions in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
+                    'file':'Interactions in the  NetPath%s Reconstruction\nIgnoring Interactions in KEGG' % (name)
+                },
+            }
+        else:
+            titles = {
+                'node': {
+                    'none': 'Proteins in the %s Reconstruction' % (name),
+                    'adjacent':'Proteins in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
+                    'file':'Proteins in the KEGG %s Reconstruction\nIgnoring Proteins in NetPath' % (name)
+                },
+                'edge': {
+                    'none': 'Interactions in the %s Reconstruction' % (name),
+                    'adjacent':'Interactions in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
+                    'file':'Interactions in the KEGG %s Reconstruction\nIgnoring Interactions in NetPath' % (name)
+                },
+            }
+    else:
+        if ignorekegg:
+            titles = {
+                'node': {
+                    'none': 'Proteins Aggregated over \n%d Reconstructions' % (numpathways),
+                    'adjacent':'Proteins Aggregated over %s Reconstructions\nIgnoring Pathway-Adjacent Negatives' % (numpathways),
+                    'file':'Proteins Aggregated over %s Reconstructions\nIgnoring Proteins in KEGG' % (numpathways)
+            },
+                'edge': {
+                    'none': 'Interactions Aggregated over \n%d Reconstructions'% (numpathways),
+                    'adjacent':'Interactions Aggregated over %d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
+                    'file':'Interactions Aggregated over %d Reconstructions\nIgnoring Interactions in KEGG'% (numpathways)
+                },
+            }
+        else:
+            titles = {
+                'node': {
+                    'none': 'Proteins Aggregated over \n%d Reconstructions' % (numpathways),
+                    'adjacent':'Proteins Aggregated over %d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
+                    'file':'Proteins Aggregated over %d Reconstructions\nIgnoring Proteins in NetPath'% (numpathways)
+            },
+                'edge': {
+                    'none': 'Interactions Aggregated over \n%d Reconstructions'% (numpathways),
+                    'adjacent':'Interactions Aggregated over %d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
+                    'file':'Interactions Aggregated over %d Reconstructions\nIgnoring Interactions in NetPath'% (numpathways)
+                },
+            }
+    return titles
+
+##################################################################
+def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,numpathways):
     fig = plt.figure(figsize=(12,12))
 
     subplot = 1
-    if name != 'aggregate':
-        titles = {
-            'node': {
-                'none': 'Proteins in the %s Reconstruction' % (name),
-                'adjacent':'Proteins in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
-                'file':'Proteins in the %s Reconstruction\nIgnoring Proteins in KEGG' % (name)
-            },
-            'edge': {
-                'none': 'Interactions in the %s Reconstruction' % (name),
-                'adjacent':'Interactions in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
-                'file':'Interactions in the %s Reconstruction\nIgnoring Interactions in KEGG' % (name)
-            },
-        }
-    else:
-        titles = {
-            'node': {
-                'none': 'Proteins Aggregated over All NetPath Reconstructions',
-                'adjacent':'Proteins Aggregated over All Reconstructions\nIgnoring Pathway-Adjacent Negatives',
-                'file':'Proteins Aggregated over All Reconstructions\nIgnoring Proteins in KEGG'
-            },
-            'edge': {
-                'none': 'Interactions Aggregated over All Reconstructions',
-                'adjacent':'Interactions Aggregated over All Reconstructions\nIgnoring Pathway-Adjacent Negatives',
-                'file':'Interactions Aggregated over All Reconstructions\nIgnoring Interactions in KEGG'
-            },
-        }
+    titles = getTitle(name,ignorekegg,ignorenetpath,numpathways)
 
     for display in ['node','edge']:
         for negtype in negtypes:
@@ -129,19 +162,19 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes):
             ax.set_title(titles[display][negtype],size=16)
             increments = {alg:0.0 for alg in COLORS.keys()}
 
-            ## if negtype == 'file', add original ('none') lines/points with transparency
-            if negtype == 'file':
-                for alg in methodlist:
-                    color,linewidth,markersize,markerstyle = getstyle(alg,increments,len(methodlist))
-                    pr = precrecs[display]['none'][alg]
+            ## if negtype == 'file' or negtype == 'adjacent', add original ('none') lines/points with transparency
+            #if negtype == 'file':
+            for alg in methodlist:
+                color,linewidth,markersize,markerstyle = getstyle(alg,increments,len(methodlist))
+                pr = precrecs[display]['none'][alg]
 
-                    if len(pr)==1: # plot single point
-                        ax.plot([r for p,r in pr], [p for p,r in pr],markerstyle,ms=markersize,color=color,label='_nolegend_',alpha=0.4)
-                    elif alg == 'ipa': # plot points AND line
-                        ax.plot([r for p,r in pr],[p for p,r in pr],'--'+markerstyle,ms=markersize,\
-                                lw=1,color=color,label='_nolegend_',alpha=0.4)
-                    else: # plot line only.
-                        ax.plot([r for p,r in pr], [p for p,r in pr],lw=1,color=color,label='_nolegend_',alpha=0.4)
+                if len(pr)==1: # plot single point
+                    ax.plot([r for p,r in pr], [p for p,r in pr],markerstyle,ms=markersize,color=color,label='_nolegend_',alpha=0.4)
+                elif alg == 'ipa': # plot points AND line
+                    ax.plot([r for p,r in pr],[p for p,r in pr],'--'+markerstyle,ms=markersize,\
+                            lw=1,color=color,label='_nolegend_',alpha=0.4)
+                else: # plot line only.
+                    ax.plot([r for p,r in pr], [p for p,r in pr],lw=1,color=color,label='_nolegend_',alpha=0.4)
 
             ## add opaque lines/points for this negtype
             for alg in methodlist:
@@ -198,7 +231,7 @@ def getstyle(alg,increments,nummethods):
 
 #######################################################################
 # to remove dupliates; use OrderedDict.fromkeys() function.
-def readFiles(varyparams,algs,indir,pathway,negtypes):
+def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
     if varyparams:
         filepatterns = FILELOCATIONS['varyparams']
     else:
@@ -209,6 +242,12 @@ def readFiles(varyparams,algs,indir,pathway,negtypes):
         shift = 1
     else: 
         shift = 0
+
+    if ignorekegg and pathway == 'aggregate':
+        ## only get 6 pathways
+        pathway += '-pathways_shared_with_kegg'
+    elif ignorenetpath and pathway == 'aggregate':
+        pathway += '-pathways_shared_with_netpath'
 
     nodeprecrec = {}
     edgeprecrec = {}
@@ -245,6 +284,10 @@ def readFiles(varyparams,algs,indir,pathway,negtypes):
                                              readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
                 if negtype == 'none':
                     methodlist.append(alg)
+                    if pathway != 'aggregate':
+                        numpathways = 1
+                    else:
+                        numpathways = len(set([p for p in readItemSet(nodefile,1)]))
             else: # add lines for each parameter
                 if alg == 'pagerank':
                     for param in VARYPARAMS['q']:
@@ -293,6 +336,10 @@ def readFiles(varyparams,algs,indir,pathway,negtypes):
                                                  readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
                     if negtype == 'none':
                          methodlist.append(alg)
+                         if pathway != 'aggregate':
+                             numpathways = 1
+                         else:
+                             numpathways = len(set([p for p in readItemSet(nodefile,1)]))
 
     ## make all lists unique, but preserve order.
     for negtype in negtypes:
@@ -300,7 +347,7 @@ def readFiles(varyparams,algs,indir,pathway,negtypes):
             nodeprecrec[negtype][key] = list(OrderedDict.fromkeys(nodeprecrec[negtype][key]))
             edgeprecrec[negtype][key] = list(OrderedDict.fromkeys(edgeprecrec[negtype][key]))
 
-    return nodeprecrec,edgeprecrec,methodlist
+    return nodeprecrec,edgeprecrec,methodlist,numpathways
 
 #######################################################################
 def populateprecrecs(filepattern,indir,pathway,negtype,param1,shift,param2=None):
@@ -338,8 +385,10 @@ def main(args):
                       help='Plot different parameters if specified.')
     parser.add_option('','--seed',type='int',default=123456,\
                       help='seed for selecting colors.  Default is 123456.')
-    parser.add_option('','--ignorefromfile',action='store_true',default=False,\
-                      help='Instead of plotting exclude-adjacent, plot exclude-file. Used when ignoring KEGG positives.')
+    parser.add_option('','--ignorekegg',action='store_true',default=False,\
+                      help='Instead of plotting exclude-adjacent, plot exclude-file ignoring KEGG positives.')
+    parser.add_option('','--ignorenetpath',action='store_true',default=False,\
+                      help='Instead of plotting exclude-adjacent, plot exclude-file ignoring NetPath positives.')
 
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -357,18 +406,18 @@ def main(args):
     random.seed(opts.seed)
 
     ##
-    if opts.ignorefromfile:
+    if opts.ignorekegg or opts.ignorenetpath:
         negtypes = ['none','file']
     else:
         negtypes = ['none','adjacent']
 
     ## Read files for nodes and edges
     precrecs = {}
-    precrecs['node'],precrecs['edge'],methodlist = readFiles(opts.varyparams,opts.alg,opts.indir,opts.pathway,negtypes)
+    precrecs['node'],precrecs['edge'],methodlist,numpathways = readFiles(opts.varyparams,opts.alg,opts.indir,opts.pathway,negtypes,opts.ignorekegg,opts.ignorenetpath)
 
     if not opts.varyparams:
         ## plot PR
-        plotPR(methodlist,precrecs,opts.outprefix,opts.pathway,opts.pdf,negtypes)
+        plotPR(methodlist,precrecs,opts.outprefix,opts.pathway,opts.pdf,negtypes,opts.ignorekegg,opts.ignorenetpath,numpathways)
     else:
         ## plot PR for every algorithm specified.
         for alg in opts.alg:
@@ -379,7 +428,7 @@ def main(args):
             for negtype in opts.negtypes:
                 pr['node'][negtype] = {key:precrecs['node'][negtype][key] for key in parammethods}
                 pr['edge'][negtype] = {key:precrecs['edge'][negtype][key] for key in parammethods}
-            plotPR(parammethods,pr,outprefix,opts.pathway,opts.pdf,negtypes)
+            plotPR(parammethods,pr,outprefix,opts.pathway,opts.pdf,negtypes,opts.ignorekegg,opts.ignorenetpath,numpathways)
 
 if __name__=='__main__':
     main(sys.argv)

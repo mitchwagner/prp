@@ -65,6 +65,10 @@ Making NetPath Prolactin Interactome
 | hsa04012 (EGFR1)             |           5 |     6 |            2056 |                 1.29e-02 |
 | hsa04310 (Wnt)               |          10 |    21 |            2021 |                 1.26e-02 |
 
+*** Computing Min-Cut Values
+#+BEGIN_SRC bash
+python 
+#+END_SRC
 ** Receptor and TF Files
 *** Receptor File
 The receptor file is [[/data/annaritz/datasets/svn-data/receptors/uniprot-target-list.txt][data/receptors/uniprot-target-list.txt]], taken from a publication by [[http://www.biomedcentral.com/1741-7007/7/50][Almen et. al., BMC Biology 2009, 7:50]] and mapped using the UniProt mapping server located at [[http://www.uniprot.org/mapping/]].  Proteins in this list that are in NetPath/Kegg pathways are listed as "receptor" in the ~*-nodes.txt~ files.\\
@@ -87,11 +91,11 @@ Only returns the Wnt signaling pathway from NetPath, rather than all 15 analyzed
 ** KEGG Pathways (~--kegg~)
 Located in [[/data/annaritz/datasets/svn-data/interactions/kegg/hsa/edge-files/][data/interactions/hsa/edge-files/]].  Note that both edge files *and* node files are here - we had to run an additional ~annotate-nodes.py~ script to get the nodelist.
 - List of the analyzed pathways for the PathLinker paper is [[/data/annaritz/projects/2015-03-pathlinker/data/kegg-analyzed-pathways.txt]].
-** DBCompare Pathways (~--dbcompare~)
-Takes the 6 NetPath pathways and the 6 KEGG pathways that are in common. 
-- For NetPath pathways, we add BCR (mincut of 2) and Hedgehog (mincut of 0) even though they are NOT considered for the aggregate precision and recall pathways. There are only a few pathways in common between KEGG and NetPath. This file is [[/data/annaritz/projects/2015-03-pathlinker/data/netpath-dbcompare-pathways.txt]].
-- For KEGG pathways, we take all 6 analyzed pathways (already trimmed to used these pathways).
-*** TODO not complete yet.
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg
+awk '($5>2 && $6>=1 && $7>=1){print $2"\t"$1}'  data/min-cuts/kegg.txt > data/kegg-analyzed-pathways.txt 
+#+END_SRC
+then manually comment out cancer/disease pathways.
 ** Special Wnt Pathway for Experimental Followup (~--wntforexperiments~)
 We added a new, modified nodes file for Wnt called [[/data/annaritz/projects/2015-03-pathlinker/data/Wnt-FZD4FZD6-nodes.txt]]. It is identical to the nodes file to the NetPath nodes file for Wnt ([[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/Wnt-nodes.txt]]) with the addition of two more receptors that are *in* the netpath pathway but are *not* in the systematic list of receptors: FZD4 and FZD6.  
 * Software
@@ -317,6 +321,11 @@ viz/sanity-checks/aggregate-movetoreceptors-vs-prerefactoring.png PageRank-move-
 [[/data/annaritz/projects/2015-03-pathlinker/viz/sanity-checks/aggregate-movetoreceptors-vs-prerefactoring.png]]
 During the group meeting on April 10, we realized that in the pre-refactored code, we computed edge fluxes /after/ we removed incoming edges to receptors and outgoing edges from TFs; further, we normalized them.  While the normalization doesn't make much of a difference (we don't think), computing edge fluxes after removing edges from the network really changed the results.  
 * Results we have decided to not redo
+** DBCompare Pathways (~--dbcompare~)
+Takes the 6 NetPath pathways and the 6 KEGG pathways that are in common. 
+- For NetPath pathways, we add BCR (mincut of 2) and Hedgehog (mincut of 0) even though they are NOT considered for the aggregate precision and recall pathways. There are only a few pathways in common between KEGG and NetPath. This file is [[/data/annaritz/projects/2015-03-pathlinker/data/netpath-dbcompare-pathways.txt]].
+- For KEGG pathways, we take all 6 analyzed pathways (already trimmed to used these pathways).
+*** TODO not complete yet.
 ** Weighted vs. Unweighted interactomes
 We can compare PathLinker to 
 - KSP un an unweighted network
@@ -324,22 +333,22 @@ We can compare PathLinker to
 - KSP on a weighted network re-weighted by PageRank
 ** Degree, InducedSubgraph, and EQED
 We have run all these methods at some point.  We no longer put them in the paper.  InducedSubgraph (as well as rerank) are implemented. EQED is also implemente,d but ofter returns a trivial result.  Finally, DEG has been commented out completely.
-** Run PathLinker on KEGG pathways
+** KEGG vs. Netpath Comparisons
+*** Evaluate NetPath Inputs on NetPAth/KEGG Union
+Comparing NetPath Inputs, ignoring KEGG positives and NetPath Inputs, evaluated on NP/KEGG union.
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-keggevaluations-singleplot.png]]
+*** Make Venn Diagrams of PathLinker Predictions
 #+BEGIN_SRC bash
-python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
---kegg --pathlinker --computeprecrec --precrecviz
+python master-script.py --weightedppi --venn
 #+END_SRC
-** Evaluate NetPath Inputs on NetPAth/KEGG Union
-*Take KEGG/NetPath Union As POsitives:*
+[[/data/annaritz/projects/2015-03-pathlinker/viz/venn/predicted-nodes.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/venn/predicted-edges.png]]
+*** Post the six overlapping pathways to GraphSpace
+Posts the GraphSpace graphs (from the top 200 paths of the precision/recall plots; NOT including the extra FZD receptors).
 #+BEGIN_SRC bash
-python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
---onlynetpathwnt --netpathkeggunion --pathlinker --pagerank --shortestpaths \
---responsenet --pcsf --anat --ipa --computeprecrec --precrecviz
+python master-script.py --weightedppi \
+--ppiversion pathlinker-signaling-children-reg --graphspace --pathlinker --ignorekeggpositives
 #+END_SRC
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-netpathkeggunion.png]]
-
-*Above Plots in a single figure:*
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-keggevaluations-singleplot.png]]
 
 * Results
 If the files exist in the directories, they will not be overwritten.  To execute all algorithms and overwrite files, use the ~--forcealg~ and ~--forceprecrec~ options.  To only print what /would/ be executed, use the ~--printonly~ option.  Both of these have become *extremely useful* for a project such as this.
@@ -348,24 +357,32 @@ If the files exist in the directories, they will not be overwritten.  To execute
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt \
 --pathlinker --shortestpaths --pagerank \
 --responsenet --pcsf --anat --ipa \
---computeprecrec --precrecviz
+--computeprecrec --precrecviz --forceviz
 #+END_SRC
 Note that these may be run on different machines: ~--weightedppi --onlynetpathwnt~ arguments must always be specified.
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt.png]]
 *** Rank TFs/Receptors in PathLinker, IPA, and PageRank
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --ranktfs
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/misc/tr-ranks.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/misc/tr-ranks-distribution.png]]
-** Run All Algorithms on All NetPath Pathways using Weighted PPI
+** Run All Algorithms on NetPath Pathways
 #+BEGIN_SRC bash 
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath \
 --pathlinker --shortestpaths --pagerank \
 --responsenet --pcsf --anat --ipa \
---computeprecrec --precrecviz
+--computeprecrec --precrecviz --forceviz
 #+END_SRC
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]]
+*** Evaluate NetPath Inputs on NetPAth/KEGG Union
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
+--netpath --netpathkeggunion --pathlinker --pagerank --shortestpaths \
+--responsenet --pcsf --anat --ipa --computeprecrec --precrecviz --forceviz
+#+END_SRC
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-netpathkeggunion.png]]
+
 ** Run Algorithms that Vary Parameters on All NetPath Pathways using Weighted PPI
 These algorithms and values are listed in the VARYPARAMS global variable (dictionary of parameter name to list of values):
 | PageRank    | /q/ = [0.1, 0.25, 0.5, 0.75, 0.9]                   |
@@ -376,18 +393,18 @@ These algorithms and values are listed in the VARYPARAMS global variable (dictio
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg \
 --weightedppi --netpath --responsenet --pcsf --anat --ipa --pagerank\
---varyparams --computeprecrec --precrecviz
+--varyparams --computeprecrec --precrecviz --forceviz
 #+END_SRC
 Wnt Varying PArameters (IPA is shown in main figures):
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-anat.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-pagerank.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-pcsf.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-varyparams-responsenet.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-anat.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-pagerank.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-pcsf.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-responsenet.png]]
 Aggregate Varying Parameters (IPA is shown in main figures):
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-anat.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-pagerank.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-pcsf.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-varyparams-responsenet.png]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-anat.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-pagerank.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-pcsf.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-responsenet.png]
 *** Visualize False Positives
 #+BEGIN_SRC bash
 python master-script.py --netpath --ppiversion pathlinker-signaling-children-reg \
@@ -485,16 +502,33 @@ Posts the runs in bold to GraphSpace.  Parameters are included in the naming con
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --graphspace --pathlinker --topk 800
 #+END_SRC
-** Evaluate NetPath Inputs, ignoring KEGG positives
+** Run all Algorithms on KEGG pathways
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--kegg --pathlinker --pagerank --pcsf --ipa --shortestpaths --responsenet --anat --computeprecrec --precrecviz --forceviz
+#+END_SRC
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/kegg/hsa04310.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/kegg/aggregate.png]]
+** KEGG vs. NetPath Comparisons
+*** Evaluate NetPath Inputs, ignoring KEGG positives
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
 --netpath --ignorekeggpositives --pathlinker --pagerank --shortestpaths \
---responsenet --pcsf --anat --ipa --computeprecrec --precrecviz
+--responsenet --pcsf --anat --ipa --computeprecrec --precrecviz --forceviz
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/Wnt-ignorekeggpositives.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-ignorekeggpositives.png]]
-
+*** Evaluate KEGG Inputs, ignoring NetPath positives
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--kegg --ignorenetpathpositives --pathlinker --pagerank --computeprecrec --precrecviz --forceviz
 #+END_SRC
+
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/hsa04310-ignorenetpathpositives.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/aggregate-kegg-ignorenetpathpositives.png]]
+** Make Networks for all overlapping networks
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--graphspace --pathlinker --ignorekeggpositives
 ** Sample TFs/receptors (Nick)
 Here, we under- and over-sample TRs and Receptors and evaluate how robust PathLinker is to these missing/extra inputs across all pathways.
 

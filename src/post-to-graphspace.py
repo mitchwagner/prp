@@ -89,10 +89,13 @@ COLORS = { 'inner':'gray',
            'netpath':'#31B404',
            'both':'#CC2EFA',
            'neither':'#D8D8D8',#'#848484',
+           'white':'#FFFFFF',
+           'darkgray':'#6E6E6E',
 }
 NODESHAPES = { 'target':'Square',
                'source':'Diamond',
                'inner':'Circle',
+               'ligand':'Hexagon',
 }
 
 # global variables will be populated by main()
@@ -139,8 +142,23 @@ def getPredictedEdges(predfile,increase,decrease,thres):
     return edges
 
 ##########################################################
-def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels):
+def getLigandInformation(ligandfile,prededges,receptors):
+    uniprotligands = readItemSet(ligandfile,1)
+    ligandnodes = [UNIPROT2NAME[u] for u in uniprotligands if u in UNIPROT2NAME]
+    print '%d ligands (%s)' % (len(ligandnodes),','.join(ligandnodes))
 
+    # only get edges that connect ligands to receptors in the predicted set.
+    prednodes = set([u for u,v in prededges]).union(set([v for u,v in prededges]))
+    predreceptors = receptors.intersection(prednodes)
+    
+    ligandedges = set([tuple(sorted([u,v])) for u,v in PPIEDGES if \
+                       (u in ligandnodes and v in predreceptors) or \
+                       (u in predreceptors and v in ligandnodes)])
+    print '%d ligand edges' % (len(ligandedges))
+    return ligandedges    
+
+##########################################################
+def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels,ligandedges):
     evidence = getEvidence(prededges)
     desc = getGraphDescription(increase,decrease,thres,prededgefile,netpath,kegg)
     graph = Graph(layout='ForceDirected', tags=[], description=desc)
@@ -172,6 +190,16 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         keggedges = [tuple(sorted((UNIPROT2NAME[u],UNIPROT2NAME[v]))) for u,v in tpedges if u in UNIPROT2NAME and v in UNIPROT2NAME]
         keggnodes = set([u for u,v in keggedges]).union(set([v for u,v in keggedges]))
 
+    
+    ## re-evaluate ligand edges
+    # make sure that this goes from a ligand to a receptor in the pathway 
+    # (not a random receptor):
+    ligandedges = set([(u,v) for u,v in ligandedges if (u in netpathnodes and v in netpathnodes.intersection(prednodes)) or\
+                       (v in netpathnodes and u in netpathnodes.intersection(prednodes))])
+    ligandnodes = set([u for u,v in ligandedges]).union(set([v for u,v in ligandedges]))
+     
+
+    addednodes = set()
     for n in prednodes:
         if nolabels:
             name = ''
@@ -189,21 +217,26 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             nodeshape = NODESHAPES['source']
         elif n in tfs:
             nodeshape = NODESHAPES['target']
+        elif n in ligandnodes:
+            nodeshape = NODESHAPES['ligand']
         else: #internal node
             nodeshape = NODESHAPES['inner']
 
         # determine node color:
-        htmlcolor = COLORS['neither']
         if nolabels:
             if n in receptors and n in netpathnodes:
                 htmlcolor = COLORS['source']
             elif n in tfs and n in netpathnodes:
                 htmlcolor = COLORS['target']
+            else:
+                htmlcolor = COLORS['white'] # white nodes for nolabels
         else:
             if n in netpathnodes:
                 htmlcolor = COLORS['netpath']
             elif n in keggnodes:
                 htmlcolor = COLORS['kegg']
+            else:
+                htmlcolor = COLORS['neither']
         
         edgeswithnode = set([(t,h) for t,h in prededges if t==n or h==n])
         pathswithnode = set([prededges[e] for e in edgeswithnode])
@@ -212,6 +245,16 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         node = Node(id=n,label=name,color=htmlcolor,size=nodesize,shape=nodeshape,\
                         popup=annotation,k=int(min(pathswithnode)))
         graph.add_node(node) 
+        addednodes.add(n)
+
+    # add ligand nodes if necessary
+    # these are white hexagons.
+    for n in ligandnodes:
+        if n not in addednodes:
+            node = Node(id=n,label=n,color=COLORS['white'],size='auto',shape=NODESHAPES['ligand'],popup='Ligand (not in paths)',k=0)
+            graph.add_node(node)
+            addednodes.add(n)
+            print 'Adding ligand node %s..' % (n)
 
     # Add edges to graph
     seen = set()
@@ -227,14 +270,14 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             edgedir = True
 
         # determine edge color:
-        edgewidth = 2
+        edgewidth = 3
         htmlcolor = COLORS['neither']            
         if tuple(sorted((tail,head))) in netpathedges:
             htmlcolor = COLORS['netpath']
-            edgewidth=2
+            #edgewidth=3
         elif tuple(sorted((tail,head))) in keggedges:
             htmlcolor = COLORS['kegg']
-            edgewidth=2
+            #edgewidth=3
 
         name = '%s-%s' % (tail,head)
         annotation = getEdgeAnnotation(tail,head, prededges[(tail,head)],evidence,undirected)
@@ -242,6 +285,20 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
                         directed=edgedir,width=edgewidth,popup=annotation,k=int(prededges[(tail,head)]))
         graph.add_edge(edge)
 
+    # add ligand edges if necessary
+    # these are thin dashed black lines
+    for (tail,head) in ligandedges:
+        if (tail,head) in seen or (head,tail) in seen: # already written; skip
+            continue
+        seen.add((tail,head))
+        if (head,tail) in PPIEDGES:
+            edgedir = False
+        else:
+            edgedir = True
+        name = '%s-%s' % (tail,head)
+        edge = Edge(id=name,label=name,source=tail,target=head,color=COLORS['darkgray'], \
+                        directed=edgedir,width=0.25,popup='Ligand-receptor edge (not in paths)',k=0)
+        graph.add_edge(edge)
     return graph
 
 ##########################################################
@@ -560,6 +617,8 @@ def main(args):
                       help='GraphSpace Graph ID')
     parser.add_option('','--nolabels',action='store_true',default=False,\
                       help='Do not show labels.')
+    parser.add_option('','--ligandfile',type='str',metavar='STR',\
+                      help='pass file of nodes to connect to receptors.  First column contains IDs, second column contains names.')
     
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -574,6 +633,8 @@ def main(args):
         sys.exit('ERROR: ppi file must be specified. Exiting.')
     if opts.gsid == None:
         sys.exit('ERROR: graph space ID (gsid) is required. Exiting.')
+    if opts.ligandfile and opts.nolabels:
+        sys.exit('ERROR: can only have ligand file on an annotated graphspace graph. Exiting.')
     
     # (0) Determine map file, PPI, and versions
     DATADIR = opts.datadir
@@ -607,8 +668,14 @@ def main(args):
     # Get Predicted Edges
     prededges = getPredictedEdges(opts.infile,opts.increase,opts.decrease,opts.thres)
 
+    if opts.ligandfile:
+        print 'Adding ligand information...'
+        ligandedges = getLigandInformation(opts.ligandfile,prededges,receptors)
+    else:
+        ligandedges = set()
+
     # Construct Graph
-    graph = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels)
+    graph = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges)
 
     # Post to GraphSpace
     client = GraphSpace(user = USERNAME, password = PASSWORD,url = GRAPHSERVER)

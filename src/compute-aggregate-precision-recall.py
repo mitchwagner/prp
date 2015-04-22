@@ -12,18 +12,26 @@ import os.path
 import random
 
 ############################################################
-def getNetPathPathways():
-    analyzedpathwayfile = 'data/netpath-analyzed-pathways.txt'
+def getNetPathPathways(onlykeggoverlap):
+    if onlykeggoverlap:
+        analyzedpathwayfile = 'data/netpath-dbcompare-pathways.txt'
+    else:
+        analyzedpathwayfile = 'data/netpath-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
-# ###########################################################
-# def getKEGGPathways():
-#     analyzedpathwayfile = 'data/kegg-analyzed-pathways.txt'
-#     pathways = [p for p in readItemSet(analyzedpathwayfile,2)]
-#     # dictionary of keggnames to netpath names.
-#     kegg2netpath = readDict(analyzedpathwayfile,2,1)
-#     return pathways,kegg2netpath
+###########################################################
+def getKEGGPathways(onlynetpathoverlap):
+    ## TODO: update this with kegg-dbcompare-pathways.txt 
+    ## now, the only KEGG pathways are the 6 that overlap with NetPath
+    if onlynetpathoverlap:
+        analyzedpathwayfile = 'data/kegg-dbcompare-pathways.txt'
+    else:
+        analyzedpathwayfile = 'data/kegg-analyzed-pathways.txt'
+    pathways = [p for p in readItemSet(analyzedpathwayfile,2)]
+    # dictionary of keggnames to netpath names.
+    kegg2netpath = readDict(analyzedpathwayfile,2,1)
+    return pathways,kegg2netpath
 
 ############################################################
 def readFiles(indir,param,negtype,subsample,pathways,descending,debug):
@@ -111,31 +119,43 @@ Computes aggregate precision and recall from already-computed individual files.
                       help='Directory of already-computed individual files. Aggregate files will be placed here. Required.')
     parser.add_option('--netpath',action='store_true',default=False,\
                      help='If specified, computes netpath pathways.  Written in anticipation of adding other pathway DBs.')
+    parser.add_option('--kegg',action='store_true',default=False,\
+                      help='If specified, computes kegg pathways.  Written in anticipation of adding other pathway DBs.')
     parser.add_option('--negtype', type='string', metavar='STR',\
-                      help='Specifies which edges to exclude from the set of negatives: none, adjacent. Required.')
+                      help='Specifies which edges to exclude from the set of negatives: none, adjacent, file. Required.')
     parser.add_option('--neg-factor', type='int', default='50', metavar='INT',\
                      help='Select f*|Positives| pairs randomly as negatives, where f is the positive integer value provided with this option.  Default is 50.')
     parser.add_option('--descending',action='store_true',default=False,\
                      help='If specified, ranks values in decreasing order. Default is to rank values in increasing order.')
     parser.add_option('--param',type='string',metavar='STR',\
                       help='Specifies parameter infix of <inputdir>/<pathway>-<param>.  E.g., q_0.50 for pagerank.')
+    parser.add_option('--ignorekegg',action='store_true',default=False,\
+                      help='Aggregate NetPath pathways over 6 pathways shared by KEGG. Default = False.')
+    parser.add_option('--ignorenetpath',action='store_true',default=False,\
+                      help='Aggregate KEGG pathways over 6 pathways shared by NetPath. Default = False.')
+    parser.add_option('--union',action='store_true',default=False,\
+                      help='Only consider 6 pathways shared by KEGG/Netpath.')
     parser.add_option('--debug',action='store_true',default=False,\
                       help='Read from older directory of precision and recall.  Still write to input directory.')
+
     
     # parse the command line arguments
     (opts, args) = parser.parse_args()
 
     if opts.inputdir == None:
         sys.exit('\nERROR: input directory required.  Must also have both read/write permissions.')
-    if opts.negtype not in ['none', 'adjacent']:
-        sys.exit('\nERROR: --negtype must be one of "none", "adjacent"')
+    if opts.negtype not in ['none', 'adjacent','file']:
+        sys.exit('\nERROR: --negtype must be one of "none", "adjacent", "file"')
 
     print '\nOPTIONS ARE', opts
     
     # get pathways
     pathways = set()
     if opts.netpath:
-        pathways = getNetPathPathways()
+        pathways = getNetPathPathways(opts.ignorekegg or opts.union)
+    elif opts.kegg: # only aggregate 6 KEGG pathways
+        pathways,keggnames = getKEGGPathways(opts.ignorenetpath or opts.union)
+        
 
     # read files
     posEdges,negEdges,predEdges,posNodes,negNodes,predNodes = readFiles(opts.inputdir,opts.param,opts.negtype,opts.neg_factor,pathways,opts.descending,opts.debug)
@@ -152,9 +172,19 @@ Computes aggregate precision and recall from already-computed individual files.
     PREdge = computePR(posEdges, negEdges, predEdges,compressed=False)
     
     if opts.param == None:
-        outfile = '%s/aggregate-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
+        if opts.ignorekegg:
+            outfile = '%s/aggregate-pathways_shared_with_kegg-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
+        elif opts.ignorenetpath:
+             outfile = '%s/aggregate-pathways_shared_with_netpath-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
+        else:
+            outfile = '%s/aggregate-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
     else:
-        outfile = '%s/aggregate-%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
+        if opts.ignorekegg:
+            outfile = '%s/aggregate-pathways_shared_with_kegg-%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
+        elif opts.ignorenetpath:
+            outfile = '%s/aggregate-pathways_shared_with_netpath-%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
+        else:
+            outfile = '%s/aggregate-%s-exclude_%s-sample_%dX-edge-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
     out = open(outfile,'w')
     out.write('#pathway\tnode1_sorted\tnode2_sorted\tvalue\tpos/neg/ignore\tprecision\trecall\n')
     # write ranked values
@@ -173,9 +203,19 @@ Computes aggregate precision and recall from already-computed individual files.
     PRNode = computePR(posNodes, negNodes, predNodes,compressed=False)
 
     if opts.param == None:
-        outfile = '%s/aggregate-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
+        if opts.ignorekegg:
+            outfile = '%s/aggregate-pathways_shared_with_kegg-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
+        elif opts.ignorenetpath:
+            outfile = '%s/aggregate-pathways_shared_with_netpath-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
+        else:
+            outfile = '%s/aggregate-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.negtype,opts.neg_factor)
     else:
-        outfile = '%s/aggregate-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
+        if opts.ignorekegg:
+            outfile = '%s/aggregate-pathways_shared_with_kegg-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
+        elif opts.ignorenetpath:
+            outfile = '%s/aggregate-pathways_shared_with_netpath-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
+        else:
+            outfile = '%s/aggregate-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (opts.inputdir,opts.param,opts.negtype,opts.neg_factor)
     out = open(outfile,'w')
     out.write('#pathway\tnode\tvalue\tpos/neg/ignore\tprecision\trecall\n')
     # write ranked values
