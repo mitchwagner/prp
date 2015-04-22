@@ -815,15 +815,39 @@ def main(args):
 
     ## RANK TFS
     ## Little script that ranks the TRs in PathLinker predictions vs. PageRank predictions
-    ## TRs that have a path from a receptor in IPA are starred.
+    ## Only plot Wnt and aggregate rankings.
     if opts.ranktfs:
-        outprefix = 'viz/misc/tr-ranks'
-        indir = '%s/netpath/' % (resultprefix)
-        nodefile = '/data/annaritz/datasets/svn-data/interactions/netpath/pathways/Wnt-nodes.txt' 
-        cmd = 'python src/plot-tr-ranks.py --nodefile %s --o %s --indir %s' % (nodefile,outprefix,indir)
-        print cmd
-        if not opts.printonly:
-            subprocess.check_call(cmd.split())
+        if opts.netpath:            
+            indir = '%s/netpath/' % (resultprefix)
+            nodesdir = '%s/interactions/netpath/pathways/' % (DATADIR)
+
+            outprefix = 'viz/ranking-receptors-trs/netpath-Wnt'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway Wnt' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
+            outprefix = 'viz/ranking-receptors-trs/netpath-aggregate'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway aggregate' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
+        if opts.kegg:            
+            indir = '%s/kegg/' % (resultprefix)
+            nodesdir = '%s/interactions/kegg/2015-03-23/hsa/edge-files/' % (DATADIR)
+
+            outprefix = 'viz/ranking-receptors-trs/kegg-hsa04310'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway hsa04310 --kegg' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
+            outprefix = 'viz/ranking-receptors-trs/kegg-aggregate'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway aggregate --kegg' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
 
     if opts.falsepos:
         print 'Plotting false positives'
@@ -958,13 +982,13 @@ def parseArguments(args):
     group.add_option('','--weightedppi',action='store_true',default=False,\
                          help='Run with weighted PPI.')
     group.add_option('','--onlynetpathwnt',action='store_true',default=False,\
-                         help='Only run NetPath Wnt.')
+                         help='Only run NetPath Wnt. Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
     group.add_option('','--netpath',action='store_true',default=False,\
-                         help='Run with NetPath inputs.')
+                         help='Run with NetPath inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
     group.add_option('','--kegg',action='store_true',default=False,\
-                         help='Run with KEGG inputs.')
+                         help='Run with KEGG inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
     group.add_option('','--wntforexperiments',action='store_true',default=False,\
-                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.')
+                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified')
     #group.add_option('','--aggunion',action='store_true',default=False,\
     #                     help='Run aggregate union special runs')
     #group.add_option('','--missingnpkegg',action='store_true',default=False,\
@@ -1071,6 +1095,12 @@ def parseArguments(args):
         sys.exit('ERROR: --ppiversion must be one of %s. You have %s. Exiting.' % (','.join(ALLOWEDVERSIONS),opts.ppiversion))
     if opts.ignorekeggpositives and opts.ignorenetpathpositives: 
         sys.exit('ERROR: cannot ignore both KEGG positives and NetPath positives. Exiting.')
+
+    if (opts.netpath and opts.kegg) or \
+       (opts.netpath and opts.onlynetpathwnt) or (opts.kegg and opts.onlynetpathwnt) \
+       or (opts.netpath and opts.wntforexperiments) or (opts.onlynetpathwnt and opts.wntforexperiments) or \
+       (opts.kegg and opts.wntforexperiments):
+        sys.exit('ERROR: only one of --netpath, --onlynetpathwnt, --kegg, or --wntforexperiments may be specified. Exiting.')
 
     return opts
 
@@ -1674,9 +1704,6 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
         ## TODO remove hard-coded links
         trueedgefile = '/data/annaritz/projects/2015-03-pathlinker/data/netpath-kegg-union/%s-edges.txt' % (pathway)
         truenodefile = '/data/annaritz/projects/2015-03-pathlinker/data/netpath-kegg-union/%s-nodes.txt' % (pathway)
-        if not os.path.isfile(trueedgefile):
-            print 'Skipping %s exclude %s for netpath-kegg-union evaultion: KEGG pathway doesn\'t exist. Skipping.' % (pathway,negtype)
-            return
     else:
         trueedgefile = '%s/%s-edges.txt' % (datadir,pathway)
         truenodefile = '%s/%s-nodes.txt' % (datadir,pathway)
@@ -1699,7 +1726,7 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
 
     ## if negtype == 'file', add kegg or netpath ignored nodes and edges
     if negtype == 'file':
-        pathwaynames,kegg2netpath = getKEGGPathways(opts.ignorenetpathpostives or opts.netpathkeggunion) 
+        pathwaynames,kegg2netpath = getKEGGPathways(ignorenetpathpos) 
         if ignorekeggpos:
             keggid = [k for k in kegg2netpath if kegg2netpath[k]==pathway]
             if len(keggid)==0:

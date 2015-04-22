@@ -122,33 +122,33 @@ def getTitle(name,ignorekegg,ignorenetpath,numpathways):
             titles = {
                 'node': {
                     'none': 'Proteins Aggregated over \n%d Reconstructions' % (numpathways),
-                    'adjacent':'Proteins Aggregated over %s Reconstructions\nIgnoring Pathway-Adjacent Negatives' % (numpathways),
-                    'file':'Proteins Aggregated over %s Reconstructions\nIgnoring Proteins in KEGG' % (numpathways)
+                    'adjacent':'Proteins Aggregated over \n%s Reconstructions\nIgnoring Pathway-Adjacent Negatives' % (numpathways),
+                    'file':'Proteins Aggregated over \n%s Reconstructions\nIgnoring Proteins in KEGG' % (numpathways)
             },
                 'edge': {
                     'none': 'Interactions Aggregated over \n%d Reconstructions'% (numpathways),
-                    'adjacent':'Interactions Aggregated over %d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
-                    'file':'Interactions Aggregated over %d Reconstructions\nIgnoring Interactions in KEGG'% (numpathways)
+                    'adjacent':'Interactions Aggregated over \n%d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
+                    'file':'Interactions Aggregated over \n%d Reconstructions\nIgnoring Interactions in KEGG'% (numpathways)
                 },
             }
         else:
             titles = {
                 'node': {
                     'none': 'Proteins Aggregated over \n%d Reconstructions' % (numpathways),
-                    'adjacent':'Proteins Aggregated over %d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
-                    'file':'Proteins Aggregated over %d Reconstructions\nIgnoring Proteins in NetPath'% (numpathways)
+                    'adjacent':'Proteins Aggregated over \n%d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
+                    'file':'Proteins Aggregated over \n%d Reconstructions\nIgnoring Proteins in NetPath'% (numpathways)
             },
                 'edge': {
                     'none': 'Interactions Aggregated over \n%d Reconstructions'% (numpathways),
-                    'adjacent':'Interactions Aggregated over %d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
-                    'file':'Interactions Aggregated over %d Reconstructions\nIgnoring Interactions in NetPath'% (numpathways)
+                    'adjacent':'Interactions Aggregated over \n%d Reconstructions\nIgnoring Pathway-Adjacent Negatives'% (numpathways),
+                    'file':'Interactions Aggregated over \n%d Reconstructions\nIgnoring Interactions in NetPath'% (numpathways)
                 },
             }
     return titles
 
 ##################################################################
 def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,numpathways):
-    fig = plt.figure(figsize=(12,12))
+    fig = plt.figure(figsize=(10,10))
 
     subplot = 1
     titles = getTitle(name,ignorekegg,ignorenetpath,numpathways)
@@ -157,9 +157,9 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,nump
         for negtype in negtypes:
             ax = fig.add_subplot(2,2,subplot)
             subplot+=1
-            ax.set_xlabel('Recall', size=14)
-            ax.set_ylabel('Precision', size=14)
-            ax.set_title(titles[display][negtype],size=16)
+            ax.set_xlabel('Recall', size=12)
+            ax.set_ylabel('Precision', size=12)
+            ax.set_title(titles[display][negtype],size=14)
             increments = {alg:0.0 for alg in COLORS.keys()}
 
             ## if negtype == 'file' or negtype == 'adjacent', add original ('none') lines/points with transparency
@@ -189,9 +189,9 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,nump
                 else: # plot line only.
                     ax.plot([r for p,r in pr], [p for p,r in pr],lw=linewidth,color=color,label=NAMES.get(alg,alg))
             if display == 'node':
-                ax.legend(loc='lower left', ncol=2,frameon=True, prop={'size':12}, numpoints=1)
+                ax.legend(loc='lower left', ncol=2,frameon=True, prop={'size':10}, numpoints=1)
             else:
-                ax.legend(loc='upper right', ncol=2,frameon=True, prop={'size':12}, numpoints=1)
+                ax.legend(loc='upper right', ncol=2,frameon=True, prop={'size':10}, numpoints=1)
             ax.set_ylim([-.02,1.02])
             ax.set_xlim([-.02,1.02])
 
@@ -284,9 +284,10 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                                              readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
                 if negtype == 'none':
                     methodlist.append(alg)
-                    if pathway != 'aggregate':
+                    if 'aggregate' not in pathway:
                         numpathways = 1
                     else:
+                        #print 'Getting pathways from %s' % (nodefile)
                         numpathways = len(set([p for p in readItemSet(nodefile,1)]))
             else: # add lines for each parameter
                 if alg == 'pagerank':
@@ -336,7 +337,7 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                                                  readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
                     if negtype == 'none':
                          methodlist.append(alg)
-                         if pathway != 'aggregate':
+                         if 'aggregate' not in pathway:
                              numpathways = 1
                          else:
                              numpathways = len(set([p for p in readItemSet(nodefile,1)]))
