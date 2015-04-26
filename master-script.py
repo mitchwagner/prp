@@ -954,7 +954,7 @@ def main(args):
     ## perform the subsampling analysis
     if opts.sample_sources_targets:
         subSamplingDir = "/data/annaritz/subsampling/"
-        performSubsampling(pathways, opts.k, subSamplingDir, opts.forcealg, opts.printonly, opts.batch_run)
+        performSubsampling(pathways, opts.k, subSamplingDir, opts.forcealg, opts.forceprecrec, opts.printonly, opts.batch_run)
 
     print 'DONE'
     return
@@ -1021,11 +1021,11 @@ def parseArguments(args):
                          help='Compute IPA\'s Network Generation Algorithm on the undirected PPI.')
     parser.add_option_group(group)
 
-    ## Subsampling
-    group = OptionGroup(parser,'Subsampling')
+    ## Robustness
+    group = OptionGroup(parser,'Robustness')
     
     group.add_option('','--sample-sources-targets',action='store_true',default=False,\
-                          help='Run a subsampling analysis')
+                          help='Run a robustness analysis')
     group.add_option('','--batch-run',action='store_true',default=False,\
                           help='Mark files so that many instances can be run in parallel. This means that force-killing the script can leave result files in a bad state.')
     
@@ -1131,10 +1131,11 @@ def generatePathwaySpecificInteractomes(ppifile):
             nodefile = '%s/%s-nodes.txt' % (NETPATHDIR,p)
             generatePPI(edges,nodefile,interactomefile,header)
     ## Get Min Cut values:
-    if not os.path.isfile('data/min-cuts/netpath.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/netpath/pathways/ --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (DATADIR,PPIDIR)
-        print cmd
-        os.system(cmd)
+    # FIXME uncomment
+    #if not os.path.isfile('data/min-cuts/netpath.txt'):
+    #    cmd = 'python src/compute-min-cut.py --datadir %s/interactions/netpath/pathways/ --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (DATADIR,PPIDIR)
+    #    print cmd
+    #    os.system(cmd)
         
     ## Make wnt-all-receptors interactome, if not already present.
     checkDir(PPIDIR+'/wnt-all-receptors/')
@@ -1153,11 +1154,13 @@ def generatePathwaySpecificInteractomes(ppifile):
             print 'Making KEGG %s Interactome' % (p)
             nodefile = '%s/%s-nodes.txt' % (KEGGDIR,p)
             generatePPI(edges,nodefile,interactomefile,header)
+
     ## Get Min Cut values:
-    if not os.path.isfile('data/min-cuts/kegg.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/kegg/2015-03-23/hsa/edge-files/ --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (DATADIR,PPIDIR,DATADIR)
-        print cmd
-        os.system(cmd)
+    # FIXME uncomment
+    #if not os.path.isfile('data/min-cuts/kegg.txt'):
+    #    cmd = 'python src/compute-min-cut.py --datadir %s/interactions/kegg/2015-03-23/hsa/edge-files/ --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (DATADIR,PPIDIR,DATADIR)
+    #    print cmd
+    #    os.system(cmd)
 
 
     return
@@ -1823,25 +1826,36 @@ def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpath
 ############################################################
 ## Performs a subsampling analysis
 ## stuff: docs
-def performSubsampling(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun):
+def performSubsampling(pathways, k, subsamplingDir, forceRecalc, forcePRRecalc, printonly, batchrun):
 
     print("TODO: Not yet fully implemented")
+        
+    # Sample sizes/increments are hardcoded constants for now
+    sampleSizes = [50, 70, 90, 100, 110, 130, 150]
+    nSamples = 3 # FIXME
+    print("Using sample sizes = " + str(sampleSizes) + " nSamples = " + str(nSamples))
 
-    print("Subsampling over pathways " + str(pathways))
+    print("Subsampling over pathways " + str([name for (name,_,_,_) in pathways]))
 
     # Generate upsampled and downsampled node sets
-    sampleNodeSets(pathways, subsamplingDir, forceRecalc, printonly)
+    if not batchrun:
+        sampleNodeSets(pathways, subsamplingDir, forceRecalc, printonly, sampleSizes, nSamples)
 
     # Run PathLinker on every sampled nodesets
-    runPathLinkerSampledSets(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun)
+    runPathLinkerSampledSets(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples)
+
+    # Compute PR for each run, including aggregate
+    if not batchrun:
+        computeSampledPR(pathways, k, subsamplingDir, forceRecalc, forcePRRecalc, printonly, sampleSizes, nSamples)
+    
+    # Plot the results
+    if not batchrun:
+        forcePlot = forceRecalc or forcePRRecalc
+        plotRobustness(pathways, k, subsamplingDir, forcePlot, printonly, sampleSizes, nSamples)
 
 ############################################################
 ## Create sampled TR/Rec node sets for each pathway.
-def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly):
-        
-        # Sample sizes/increments are hardcoded constants for now # FIXME in two places
-        sampleSizes = [50, 70, 90, 100, 110, 130, 150]
-        nSamples = 3 # FIXME
+def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly, sampleSizes, nSamples):
     
         ## Create the master list of all TFs and RECs in the network
         # TODO This could cause problems if it is called with a smaller pathway set
@@ -1900,12 +1914,8 @@ def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly):
 
 ############################################################
 ## Create PathLinker on each of the sampled nodesets
-def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly, batchrun):
+def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples):
         
-        # Sample sizes/increments are hardcoded constants for now
-        sampleSizes = [50, 70, 90, 100, 110, 130, 150]
-        nSamples = 3 # FIXME
-    
         print("\n === Running PathLinker for all sampled sets ===")
 
         # Run PathLinker for each pathway x percent x sample
@@ -1953,13 +1963,142 @@ def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly,
 
 
 
+############################################################
+## Compute interpolated precision-recall for each of the sampled runs
+def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, printonly, sampleSizes, nSamples):
+        
+    print("\n === Computing interpolated PR for all sampled sets ===")
+
+
+    # TODO The way filenames/paths are managed here is somewhat sloppy,
+    # could use a rewrite. It works like this because the PR file needs
+    # to be able to find the ranks for each pathway to compute aggregate
+    # PR.
+
+    # TODO Right now the paths to to the subsampled negative node/edge
+    # files are basically hardcoded. Need to work with Anna to make sure
+    # it uses the proper ones.
+    negTypes = ['none','adjacent']
+    
+    # Whether or not to recompute the PR if files already exist
+    # TODO enfore this
+    recomputePR = forceRecalc or forcePRRecalc
+
+    
+    for negType in negTypes:
+
+        for percent in sampleSizes:
+
+            for iTrial in range(nSamples):
+
+                # This character is used to delimit paths when they are
+                # passed as a list to do the aggregate calculation. It must
+                # not appear in any path.
+                delimChar = ','
+                 
+
+                # These lists acccumulate the lists of paths to be used
+                # for the aggregate calculation
+                aggEdgeRankLocs = []
+                aggNegNodeLocs = []
+                aggNegEdgeLocs = []
+                aggNodeTypeLocs = []
+                aggEdgeTypeLocs = []
+                pathwayNames = []
+
+                # Calculate PR for each percent x sample x pathway
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+               
+                    # The paths for the inputs in this PR calculation
+                    edgeRankLoc = "%s%s/%d/pathlinker-results/sample-%s_%d-%d-k_%d-ranked-edges.txt"%(sampledSetDir,pathway,percent,pathway,percent,iTrial,k)
+                    negNodeLoc = 'results/pathlinker-signaling-children-reg/weighted/samples-exclude-%s/%s-exclude_%s-50X-negative-nodes.txt'%(negType,pathway,negType)
+                    negEdgeLoc = 'results/pathlinker-signaling-children-reg/weighted/samples-exclude-%s/%s-exclude_%s-50X-negative-edges.txt'%(negType,pathway,negType)
+                    nodeTypeLoc = datadir + pathway + "-nodes.txt"
+                    edgeTypeLoc = datadir + pathway + "-edges.txt"
+
+                    # Add the paths to the aggregate lists
+                    aggEdgeRankLocs.append(edgeRankLoc)
+                    aggNegNodeLocs.append(negNodeLoc)
+                    aggNegEdgeLocs.append(negEdgeLoc)
+                    aggNodeTypeLocs.append(nodeTypeLoc)
+                    aggEdgeTypeLocs.append(edgeTypeLoc)
+                    pathwayNames.append(pathway)
+
+                    # The destination for the output file
+                    outLocDir = "%s/%s/%d/PR/"%(sampledSetDir, pathway, percent)
+                    checkDir(outLocDir)
+                    outLoc = "%s/exclude-%s_trial_%d"%(outLocDir, negType, iTrial)
+
+                    # Assemble the command to the subprogram
+                    cmd = "python src/calc-interpolated-PR.py %s --outname %s --node-type-file %s --edge-type-file %s --neg-edge-file %s --neg-node-file %s --pathway-name %s "%(edgeRankLoc, outLoc, nodeTypeLoc, edgeTypeLoc, negEdgeLoc, negNodeLoc, pathway) 
+                    print("\n" + cmd)
+  
+                    # Run the subprogram
+                    testFile = outLoc + "-interpedEdgePR.txt"
+                    if recomputePR or not os.path.isfile(testFile):
+                        if not printonly:
+                            subprocess.check_call(cmd.split())
+                    else:
+                        print("Skipping computation of %s (and the corresponding node file)-- file exists."%(testFile))
+
+                
+                
+                # Run the aggregate calculation for this percent x sample
+
+                # The destination for the output file
+                # TODO This directory structure isn't great
+                outLocDir = "%s/aggregate-PR-exclude-%s"%(sampledSetDir, negType)
+                checkDir(outLocDir)
+                outLoc = "%s/percent_%d-trial_%d"%(outLocDir,percent,iTrial)
+
+
+                cmd = "python src/calc-interpolated-PR.py --agg %s %s --outname %s --node-type-file %s --edge-type-file %s --neg-edge-file %s --neg-node-file %s  --pathway-name %s"%(delimChar, delimChar.join(aggEdgeRankLocs), outLoc, delimChar.join(aggNodeTypeLocs), delimChar.join(aggEdgeTypeLocs), delimChar.join(aggNegEdgeLocs), delimChar.join(aggNegNodeLocs), delimChar.join(pathwayNames)) 
+                print("\n" + cmd)
+  
+                # Run the subprogram
+                testFile = outLoc + "-interpedEdgePR.txt"
+                print("Testing file " + testFile)
+                if recomputePR or not os.path.isfile(testFile):
+                    if not printonly:
+                        subprocess.check_call(cmd.split())
+                else:
+                    print("Skipping computation of %s (and the corresponding node file)-- file exists."%(testFile))
 
 
 
+############################################################
+## Visualize the results of the robustness study
+def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes, nSamples):
+        
+    # TODO For now this only makes plots of the aggregate results, as
+    # these are generally the ones we're interested in.
 
+    print("\n === Plotting aggregate robustness results ===")
 
+    # TODO Right now the paths to to the subsampled negative node/edge
+    # files are basically hardcoded. Need to work with Anna to make sure
+    # it uses the proper ones.
+    negTypes = ['none','adjacent']
+    
+    outDir = sampledSetDir + "viz/"
+    checkDir(outDir)
 
+    for negType in negTypes:
 
+        nodeFilePattern = sampledSetDir + "aggregate-PR-exclude-" + str(negType) + "/percent_%d-trial_%d-interpedNodePR.txt"
+        edgeFilePattern = sampledSetDir + "aggregate-PR-exclude-" + str(negType) + "/percent_%d-trial_%d-interpedEdgePR.txt"
+        outFile = outDir + "aggregate-exclude_%s-k_%d-viz-"%(negType,k)
+
+        cmd = "python src/plot-robustness.py --outname %s --node-PR-file %s --edge-PR-file %s --n-samples %d"%(outFile, nodeFilePattern, edgeFilePattern, nSamples)
+        print("\n" + cmd)
+        
+        testFile = outDir + "Edge-Medians.png"
+        print("Testing file " + testFile)
+        if forcePlot or not os.path.isfile(testFile):
+            if not printonly:
+                subprocess.check_call(cmd.split())
+        else:
+            print("Skipping plotting of exclude-%s because file exists: %s"%(negType, testFile))
 
 
 
