@@ -953,8 +953,7 @@ def main(args):
 
     ## perform the subsampling analysis
     if opts.sample_sources_targets:
-        subSamplingDir = "/data/annaritz/subsampling/"
-        performSubsampling(pathways, opts.k, subSamplingDir, opts.forcealg, opts.forceprecrec, opts.printonly, opts.batch_run)
+        performSubsampling(pathways, opts.k, opts.forcealg, opts.forceprecrec, opts.printonly, opts.batch_run, opts)
 
     print 'DONE'
     return
@@ -1026,8 +1025,10 @@ def parseArguments(args):
     
     group.add_option('','--sample-sources-targets',action='store_true',default=False,\
                           help='Run a robustness analysis')
+    group.add_option('','--only-generate-sample-sets',action='store_true',default=False,\
+                          help='Generate the sample sets for a robsutness analysis.')
     group.add_option('','--batch-run',action='store_true',default=False,\
-                          help='Mark files so that many instances can be run in parallel. This means that force-killing the script can leave result files in a bad state.')
+            help='Mark files so that many instances can be run in parallel. This means that force-killing the script can leave result files in a bad state. Quick instructions: To orchestrate a batch run from scratch, run once with --only-generate-sample-sets, then many times with --batch-run, then once with neither of these.')
     
     parser.add_option_group(group)
 
@@ -1131,11 +1132,10 @@ def generatePathwaySpecificInteractomes(ppifile):
             nodefile = '%s/%s-nodes.txt' % (NETPATHDIR,p)
             generatePPI(edges,nodefile,interactomefile,header)
     ## Get Min Cut values:
-    # FIXME uncomment
-    #if not os.path.isfile('data/min-cuts/netpath.txt'):
-    #    cmd = 'python src/compute-min-cut.py --datadir %s/interactions/netpath/pathways/ --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (DATADIR,PPIDIR)
-    #    print cmd
-    #    os.system(cmd)
+    if not os.path.isfile('data/min-cuts/netpath.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/netpath/pathways/ --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (DATADIR,PPIDIR)
+        print cmd
+        os.system(cmd)
         
     ## Make wnt-all-receptors interactome, if not already present.
     checkDir(PPIDIR+'/wnt-all-receptors/')
@@ -1156,11 +1156,10 @@ def generatePathwaySpecificInteractomes(ppifile):
             generatePPI(edges,nodefile,interactomefile,header)
 
     ## Get Min Cut values:
-    # FIXME uncomment
-    #if not os.path.isfile('data/min-cuts/kegg.txt'):
-    #    cmd = 'python src/compute-min-cut.py --datadir %s/interactions/kegg/2015-03-23/hsa/edge-files/ --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (DATADIR,PPIDIR,DATADIR)
-    #    print cmd
-    #    os.system(cmd)
+    if not os.path.isfile('data/min-cuts/kegg.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/kegg/2015-03-23/hsa/edge-files/ --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (DATADIR,PPIDIR,DATADIR)
+        print cmd
+        os.system(cmd)
 
 
     return
@@ -1826,13 +1825,29 @@ def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpath
 ############################################################
 ## Performs a subsampling analysis
 ## stuff: docs
-def performSubsampling(pathways, k, subsamplingDir, forceRecalc, forcePRRecalc, printonly, batchrun):
+def performSubsampling(pathways, k, forceRecalc, forcePRRecalc, printonly, batchrun, opts):
 
-    print("TODO: Not yet fully implemented")
-        
+    # This analysis only makes sense to run on multiple pathways. Verify
+    # that the opts obey this.
+    if(opts.onlynetpathwnt or opts.wntforexperiments):
+        print("Robustness study should be run on many pathways, not just wnt")
+        exit(-1)
+
+    # Validate args
+    if(opts.only_generate_sample_sets and opts.batch_run):
+        print("Options --only-generate-sample-sets and --batch-run should not be used together")
+        exit(-1)
+
+    # This is the directory in which all robustness related files will
+    # be placed (both intermediate files and final results)
+    weightedStr = "weighted" if opts.weightedppi else "unweighted"
+    subsamplingDir = "/data/nick-sharp/projects/2015-03-pathlinker/results/%s/%s/tf-sampling/"%(opts.ppiversion, weightedStr)
+    checkDir(subsamplingDir)
+
     # Sample sizes/increments are hardcoded constants for now
     sampleSizes = [50, 70, 90, 100, 110, 130, 150]
-    nSamples = 3 # FIXME
+    nSamples = 25
+
     print("Using sample sizes = " + str(sampleSizes) + " nSamples = " + str(nSamples))
 
     print("Subsampling over pathways " + str([name for (name,_,_,_) in pathways]))
@@ -1840,6 +1855,9 @@ def performSubsampling(pathways, k, subsamplingDir, forceRecalc, forcePRRecalc, 
     # Generate upsampled and downsampled node sets
     if not batchrun:
         sampleNodeSets(pathways, subsamplingDir, forceRecalc, printonly, sampleSizes, nSamples)
+    
+    if opts.only_generate_sample_sets:
+        return
 
     # Run PathLinker on every sampled nodesets
     runPathLinkerSampledSets(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples)
@@ -1858,7 +1876,6 @@ def performSubsampling(pathways, k, subsamplingDir, forceRecalc, forcePRRecalc, 
 def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly, sampleSizes, nSamples):
     
         ## Create the master list of all TFs and RECs in the network
-        # TODO This could cause problems if it is called with a smaller pathway set
         print("\n === Creating master receptor and TF sets ===")
         
         pathwayPathsList = " ".join([path + name + "-nodes.txt" for (name,_,path,_) in pathways])
@@ -1913,7 +1930,7 @@ def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly, sampleSizes,
         print 'Done creating sampled nodesets\n'
 
 ############################################################
-## Create PathLinker on each of the sampled nodesets
+## Run PathLinker on each of the sampled nodesets
 def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples):
         
         print("\n === Running PathLinker for all sampled sets ===")
@@ -1940,7 +1957,7 @@ def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly,
                     outprefix = outDir + "sample-%s_%s-%s-"%(pathway, sampSize, iSamp)
 
                     # pathlinker command
-                    testFile = '%sk_%d-paths.txt' % (outprefix,k)
+                    testFile = '%sk_%d-ranked-edges.txt' % (outprefix,k)
                     if forceRecalc or not os.path.isfile(testFile):
 
                         # Mark the file, to stop another instance of this program from overwriting 
@@ -1981,9 +1998,7 @@ def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, pri
     negTypes = ['none','adjacent']
     
     # Whether or not to recompute the PR if files already exist
-    # TODO enfore this
     recomputePR = forceRecalc or forcePRRecalc
-
     
     for negType in negTypes:
 
@@ -2070,7 +2085,7 @@ def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, pri
 ## Visualize the results of the robustness study
 def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes, nSamples):
         
-    # TODO For now this only makes plots of the aggregate results, as
+    # For now this only makes plots of the aggregate results, as
     # these are generally the ones we're interested in.
 
     print("\n === Plotting aggregate robustness results ===")
