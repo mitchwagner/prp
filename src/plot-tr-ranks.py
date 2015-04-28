@@ -181,7 +181,7 @@ def readPageRankNodes(tfs,receptors,indir,pathway,kegg):
 #     return
 
 #######################################################################
-def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outprefix,pathway):
+def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outprefix,pathway, truncate):
     
 
     ## from plot-precision-recall.py
@@ -196,23 +196,28 @@ def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outpr
     print 'max X value is %d' % (xmax)
     ## plot receptors
     ax = plt.subplot(2,1,1)
-    ax.plot(sorted(pl_receptors.values()),range(len(pl_receptors)),'-d',color=plcolor,
+    ax.plot(sorted(pl_receptors.values()),range(1,len(pl_receptors)+1),'-d',color=plcolor,
             label='PathLinker Receptors',lw=2)
-    ax.plot(sorted(pr_receptors.values()),range(len(pr_receptors)),'-d',color=prcolor,
+    ax.plot(sorted(pr_receptors.values()),range(1,len(pr_receptors)+1),'-d',color=prcolor,
             label='RWR Receptors',lw=2)   
     ax.set_title('Receptors in the %s reconstruction' % (pathway))
     ax.set_xlabel('Protein Ranking',size=10)
-    ax.set_ylabel('# (max %d)' % (len(receptors)),size=10)
+    ax.set_ylabel('# Receptors',size=10)
     ax.legend(loc='lower right', prop={'size':8}, numpoints=1)
 
 
     ax2 = plt.subplot(2,1,2)
-    ax2.plot(sorted(pl_tfs.values()),range(len(pl_tfs)),'-s',color=plcolor,label='PathLinker TRs',lw=2)
-    ax2.plot(sorted(pr_tfs.values()),range(len(pr_tfs)),'-s',color=prcolor,label='RWR TRs',lw=2)
+    ax2.plot(sorted(pl_tfs.values()),range(1,len(pl_tfs)+1),'-s',color=plcolor,label='PathLinker TRs',lw=2)
+    ax2.plot(sorted(pr_tfs.values()),range(1,len(pr_tfs)+1),'-s',color=prcolor,label='RWR TRs',lw=2)
     ax2.set_title('TRs in the %s reconstruction' % (pathway))
     ax2.set_xlabel('Protein Ranking',size=10)
-    ax2.set_ylabel('# (max %d)' % (len(tfs)),size=10)
+    ax2.set_ylabel('# TRs',size=10)
     ax2.legend(loc='lower right', prop={'size':8}, numpoints=1)
+
+    ax.set_ylim([1,len(receptors)+1])
+    ax.set_yticks([1,len(receptors)])
+    ax2.set_ylim([1,len(tfs)+1])
+    ax2.set_yticks([1,len(tfs)])
 
     plt.tight_layout()
     plt.savefig(outprefix+'-distribution.png')
@@ -220,15 +225,20 @@ def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outpr
     plt.savefig(outprefix+'-distribution.pdf')
     print 'Wrote to '+outprefix+'-distribution.pdf'
 
-    ax.set_xlim([-10,xmax+10])
-    ax.set_ylim([0,len(receptors)+1])
-    ax2.set_xlim([-10,xmax+10])
-    ax2.set_ylim([0,len(tfs)+1])
-  
-    plt.savefig(outprefix+'-distribution-fixed-xaxis.png')
-    print 'Wrote to '+outprefix+'-distribution-fixed-xaxis.png'
-    plt.savefig(outprefix+'-distribution-fixed-xaxis.pdf')
-    print 'Wrote to '+outprefix+'-distribution-fixed-xaxis.pdf'
+    if not truncate:
+        ax.set_xlim([-10,xmax+10])
+        ax2.set_xlim([-10,xmax+10])  
+        plt.savefig(outprefix+'-distribution-fixed-xaxis.png')
+        print 'Wrote to '+outprefix+'-distribution-fixed-xaxis.png'
+        plt.savefig(outprefix+'-distribution-fixed-xaxis.pdf')
+        print 'Wrote to '+outprefix+'-distribution-fixed-xaxis.pdf'
+    else:
+        ax.set_xlim([-10,truncate+10])
+        ax2.set_xlim([-10,truncate+10])
+        plt.savefig(outprefix+'-distribution-fixed-xaxis-%d.png' % (truncate))
+        print 'Wrote to '+outprefix+'-distribution-fixed-xaxis-%d.png'  % (truncate)
+        plt.savefig(outprefix+'-distribution-fixed-xaxis-%d.pdf' % (truncate))
+        print 'Wrote to '+outprefix+'-distribution-fixed-xaxis-%d.pdf' % (truncate)
     return
 
 #######################################################################
@@ -248,6 +258,8 @@ def main(args):
                       help='pathway or "aggregate"')
     parser.add_option('','--kegg',action='store_true',default=False,\
                       help='run kegg instead of netpath.')
+    parser.add_option('','--truncate',type='int',metavar='INT',\
+                      help='Truncate x-axis to this value.')
 
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -265,14 +277,52 @@ def main(args):
     # read nodes
     tfs,receptors = readNodes(opts.datadir,opts.pathway,opts.kegg)
   
+    out = open(opts.outprefix+'.txt','w')
+    out.write('#%d tfs and %d receptors\n' % (len(tfs),len(receptors)))
+    if opts.pathway!='aggregate':
+        out.write('#id\tname\ttf/receptor\tpathlinker/pagerank\tval\n')
+    else:
+        out.write('#pathway\tid\tname\ttf/receptor\tpathlinker/pagerank\tval\n')
+
     # read pathlinker edges
     pl_tfs,pl_receptors = readPathLinkerEdges(tfs,receptors,opts.indir,opts.pathway,opts.kegg)
-    
+    if opts.pathway!='aggregate':
+        for tf in pl_tfs:
+            out.write('%s\t%s\ttf\tpathlinker\t%d\n' % (tf,tfs[tf],pl_tfs[tf]))
+        for receptor in pl_receptors:
+            out.write('%s\t%s\treceptor\tpathlinker\t%d\n' % (receptor,receptors[receptor],pl_receptors[receptor]))
+    else:
+        for p,tf in pl_tfs:
+            out.write('%s\t%s\t%s\ttf\tpathlinker\t%d\n' % (p,tf,tfs[(p,tf)],pl_tfs[(p,tf)]))
+        for p,receptor in pl_receptors:
+            out.write('%s\t%s\t%s\treceptor\tpathlinker\t%d\n' % (p,receptor,receptors[(p,receptor)],pl_receptors[(p,receptor)]))
+
     # read pagerank edges
     pr_tfs,pr_receptors = readPageRankNodes(tfs,receptors,opts.indir,opts.pathway,opts.kegg)
+    if opts.pathway!='aggregate':
+        for tf in pr_tfs:
+            out.write('%s\t%s\ttf\tpagerank\t%d\n' % (tf,tfs[tf],pr_tfs[tf]))
+        for receptor in pl_receptors:
+            out.write('%s\t%s\treceptor\tpagerank\t%d\n' % (receptor,receptors[receptor],pr_receptors[receptor]))
+    else:
+        for p,tf in pr_tfs:
+            out.write('%s\t%s\t%s\ttf\tpagerank\t%d\n' % (p,tf,tfs[(p,tf)],pr_tfs[(p,tf)]))
+        for p,receptor in pl_receptors:
+            out.write('%s\t%s\t%s\treceptor\tpagerank\t%d\n' % (p,receptor,receptors[(p,receptor)],pr_receptors[(p,receptor)]))
+        
+    out.close()
+    print 'wrote to %s.txt' % (opts.outprefix)
+
+    ## only get receptors/tfs that appear in pathlinker results
+    if opts.pathway!='aggregate':
+        tfs = {t:tfs[t] for t in pr_tfs.keys()}
+        receptors = {r:receptors[r] for r in pr_receptors.keys()}
+    else:
+        tfs = {t:tfs[t] for t in pr_tfs.keys()}
+        receptors = {r:receptors[r] for r in pr_receptors.keys()}
       
     #plotRanks(tfs,pathlinkertfs,pageranktfs,ipa,opts.outprefix)
-    plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,opts.outprefix,opts.pathway)
+    plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,opts.outprefix,opts.pathway,opts.truncate)
 
     
 if __name__=='__main__':

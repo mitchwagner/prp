@@ -128,14 +128,15 @@ def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignore
     posEdges.difference_update(removedEdges)
     #print 'posEdges after removing: %d ' % (len(posEdges))
 
-    ## Now, we can sort the positive edges.
-    posEdges = set([tuple(sorted([t,h])) for t,h in posEdges])
-
     negEdgeOutfile = '%s-exclude_%s-%dX-negative-edges.txt' % (outprefix,negtype,negfactor)
     negNodeOutfile = '%s-exclude_%s-%dX-negative-nodes.txt' % (outprefix,negtype,negfactor)
     if force or not os.path.isfile(negEdgeOutfile) or not os.path.isfile(negNodeOutfile):
         print 'Constructing all negative edges and nodes'
-        allNegEdges = ppiEdges.difference(posEdges)
+        ## need to remove (u,v) and (v,u) for all (u,v) in posEdges.  
+        ## note that we cannot sort posEdges and allNegEdges because
+        ## we need to remove edges that have a tf in the tail or a 
+        ## receptor in the head.
+        allNegEdges = ppiEdges.difference(set([(u,v) for u,v in posEdges]).union(set([(v,u) for u,v in posEdges])))
         allNegNodes = ppiNodes.difference(posNodes)
         
         #print '  removing edges that have a tf in the tail or a receptor in the head'
@@ -158,9 +159,10 @@ def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignore
             ignoredNodes = readItemSet(ignorednodefile,1)
             allNegNodes.difference_update(ignoredNodes)
         
-        ## Now, we can sort the edges.
+        ## Now, we can sort the positive and the negative edges.
         ## ANNA CHANGE: in the old scripts, we subsampled with directed edges, then 
         ## converted to undirected right before we set. Now we sort before subsampling.
+        posEdges = set([tuple(sorted([t,h])) for t,h in posEdges])
         allNegEdges = set([tuple(sorted([t,h])) for t,h in allNegEdges])
 
         if len(posEdges)*negfactor > len(allNegEdges):
@@ -196,6 +198,12 @@ def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignore
 
         print 'Reading negative node set from %s' % (negNodeOutfile)
         negNodes = readItemSet(negNodeOutfile,1)
+
+        ## have to sort positive edges here; negative edges are already sorted.
+        posEdges = set([tuple(sorted([t,h])) for t,h in posEdges])
+
+    if len(posEdges.intersection(negEdges))!=0:
+        sys.exit("ERROR: there is a positive edge in the negative edge set. Exiting.")
 
     return posEdges,negEdges,posNodes,negNodes
 
@@ -274,7 +282,7 @@ Computes precision and recall for ranked nodes and ranked edges; outputs these f
     # seed the random number generator
     random.seed(opts.randseed)
     
-    print '\nOPTIONS ARE', opts
+    print '\nOPTIONS ARE',opts
     
     # Get the pathway predictions
     ## these contain: tuple ((u,v), value), sorted in ascending or descending order.

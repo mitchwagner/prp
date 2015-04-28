@@ -413,19 +413,12 @@ These algorithms and values are listed in the VARYPARAMS global variable (dictio
 | IPA         | /nmax/ = [5,10,15, 25, 35, 50, 75, 100, 200, 500]   |   
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg \
---weightedppi --netpath --responsenet --pcsf --anat --ipa --pagerank\
+--weightedppi --netpath --responsenet --pcsf --anat --ipa --pagerank \
 --varyparams --computeprecrec --precrecviz --forceviz
 #+END_SRC
-Wnt Varying PArameters (IPA is shown in main figures):
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-anat.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-pagerank.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-pcsf.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams-responsenet.png]]
-Aggregate Varying Parameters (IPA is shown in main figures):
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-anat.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-pagerank.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-pcsf.png]]
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams-responsenet.png]]
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt-varyparams.png]]
+
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate-varyparams.png]]
 ** Visualize Wnt Networks
 This takes a special Wnt nodes file that includes FZD4 and FZD6.
 #+BEGIN_SRC bash
@@ -438,66 +431,45 @@ Precision and Recall for different methods (considering edges here):
 #+BEGIN_SRC bash
 python src/report-precrec-for-wntexperiments.py
 #+END_SRC
-| ADDING FZD4/FZD6 TO RESULTS       |        |              |           |         |         |         |
-| EXCLUDE ADJACENT IN LAST TWO COLS |        |              |   Exclude | Exclude | Exclude | Exclude |
-| Method                            | #Edges |    Threshold | None Prec | NoneRec | AdjPrec |  AdjRec |
-|-----------------------------------+--------+--------------+-----------+---------+---------+---------|
-| *PathLinker (top 200 paths)*      |    154 |          202 |     0.676 |   0.137 |   0.920 |   0.137 |
-| PathLinker (top 300 paths)        |    177 |          301 |     0.705 |   0.185 |   0.939 |   0.185 |
-| PathLinker (top 800 paths)        |    270 |          806 |     0.647 |   0.262 |   0.957 |   0.262 |
-| PathLinker (top 1000 paths)       |    327 |         1001 |     0.603 |   0.280 |   0.904 |   0.280 |
-| *PageRank*                        |    154 | 1.677380e-03 |     0.659 |   0.161 |   1.000 |   0.161 |
-| PageRank                          |    177 | 1.265110e-03 |     0.659 |   0.161 |   0.931 |   0.161 |
-| PageRank                          |    270 | 3.247510e-04 |     0.747 |   0.351 |   0.894 |   0.351 |
-| PageRank                          |    327 | 2.527210e-04 |     0.719 |   0.381 |   0.865 |   0.381 |
-| IPA (nmax=5)                      |     92 |          N/A |     0.652 |   0.089 |   0.882 |   0.089 |
-| *IPA (nmax=10)*                   |    212 |          N/A |     0.642 |   0.202 |   0.919 |   0.202 |
-| IPA (nmax=15)                     |    348 |          N/A |     0.603 |   0.226 |   0.776 |   0.226 |
-| *ShortestPaths*                   |    199 |          N/A |     0.618 |   0.125 |   0.840 |   0.125 |
-| *PCSF*                            |     25 |          N/A |     0.000 |   0.000 |   0.000 |   0.000 |
-| *ResponseNet*                     |     50 |          N/A |     0.727 |   0.048 |   0.889 |   0.048 |
-| *ANAT*                            |    110 |          N/A |     0.615 |   0.095 |   1.000 |   0.095 |
-
-
 | SYSTEMATIC PRECREC (FROM PR CURVES) |        |              |           |         |         |         |
 | EXCLUDE ADJACENT IN LAST TWO COLS   |        |              |   Exclude | Exclude | Exclude | Exclude |
 | Method                              | #Edges |    Threshold | None Prec | NoneRec | AdjPrec |  AdjRec |
 |-------------------------------------+--------+--------------+-----------+---------+---------+---------|
-| PathLinker (top 200 paths)          |    153 |          203 |     0.525 |   0.122 |   0.913 |   0.122 |
-| PathLinker (top 300 paths)          |    201 |          301 |     0.629 |   0.227 |   0.951 |   0.227 |
-| PathLinker (top 800 paths)          |    331 |          801 |     0.659 |   0.326 |   0.949 |   0.326 |
-| PathLinker (top 1000 paths)         |    469 |         1023 |     0.615 |   0.372 |   0.901 |   0.372 |
-| PageRank                            |    153 | 1.335330e-03 |     0.667 |   0.140 |   1.000 |   0.140 |
-| PageRank                            |    201 | 5.359690e-04 |     0.674 |   0.180 |   0.969 |   0.180 |
-| PageRank                            |    331 | 2.441320e-04 |     0.671 |   0.285 |   0.790 |   0.285 |
-| PageRank                            |    469 | 6.202930e-05 |     0.705 |   0.430 |   0.796 |   0.430 |
-| IPA (nmax=5)                        |     93 |          N/A |     0.632 |   0.070 |   0.857 |   0.070 |
-| IPA (nmax=10)                       |    213 |          N/A |     0.708 |   0.198 |   0.944 |   0.198 |
-| IPA (nmax=15)                       |    340 |          N/A |     0.551 |   0.221 |   0.776 |   0.221 |
-| ShortestPaths                       |    175 |          N/A |     0.550 |   0.128 |   0.957 |   0.128 |
+| PathLinker (top 200 paths)          |    153 |          203 |     0.568 |   0.122 |   0.875 |   0.122 |
+| PathLinker (top 300 paths)          |    201 |          301 |     0.661 |   0.227 |   0.929 |   0.227 |
+| PathLinker (top 800 paths)          |    331 |          801 |     0.651 |   0.326 |   0.933 |   0.326 |
+| PathLinker (top 1000 paths)         |    469 |         1023 |     0.593 |   0.372 |   0.877 |   0.372 |
+| PageRank                            |    153 | 1.335330e-03 |     0.615 |   0.140 |   1.000 |   0.140 |
+| PageRank                            |    201 | 5.359690e-04 |     0.608 |   0.180 |   1.000 |   0.180 |
+| PageRank                            |    331 | 2.441320e-04 |     0.628 |   0.285 |   0.831 |   0.285 |
+| PageRank                            |    469 | 6.202930e-05 |     0.667 |   0.430 |   0.787 |   0.430 |
+| IPA (nmax=5)                        |     93 |          N/A |     0.600 |   0.070 |   0.923 |   0.070 |
+| IPA (nmax=10)                       |    213 |          N/A |     0.723 |   0.198 |   0.919 |   0.198 |
+| IPA (nmax=15)                       |    340 |          N/A |     0.623 |   0.221 |   0.809 |   0.221 |
+| ShortestPaths                       |    175 |          N/A |     0.595 |   0.128 |   0.846 |   0.128 |
 | PCSF                                |     24 |          N/A |     0.000 |   0.000 |   0.000 |   0.000 |
-| ResponseNet                         |     35 |          N/A |     0.636 |   0.041 |   1.000 |   0.041 |
-| ANAT                                |     98 |          N/A |     0.625 |   0.087 |   1.000 |   0.087 |
+| ResponseNet                         |     35 |          N/A |     0.700 |   0.041 |   1.000 |   0.041 |
+| ANAT                                |     98 |          N/A |     0.652 |   0.087 |   1.000 |   0.087 |
 
 | SYSTEMATIC PRECREC (FROM PR CURVES)   |        |              |           |         |           |          |
 | EXCLUDE KEGG POSITIVES IN LAST 2 COLS |        |              |   Exclude | Exclude |   Exclude |  Exclude |
 | Method                                | #Edges |    Threshold | None Prec | NoneRec | KEGG Prec | KEGG Rec |
 |---------------------------------------+--------+--------------+-----------+---------+-----------+----------|
-| PathLinker (top 200 paths)            |    153 |          203 |     0.525 |   0.122 |     0.656 |    0.122 |
-| PathLinker (top 300 paths)            |    201 |          301 |     0.629 |   0.227 |     0.696 |    0.227 |
-| PathLinker (top 800 paths)            |    331 |          801 |     0.659 |   0.326 |     0.691 |    0.326 |
-| PathLinker (top 1000 paths)           |    469 |         1023 |     0.615 |   0.372 |     0.634 |    0.372 |
-| PageRank                              |    153 | 1.335330e-03 |     0.667 |   0.140 |     0.774 |    0.140 |
-| PageRank                              |    201 | 5.359690e-04 |     0.674 |   0.180 |     0.816 |    0.180 |
-| PageRank                              |    331 | 2.441320e-04 |     0.671 |   0.285 |     0.742 |    0.285 |
-| PageRank                              |    469 | 6.202930e-05 |     0.705 |   0.430 |     0.740 |    0.430 |
-| IPA (nmax=5)                          |     93 |          N/A |     0.632 |   0.070 |     0.667 |    0.070 |
-| IPA (nmax=10)                         |    213 |          N/A |     0.708 |   0.198 |     0.773 |    0.198 |
-| IPA (nmax=15)                         |    340 |          N/A |     0.551 |   0.221 |     0.644 |    0.221 |
-| ShortestPaths                         |    175 |          N/A |     0.550 |   0.128 |     0.564 |    0.128 |
+| PathLinker (top 200 paths)            |    153 |          203 |     0.568 |   0.122 |     0.875 |    0.122 |
+| PathLinker (top 300 paths)            |    201 |          301 |     0.661 |   0.227 |     0.929 |    0.227 |
+| PathLinker (top 800 paths)            |    331 |          801 |     0.651 |   0.326 |     0.933 |    0.326 |
+| PathLinker (top 1000 paths)           |    469 |         1023 |     0.593 |   0.372 |     0.877 |    0.372 |
+| PageRank                              |    153 | 1.335330e-03 |     0.615 |   0.140 |     1.000 |    0.140 |
+| PageRank                              |    201 | 5.359690e-04 |     0.608 |   0.180 |     1.000 |    0.180 |
+| PageRank                              |    331 | 2.441320e-04 |     0.628 |   0.285 |     0.831 |    0.285 |
+| PageRank                              |    469 | 6.202930e-05 |     0.667 |   0.430 |     0.787 |    0.430 |
+| IPA (nmax=5)                          |     93 |          N/A |     0.600 |   0.070 |     0.923 |    0.070 |
+| IPA (nmax=10)                         |    213 |          N/A |     0.723 |   0.198 |     0.919 |    0.198 |
+| IPA (nmax=15)                         |    340 |          N/A |     0.623 |   0.221 |     0.809 |    0.221 |
+| ShortestPaths                         |    175 |          N/A |     0.595 |   0.128 |     0.846 |    0.128 |
 | PCSF                                  |     24 |          N/A |     0.000 |   0.000 |     0.000 |    0.000 |
-| ResponseNet                           |     35 |          N/A |     0.636 |   0.041 |     0.700 |    0.041 |
-| ANAT                                  |     98 |          N/A |     0.625 |   0.087 |     0.789 |    0.087 |
+| ResponseNet                           |     35 |          N/A |     0.700 |   0.041 |     1.000 |    0.041 |
+| ANAT                                  |     98 |          N/A |     0.652 |   0.087 |     1.000 |    0.087 |
 
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \

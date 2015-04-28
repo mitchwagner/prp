@@ -60,7 +60,7 @@ COLORS = {
     'pathlinker' : '#009933',  # medium green
     'eqed' : '#0404B4', 
     'pcsf' : '#CC3300', # red
-    'anat' : 'b', # blue
+    'anat' : '#81F79F', # light green
     'responsenet' : '#FE9A2E', # orange
      'inducedsubgraph': '#66CCFF',
     'shortestpaths':'#F4FA58', # yellow
@@ -88,6 +88,18 @@ NAMES = {
     'ipa':'IPA',
 }
 
+VARYPARAMS_NAMES = {
+    'pagerank' : 'RWR $q$=%s',
+    'pathlinker' : 'PathLinker', 
+    'eqed' : 'eQED',
+    'pcsf' : 'PCSF $p$=%s $\\omega$=%s',
+    'anat' : 'ANAT $\\alpha$=%s',
+    'responsenet' : 'ResponseNet  $\\gamma$=%s',
+     'inducedsubgraph': 'InducedSubgraph',
+    'shortestpaths':'ShortestPaths',
+    'ipa':'IPA $n_{max}$=%s',
+}
+
 ##################################################################
 def getTitle(name,ignorekegg,ignorenetpath,numpathways):
     if name != 'aggregate':
@@ -96,12 +108,12 @@ def getTitle(name,ignorekegg,ignorenetpath,numpathways):
                 'node': {
                     'none': 'Proteins in the %s Reconstruction' % (name),
                     'adjacent':'Proteins in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
-                    'file':'Proteins in the NetPath %s Reconstruction\nIgnoring Proteins in KEGG' % (name)
+                    'file':'Proteins in the %s Reconstruction\nIgnoring Proteins in KEGG' % (name)
                 },
                 'edge': {
                     'none': 'Interactions in the %s Reconstruction' % (name),
                     'adjacent':'Interactions in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
-                    'file':'Interactions in the  NetPath%s Reconstruction\nIgnoring Interactions in KEGG' % (name)
+                    'file':'Interactions in the %s Reconstruction\nIgnoring Interactions in KEGG' % (name)
                 },
             }
         else:
@@ -109,12 +121,12 @@ def getTitle(name,ignorekegg,ignorenetpath,numpathways):
                 'node': {
                     'none': 'Proteins in the %s Reconstruction' % (name),
                     'adjacent':'Proteins in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
-                    'file':'Proteins in the KEGG %s Reconstruction\nIgnoring Proteins in NetPath' % (name)
+                    'file':'Proteins in the %s Reconstruction\nIgnoring Proteins in NetPath' % (name)
                 },
                 'edge': {
                     'none': 'Interactions in the %s Reconstruction' % (name),
                     'adjacent':'Interactions in the %s Reconstruction\nIgnoring Pathway-Adjacent Negatives' % (name),
-                    'file':'Interactions in the KEGG %s Reconstruction\nIgnoring Interactions in NetPath' % (name)
+                    'file':'Interactions in the %s Reconstruction\nIgnoring Interactions in NetPath' % (name)
                 },
             }
     else:
@@ -147,15 +159,23 @@ def getTitle(name,ignorekegg,ignorenetpath,numpathways):
     return titles
 
 ##################################################################
-def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,numpathways):
-    fig = plt.figure(figsize=(10,10))
-
+def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,numpathways,edgeonly=False):
     subplot = 1
     titles = getTitle(name,ignorekegg,ignorenetpath,numpathways)
 
-    for display in ['node','edge']:
+    if edgeonly:
+        displays = ['edge']
+    else:
+        displays = ['node','edge']
+
+    if len(displays)==2 and len(negtypes)==2:
+        fig = plt.figure(figsize=(10,10))
+    else:
+        fig = plt.figure(figsize=(14,5))
+
+    for display in displays:
         for negtype in negtypes:
-            ax = fig.add_subplot(2,2,subplot)
+            ax = fig.add_subplot(len(negtypes),len(displays),subplot)
             subplot+=1
             ax.set_xlabel('Recall', size=12)
             ax.set_ylabel('Precision', size=12)
@@ -165,7 +185,7 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,nump
             ## if negtype == 'file' or negtype == 'adjacent', add original ('none') lines/points with transparency
             #if negtype == 'file':
             for alg in methodlist:
-                color,linewidth,markersize,markerstyle = getstyle(alg,increments,len(methodlist))
+                color,linewidth,markersize,markerstyle,label = getstyle(alg,increments,methodlist)
                 pr = precrecs[display]['none'][alg]
 
                 if len(pr)==1: # plot single point
@@ -178,20 +198,23 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,nump
 
             ## add opaque lines/points for this negtype
             for alg in methodlist:
-                color,linewidth,markersize,markerstyle = getstyle(alg,increments,len(methodlist))
+                color,linewidth,markersize,markerstyle,label = getstyle(alg,increments,methodlist)
                 pr = precrecs[display][negtype][alg]
 
                 if len(pr)==1: # plot single point
-                    ax.plot([r for p,r in pr], [p for p,r in pr],markerstyle,ms=markersize,color=color,label=NAMES.get(alg,alg))
+                    ax.plot([r for p,r in pr], [p for p,r in pr],markerstyle,ms=markersize,color=color,label=label)
                 elif alg == 'ipa': # plot points AND line
                     ax.plot([r for p,r in pr],[p for p,r in pr],'--'+markerstyle,ms=markersize,\
                             lw=linewidth,color=color,label=NAMES.get(alg,alg))
                 else: # plot line only.
-                    ax.plot([r for p,r in pr], [p for p,r in pr],lw=linewidth,color=color,label=NAMES.get(alg,alg))
-            if display == 'node':
-                ax.legend(loc='lower left', ncol=2,frameon=True, prop={'size':10}, numpoints=1)
+                    ax.plot([r for p,r in pr], [p for p,r in pr],lw=linewidth,color=color,label=label)
+            if len(methodlist)<20:
+                if display == 'node':
+                    ax.legend(loc='lower left', ncol=2,frameon=True, prop={'size':10}, numpoints=1)
+                else:
+                    ax.legend(loc='upper right', ncol=2,frameon=True, prop={'size':10}, numpoints=1)
             else:
-                ax.legend(loc='upper right', ncol=2,frameon=True, prop={'size':10}, numpoints=1)
+                ax.legend(loc='lower left', ncol=5,frameon=True, prop={'size':10}, numpoints=1)
             ax.set_ylim([-.02,1.02])
             ax.set_xlim([-.02,1.02])
 
@@ -210,24 +233,49 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,nump
     return
 
 #######################################################################
-def getstyle(alg,increments,nummethods):
+def getstyle(alg,increments,methodlist):
     if alg in COLORS:
         color = COLORS[alg]
         linewidth = 2
         markersize = 8
         markerstyle=SHAPES.get(alg,'-')
+        label = NAMES[alg]
     else:
         ## get original algorithm (withouth parameter annotations)
         key = [a for a in increments if a in alg][0]
+        nummethods = len([m for m in methodlist if key in m])
 
         ## shade of blue
-        color = [increments[key]/nummethods,increments[key]/nummethods,1]
-        color = [min(1,c) for c in color]
+        #color = [increments[key]/nummethods,increments[key]/nummethods,1]
+        #color = [min(1,c) for c in color]
+        ## shade from manuscript colors
+        color = hex_to_rgb(COLORS[key])
+        color = [min(1,c*increments[key]/(nummethods+1)) for c in color]
+
         increments[key] += 1
-        linewidth = 1+increments[key]
-        markersize = 2+10*increments[key]/nummethods
+        linewidth = increments[key]/2.
+        markersize = 2+10*increments[key]/(2*nummethods)
         markerstyle = SHAPES.get(key,'-')
-    return color,linewidth,markersize,markerstyle
+
+        if key == 'pcsf': # 2 params
+            p1 = alg.split('_')[1]
+            p1 = p1.split('-')[0]
+            p2 = alg.split('_')[2]
+            label = VARYPARAMS_NAMES[key] % (p1,p2)
+        else: # one param
+            p = alg.split('_')[1]
+            label = VARYPARAMS_NAMES[key] % p
+    return color,linewidth,markersize,markerstyle,label
+
+
+## from http://stackoverflow.com/questions/214359/converting-hex-color-to-rgb-and-vice-versa
+#######################################################################
+def hex_to_rgb(value):
+    value = value.lstrip('#')
+    lv = len(value)
+    rgb = tuple(int(value[i:i + lv // 3], 16) for i in range(0, lv, lv // 3))
+    rgb = tuple([i/255. for i in rgb])
+    return rgb
 
 #######################################################################
 # to remove dupliates; use OrderedDict.fromkeys() function.
@@ -268,7 +316,7 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                     nodeprecrec[negtype][alg] = []
                     edgeprecrec[negtype][alg] = []
                     for param in VARYPARAMS['nmax']:
-                        nodelist,edgelist = populateprecrecs(FILELOCATIONS['varyparams'][alg],indir,pathway,negtype,param,shift)
+                        nodelist,edgelist,nodefile = populateprecrecs(FILELOCATIONS['varyparams'][alg],indir,pathway,negtype,param,shift)
                         nodeprecrec[negtype][alg] += nodelist
                         edgeprecrec[negtype][alg] += edgelist
                     if negtype == 'none':
@@ -284,22 +332,17 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                                              readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
                 if negtype == 'none':
                     methodlist.append(alg)
-                    if 'aggregate' not in pathway:
-                        numpathways = 1
-                    else:
-                        #print 'Getting pathways from %s' % (nodefile)
-                        numpathways = len(set([p for p in readItemSet(nodefile,1)]))
             else: # add lines for each parameter
                 if alg == 'pagerank':
                     for param in VARYPARAMS['q']:
-                        nodelist,edgelist = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
+                        nodelist,edgelist,nodefile = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
                         nodeprecrec[negtype][alg+'-q_%.2f' % (param)] = nodelist
                         edgeprecrec[negtype][alg+'-q_%.2f' % (param)] = edgelist
                         if negtype == 'none':
                             methodlist.append(alg+'-q_%.2f' % (param))
                 elif alg == 'responsenet':
                     for param in VARYPARAMS['gamma']:
-                        nodelist,edgelist = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
+                        nodelist,edgelist,nodefile = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
                         nodeprecrec[negtype][alg+'-gamma_%d' % (param)] = nodelist
                         edgeprecrec[negtype][alg+'-gamma_%d' % (param)] = edgelist
                         if negtype == 'none':
@@ -308,7 +351,7 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                     for param1 in VARYPARAMS['prize']:
                         for param2 in VARYPARAMS['omega']:
 
-                            nodelist,edgelist = populateprecrecs(filepatterns[alg],indir,pathway,\
+                            nodelist,edgelist,nodefile = populateprecrecs(filepatterns[alg],indir,pathway,\
                                                                  negtype,param1,shift,param2=param2)
                             nodeprecrec[negtype][alg+'-prize_%d-omega_%.2f' % (param1,param2)] = nodelist
                             edgeprecrec[negtype][alg+'-prize_%d-omega_%.2f' % (param1,param2)] = edgelist
@@ -316,14 +359,14 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                                 methodlist.append(alg+'-prize_%d-omega_%.2f' % (param1,param2))
                 elif alg == 'anat':
                     for param in VARYPARAMS['alpha']:
-                        nodelist,edgelist = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
+                        nodelist,edgelist,nodefile = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
                         nodeprecrec[negtype][alg+'-alpha_%.2f' % (param)] = nodelist
                         edgeprecrec[negtype][alg+'-alpha_%.2f' % (param)] = edgelist
                         if negtype == 'none':
                             methodlist.append(alg+'-alpha_%.2f' % (param))
                 elif alg == 'ipa':
                     for param in VARYPARAMS['nmax']:
-                        nodelist,edgelist = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
+                        nodelist,edgelist,nodefile = populateprecrecs(filepatterns[alg],indir,pathway,negtype,param,shift)
                         nodeprecrec[negtype][alg+'-nmax_%d' % (param)] = nodelist
                         edgeprecrec[negtype][alg+'-nmax_%d' % (param)] = edgelist
                         if negtype == 'none':
@@ -337,10 +380,12 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
                                                  readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
                     if negtype == 'none':
                          methodlist.append(alg)
-                         if 'aggregate' not in pathway:
-                             numpathways = 1
-                         else:
-                             numpathways = len(set([p for p in readItemSet(nodefile,1)]))
+
+    ## calculate numpathways; reading from nodefile if necessary.
+    if 'aggregate' not in pathway:
+        numpathways = 1
+    else:
+        numpathways = len(set([p for p in readItemSet(nodefile,1)]))
 
     ## make all lists unique, but preserve order.
     for negtype in negtypes:
@@ -363,7 +408,7 @@ def populateprecrecs(filepattern,indir,pathway,negtype,param1,shift,param2=None)
     nodelist = [(float(p),float(r)) for t,p,r in readColumns(nodefile,3+shift,4+shift,5+shift) if t != 'ignore']
     edgelist = [(float(p),float(r)) for t,p,r in readColumns(edgefile,4+shift,5+shift,6+shift) if t != 'ignore']
 
-    return nodelist,edgelist
+    return nodelist,edgelist,nodefile
     
 #######################################################################
 def main(args):
@@ -421,15 +466,18 @@ def main(args):
         plotPR(methodlist,precrecs,opts.outprefix,opts.pathway,opts.pdf,negtypes,opts.ignorekegg,opts.ignorenetpath,numpathways)
     else:
         ## plot PR for every algorithm specified.
-        for alg in opts.alg:
-            outprefix = '%s-varyparams-%s' % (opts.outprefix,alg)
-            parammethods = [m for m in methodlist if alg in m]
-            parammethods.reverse()
-            pr = {'node':{},'edge':{}}
-            for negtype in opts.negtypes:
-                pr['node'][negtype] = {key:precrecs['node'][negtype][key] for key in parammethods}
-                pr['edge'][negtype] = {key:precrecs['edge'][negtype][key] for key in parammethods}
-            plotPR(parammethods,pr,outprefix,opts.pathway,opts.pdf,negtypes,opts.ignorekegg,opts.ignorenetpath,numpathways)
+        # for alg in opts.alg:
+        #     outprefix = '%s-varyparams-%s' % (opts.outprefix,alg)
+        #     parammethods = [m for m in methodlist if alg in m]
+        #     parammethods.reverse()
+        #     pr = {'node':{},'edge':{}}
+        #     for negtype in opts.negtypes:
+        #         pr['node'][negtype] = {key:precrecs['node'][negtype][key] for key in parammethods}
+        #         pr['edge'][negtype] = {key:precrecs['edge'][negtype][key] for key in parammethods}
+        #     plotPR(parammethods,pr,outprefix,opts.pathway,opts.pdf,negtypes,opts.ignorekegg,opts.ignorenetpath,numpathways)
+
+        ## plot one PR that has all methods, but only plot Exclude-None
+        plotPR(methodlist,precrecs,opts.outprefix,opts.pathway,opts.pdf,['none'],opts.ignorekegg,opts.ignorenetpath,numpathways)
 
 if __name__=='__main__':
     main(sys.argv)

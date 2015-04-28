@@ -644,7 +644,10 @@ def main(args):
             else:
                 indir = '%s/netpath/precision-recall/' % (resultprefix)
         elif opts.kegg:
-            indir = '%s/kegg/precision-recall/' % (resultprefix)
+            if opts.netpathkeggunion:
+                indir = '%s/kegg/precision-recall/netpathkeggunion/' % (resultprefix)
+            else:
+                indir = '%s/kegg/precision-recall/' % (resultprefix)
 
         ## For each pathway, determine the output prefix, construct the call to 
         ## plot-precision-recall.py, and execute it.
@@ -665,6 +668,8 @@ def main(args):
                 outprefix += '-ignorenetpathpositives' 
             elif opts.netpathkeggunion:
                 outprefix += '-netpathkeggunion'
+            if opts.varyparams:
+                outprefix += '-varyparams'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
                 ## Consruct the command.  
                 cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s --pdf' % \
@@ -697,7 +702,9 @@ def main(args):
             if opts.ignorekeggpositives:
                 outprefix += '-ignorekeggpositives' 
             elif opts.netpathkeggunion:
-                outprefix += '-netpathkeggunion'                
+                outprefix += '-netpathkeggunion'   
+            if opts.varyparams:
+                outprefix += '-varyparams'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
                 cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
                       (indir,outprefix,algcmd)
@@ -829,6 +836,12 @@ def main(args):
 
             outprefix = 'viz/ranking-receptors-trs/netpath-aggregate'
             cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway aggregate' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
+            outprefix = 'viz/ranking-receptors-trs/netpath-aggregate'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway aggregate --truncate 1000' % (nodesdir,outprefix,indir)
             print cmd
             if not opts.printonly:
                 subprocess.check_call(cmd.split())
@@ -1720,6 +1733,7 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
     ## check to see if the file exists:
     finalfile = '%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (outprefix,negtype,subsamplefps)
     if not forceprecrec and os.path.isfile(finalfile):
+        print finalfile
         print 'Skipping %s exclude %s: file exists. Use --forceprecrec to override.' % (pathway,negtype)
         return
 
@@ -1728,10 +1742,12 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
 
     ## if negtype == 'file', add kegg or netpath ignored nodes and edges
     if negtype == 'file':
-        pathwaynames,kegg2netpath = getKEGGPathways(ignorenetpathpos) 
+        pathwaynames,kegg2netpath = getKEGGPathways(ignorenetpathpos or ignorekeggpos) 
         if ignorekeggpos:
             keggid = [k for k in kegg2netpath if kegg2netpath[k]==pathway]
             if len(keggid)==0:
+                print kegg2netpath
+                print pathway
                 sys.exit('ERROR: Pathway %s does not exist in kegg. Exiting.' % (pathway))
             keggid = keggid[0]
             ignorededgefile = '%s/%s-edges.txt' % (KEGGDIR,keggid)
