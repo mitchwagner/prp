@@ -21,15 +21,16 @@ import glob
 ## All other versions are commented out.
 PPIVERSION = ''
 ALLOWEDVERSIONS = [#'2013linker', # Chris's version w/ vinayagam, etc.\
-                   #'2015pathlinker', # new version, reg weighting\
-                   #'pathlinker-old-kegg-buggy', # debug version\
-                   #'pathlinker-old-kegg-fixed', # debug version\
-                   #'pathlinker-old-kegg-new-parse', # debug version\
-                   #'pathlinker-old-kegg-buggy-oldannotations', # debug version\
-                   #'pathlinker-signaling',  # only weighted by sig-trans     \
-                   #'pathlinker-signaling-children',  # weighting\
-                   'pathlinker-signaling-children-reg',  # children and reg \
-               ]
+    #'2015pathlinker', # new version, reg weighting\
+    #'pathlinker-old-kegg-buggy', # debug version\
+    #'pathlinker-old-kegg-fixed', # debug version\
+    #'pathlinker-old-kegg-new-parse', # debug version\
+    #'pathlinker-old-kegg-buggy-oldannotations', # debug version\
+    #'pathlinker-signaling',  # only weighted by sig-trans     \
+    #'pathlinker-signaling-children',  # weighting\
+    'pathlinker-signaling-children-reg',  # children and reg \
+    'pathlinker-no-netpath', # pathlinker-signaling-children-reg with no NetPath sources of evidence.
+]
 
 ## DATADIR is the path to the data/ directory checked into SVN.  
 ## The interactomes, KEGG, and NetPath edge files are all checked in.
@@ -60,7 +61,8 @@ MAPTOCOL = 1
 ## PATHWAY DIRECTORIES
 ## NetPath and KEGG edge files (*-edges.txt) are checked into SVN.
 NETPATHDIR='%s/interactions/netpath/pathways/' % (DATADIR) 
-KEGGDIR='%s/interactions/kegg/2015-03-23/hsa/edge-files/' % (DATADIR)
+KEGGDIR='%s/interactions/kegg/2015-03-23/hsa/edge-files-deadends/' % (DATADIR)
+ORIGKEGGDIR='%s/interactions/kegg/2015-03-23/hsa/edge-files/' % (DATADIR)
 
 ## VARYPARAMS
 ## To select parameters for competing methods, we vary each parameter.
@@ -834,6 +836,12 @@ def main(args):
             if not opts.printonly:
                 subprocess.check_call(cmd.split())
 
+                outprefix = 'viz/ranking-receptors-trs/netpath-Wnt'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway Wnt --truncate 400' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
             outprefix = 'viz/ranking-receptors-trs/netpath-aggregate'
             cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway aggregate' % (nodesdir,outprefix,indir)
             print cmd
@@ -880,7 +888,7 @@ def main(args):
             if pathway != 'Wnt':
                 print 'Warning: not plotting false positives for pathways other than Wnt.'
                 continue
-                
+
             indir = '%s/precision-recall/' % (resultdir)
             cmd = 'python src/plot-false-positive-distances.py --outprefix viz/false-positives/directed- --indir %s --pathway aggregate --pathway %s --pdf --edges -r 0.10 -r 0.20 -r 0.30 -r 0.40 -r 0.50 -r 0.60 -r 0.70  --alg pathlinker --alg pagerank' % (indir,pathway)
             print cmd
@@ -892,40 +900,27 @@ def main(args):
             if not opts.printonly:
                 subprocess.check_call(cmd.split())
 
-        sys.exit()
+    # if opts.falsenegs:
+    #     print 'False Negative Plots'
         
-        cmd = 'python ../2014-06-linker/src/bullseye-to-bar.py -o viz/bullseye-to-bar/aggregate- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway aggregate --pdf --edges --nodes -r 0.30 -r 0.60 --alg PRflux+KSP --alg PRflux --alg KSP --alg NG'
-        print cmd
-        if not opts.printonly:
-            subprocess.check_call(cmd.split())
+    #     if not os.path.isfile('data/shortest-paths-for-false-negatives/Wnt-dist.txt'):
+    #         cmd = 'python src/shortest-paths-for-false-negatives.py'
+    #         print cmd
+    #         if not opts.printonly:
+    #             subprocess.check_call(cmd.split())
+    #     else:
+    #         print 'Shortest Paths from/to nodes are already computed.'
 
-        cmd = 'python ../2014-06-linker/src/bullseye-to-bar.py -o viz/bullseye-to-bar/Wnt- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway Wnt --pdf --edges --nodes -r 0.30 -r 0.60 --alg PRflux+KSP --alg PRflux --alg KSP --alg NG'
-        print cmd
-        if not opts.printonly:
-            subprocess.check_call(cmd.split())
+    #     cmd = 'python ../2014-06-linker/src/plot-false-negatives.py -o viz/false-negatives/false-negatives-aggregate- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway aggregate --pdf --edges --alg PRflux+KSP --alg KSP --alg PRflux -r 0.3 -r 0.6'
+    #     print cmd
+    #     if not opts.printonly:
+    #         subprocess.check_call(cmd.split())
 
-
-    if opts.falsenegs:
-        print 'False Negative Plots'
-        
-        if not os.path.isfile('data/shortest-paths-for-false-negatives/Wnt-dist.txt'):
-            cmd = 'python src/shortest-paths-for-false-negatives.py'
-            print cmd
-            if not opts.printonly:
-                subprocess.check_call(cmd.split())
-        else:
-            print 'Shortest Paths from/to nodes are already computed.'
-
-        cmd = 'python ../2014-06-linker/src/plot-false-negatives.py -o viz/false-negatives/false-negatives-aggregate- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway aggregate --pdf --edges --alg PRflux+KSP --alg KSP --alg PRflux -r 0.3 -r 0.6'
-        print cmd
-        if not opts.printonly:
-            subprocess.check_call(cmd.split())
-
-        cmd = 'python ../2014-06-linker/src/plot-false-negatives.py -o viz/false-negatives/false-negatives-Wnt- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway Wnt --pdf --edges --alg PRflux+KSP --alg KSP --alg PRflux -r 0.3 -r 0.6'
-        print cmd
-        if not opts.printonly:
-            subprocess.check_call(cmd.split())
-
+    #     cmd = 'python ../2014-06-linker/src/plot-false-negatives.py -o viz/false-negatives/false-negatives-Wnt- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway Wnt --pdf --edges --alg PRflux+KSP --alg KSP --alg PRflux -r 0.3 -r 0.6'
+    #     print cmd
+    #     if not opts.printonly:
+    #         subprocess.check_call(cmd.split())
+    
     # if opts.weightviz:
     #     ## plot KSP with and without weighted network.
     #     topk = 200
@@ -1001,10 +996,6 @@ def parseArguments(args):
                          help='Run with KEGG inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
     group.add_option('','--wntforexperiments',action='store_true',default=False,\
                      help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified')
-    #group.add_option('','--aggunion',action='store_true',default=False,\
-    #                     help='Run aggregate union special runs')
-    #group.add_option('','--missingnpkegg',action='store_true',default=False,\
-    #                     help='Run Linker for interactomes with missing evidence.')
     parser.add_option_group(group)
 
     ## Algorithms
@@ -1146,7 +1137,7 @@ def generatePathwaySpecificInteractomes(ppifile):
             generatePPI(edges,nodefile,interactomefile,header)
     ## Get Min Cut values:
     if not os.path.isfile('data/min-cuts/netpath.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/netpath/pathways/ --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (DATADIR,PPIDIR)
+        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (NETPATH,PPIDIR)
         print cmd
         os.system(cmd)
         
@@ -1170,11 +1161,14 @@ def generatePathwaySpecificInteractomes(ppifile):
 
     ## Get Min Cut values:
     if not os.path.isfile('data/min-cuts/kegg.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s/interactions/kegg/2015-03-23/hsa/edge-files/ --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (DATADIR,PPIDIR,DATADIR)
+        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (ORIGKEGGDIR,PPIDIR,DATADIR)
         print cmd
         os.system(cmd)
 
-
+    if not os.path.isfile('data/min-cuts/kegg-deadends.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile data/min-cuts/kegg-deadends.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (KEGGDIR,PPIDIR,DATADIR)
+        print cmd
+        os.system(cmd)
     return
 
 ############################################################

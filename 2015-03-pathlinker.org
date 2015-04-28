@@ -84,18 +84,34 @@ The receptor file is [[/data/annaritz/datasets/svn-data/receptors/uniprot-target
 *** TF File
 The TF file is [[/data/annaritz/datasets/svn-data/transcription-factors/vaquerizas-ravasi/human-tfs.txt][data/transcription-factors/vaqueizas-ravasi/human-tfs.txt]].  This is constructed from two sources, [[http://www.nature.com/nrg/journal/v10/n4/full/nrg2538.html][Vaquerizas et al., Nature Reviews 2009]], and [[http://www.sciencedirect.com/science/article/pii/S0092867410000796][Ravasi et al., Cell 2010]].  For the Vaquerizas et al. publication, We only consider TFs from this table of class 'a', 'b', or 'other', which the authors describe as high-quality TFs (ignoring types 'c' and 'x').
 ** NetPath Pathways (~--netpath~)
-Located in [[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/][data/interactions/netpath/pathways/]].  
+Located in [[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/]].  
 - List of the 15 analyzed pathways for the PathLinker paper is [[/data/annaritz/projects/2015-03-pathlinker/data/netpath-analyzed-pathways.txt]].  Note that BCR is commented out because it has a mincut of 2.
 *** Only Wnt Signaling Pathway from NetPath (~--onlynetpathwnt~)
 Only returns the Wnt signaling pathway from NetPath, rather than all 15 analyzed pathways.
 ** KEGG Pathways (~--kegg~)
-Located in [[/data/annaritz/datasets/svn-data/interactions/kegg/hsa/edge-files/][data/interactions/hsa/edge-files/]].  Note that both edge files *and* node files are here - we had to run an additional ~annotate-nodes.py~ script to get the nodelist.
+Located in [[/data/annaritz/datasets/svn-data/interactions/kegg/2015-03-23/hsa/edge-files/]].  Note that both edge files *and* node files are here - we had to run an additional ~annotate-nodes.py~ script to get the nodelist.
 - List of the analyzed pathways for the PathLinker paper is [[/data/annaritz/projects/2015-03-pathlinker/data/kegg-analyzed-pathways.txt]].
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg
 awk '($5>2 && $6>=1 && $7>=1){print $2"\t"$1}'  data/min-cuts/kegg.txt > data/kegg-analyzed-pathways.txt 
 #+END_SRC
 then manually comment out cancer/disease pathways.
+** Determining NetPath and KEGG Pathways used for analysis
+If there are no files in ~data/min-cuts/~, ~master-script.py~ will compute the min cut for every NetPath and KEGG pathway (output in ~data/min-cuts/netpath.txt~ and ~data/min-cuts/kegg.txt~).  To compute the average number of ``recoverable'' TRs:
+#+BEGIN_SRC bash
+$ cat data/netpath-analyzed-pathways.txt | grep -v '#' | cut -f 2 | grep -f - data/min-cuts/netpath.txt | cut -f 9 | awk '{a+=$1} END{print a/NR}'
+18.6
+$ cat data/kegg-analyzed-pathways.txt | grep -v '#' | cut -f 2 | grep -f - data/min-cuts/kegg.txt | cut -f 9 | awk '{a+=$1} END{print a/NR}'
+9.84375
+#+END_SRC
+There are nearly twice the number of TFs on average for NetPath. Anecdotally, we have found that you need enough TRs to connect from receptors in order for PathLinker to perform reasonably well.  So we found the number of nodes with NO outgoing edges (``dead-end nodes'') that were not TFs.  To compute the average number of non-TF dead-end nodes:
+#+BEGIN_SRC bash
+$ cat data/netpath-analyzed-pathways.txt | grep -v '#' | cut -f 2 | grep -f - data/min-cuts/netpath.txt | cut -f 10 | awk '{a+=$1} END{print a/NR}'
+4.06667
+$ cat data/kegg-analyzed-pathways.txt | grep -v '#' | cut -f 2 | grep -f - data/min-cuts/kegg.txt | cut -f 10 | awk '{a+=$1} END{print a/NR}'
+11.9062
+#+END_SRC
+Since there are many more dead-end nodes in KEGG compared to NetPath, we add these to the ~nodes.txt~ file as TRs.
 ** Special Wnt Pathway for Experimental Followup (~--wntforexperiments~)
 We added a new, modified nodes file for Wnt called [[/data/annaritz/projects/2015-03-pathlinker/data/Wnt-FZD4FZD6-nodes.txt]]. It is identical to the nodes file to the NetPath nodes file for Wnt ([[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/Wnt-nodes.txt]]) with the addition of two more receptors that are *in* the netpath pathway but are *not* in the systematic list of receptors: FZD4 and FZD6.  
 * Software
@@ -525,3 +541,4 @@ python /home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py \
 /data/annaritz/datasets/svn-data//interactions/netpath/pathways//Wnt-nodes.txt
 #+END_SRC
 Add your commands here.
+

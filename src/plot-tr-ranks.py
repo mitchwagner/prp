@@ -62,16 +62,8 @@ def readPathLinkerEdges(tfs,receptors,indir,pathway,kegg):
     pl_receptors = {}
     if pathway != 'aggregate':
         infile = '%s/pathlinker/%s-k_20000-ranked-edges.txt' % (indir,pathway)
-        lines = readColumns(infile,1,2,3)
-        for u,v,ksp in lines:
-            if u in tfs and u not in pl_tfs:
-                pl_tfs[u] = int(ksp)
-            if v in tfs and v not in pl_tfs:
-                pl_tfs[v] = int(ksp)
-            if u in receptors and u not in pl_receptors:
-                pl_receptors[u] = int(ksp)
-            if v in receptors and v not in pl_receptors:
-                pl_receptors[v] = int(ksp)
+        lines = set([(u,v,int(k)) for u,v,k in readColumns(infile,1,2,3)])
+        pl_tfs,pl_receptors = walkDownRankings(lines,tfs,receptors,reverse=False,pathway=None)
     else:
         if kegg:
             pathways,kegg2netpath = getKEGGPathways(False)
@@ -79,106 +71,74 @@ def readPathLinkerEdges(tfs,receptors,indir,pathway,kegg):
             pathways = getNetPathPathways(False,False)
         for p in pathways:
             infile = '%s/pathlinker/%s-k_20000-ranked-edges.txt' % (indir,p)
-            lines = readColumns(infile,1,2,3)
-            for u,v,ksp in lines:
-                if (p,u) in tfs and (p,u) not in pl_tfs:
-                    pl_tfs[(p,u)] = int(ksp)
-                if (p,v) in tfs and (p,v) not in pl_tfs:
-                    pl_tfs[(p,v)] = int(ksp)
-                if (p,u) in receptors and (p,u) not in pl_receptors:
-                    pl_receptors[(p,u)] = int(ksp)
-                if (p,v) in receptors and (p,v) not in pl_receptors:
-                    pl_receptors[(p,v)] = int(ksp)
+            lines = set([(u,v,int(k)) for u,v,k in readColumns(infile,1,2,3)])
+            ranked_tfs,ranked_receptors = walkDownRankings(lines,tfs,receptors,reverse=False,pathway=p)
+            pl_tfs.update(ranked_tfs)
+            pl_receptors.update(ranked_receptors)
     print '%d pathlinker TFs and %d pathlinker receptors' % (len(pl_tfs),len(pl_receptors))
     return pl_tfs,pl_receptors
 
 #######################################################################
-def readPageRankNodes(tfs,receptors,indir,pathway,kegg):
+def readPageRankEdges(tfs,receptors,indir,pathway,kegg):
     pr_tfs = {}
     pr_receptors = {}
     if pathway != 'aggregate':
-        infile = '%s/pagerank/%s-q_0.50-node-pagerank.txt' % (indir,pathway)
-        lines = readColumns(infile,1,2)
-        i=1
-        for n,p in sorted(lines,key=lambda x:float(x[1]),reverse=True):
-            if n in tfs and n not in pr_tfs:
-                pr_tfs[n] = i
-            if n in receptors and n not in pr_receptors:
-                pr_receptors[n] = i
-            i+=1
+        infile = '%s/pagerank/%s-q_0.50-edge-fluxes.txt' % (indir,pathway)
+        lines = set([(u,v,float(k)) for u,v,k in readColumns(infile,1,2,3)])
+        pr_tfs,pr_receptors = walkDownRankings(lines,tfs,receptors,reverse=True,pathway=None)
     else:
         if kegg:
             pathways,kegg2netpath = getKEGGPathways(False)
         else:
             pathways = getNetPathPathways(False,False)
         for p in pathways:
-            infile = '%s/pagerank/%s-q_0.50-node-pagerank.txt' % (indir,p)
-            lines = readColumns(infile,1,2)
-            i=1
-            for n,v in sorted(lines,key=lambda x:float(x[1]),reverse=True):
-                if (p,n) in tfs and (p,n) not in pr_tfs:
-                    pr_tfs[(p,n)] = i
-                if (p,n) in receptors and (p,n) not in pr_receptors:
-                    pr_receptors[(p,n)] = i
-                i+=1
+            infile = '%s/pagerank/%s-q_0.50-edge-fluxes.txt' % (indir,p)
+            lines = set([(u,v,float(k)) for u,v,k in readColumns(infile,1,2,3)])
+            ranked_tfs,ranked_receptors = walkDownRankings(lines,tfs,receptors,reverse=True,pathway=p)
+            pr_tfs.update(ranked_tfs)
+            pr_receptors.update(ranked_receptors)
     print '%d pagerank TFs and %d pagerank receptors' % (len(pr_tfs),len(pr_receptors))
     return pr_tfs,pr_receptors
   
 #######################################################################
-# no longer used.  Plots ranks
-# def plotRanks(tfs,pathlinker,pagerank,ipa,outprefix):
-#     iparanks = [pagerank[k] for k in ipa]
-#     maxval = max(max(pagerank.values()),max(pathlinker.values()))
-#     ply = .3
-#     pry = 0
-#     ipay = -.1
-#     # If we were to simply plot pts, we'd lose most of the interesting
-#     # details due to the outliers. So let's 'break' or 'cut-out' the y-axis
-#     # into two portions - use the top (ax) for the outliers, and the bottom
-#     # (ax2) for the details of the majority of our data
-#     fig,(ax,ax2) = plt.subplots(1,2,sharey=True,figsize=(18,3))
-#     # plot the same data on both axes
-#     ax.plot(sorted(pagerank.values()),[pry]*len(pagerank),'s',ms=8)
-#     ax.plot(sorted(pathlinker.values()),[ply]*len(pathlinker),'s',ms=8)
-#     ax.plot(sorted(iparanks),[ipay]*len(iparanks),'r*',ms=8)
-#     for tf in pathlinker.keys():
-#         ax.plot([pagerank[tf],pathlinker[tf]],[pry+0.01,ply-0.01],'-ok',ms=4)
-#     ax2.plot(sorted(pagerank.values()),[pry]*len(pagerank),'s',ms=8)
-#     ax2.plot(sorted(pathlinker.values()),[ply]*len(pathlinker),'s',ms=8)
-#     ax2.plot(sorted(iparanks),[ipay]*len(iparanks),'r*',ms=8)
-#     for tf in pathlinker.keys():
-#         ax2.plot([pagerank[tf],pathlinker[tf]],[pry+0.01,ply-0.01],'-ok',ms=4)
-#     # zoom-in / limit the view to different portions of the data
-#     ax.set_xlim(0,1300)
-#     ax.set_ylim(ipay-0.05,ply+0.05)
-#     ax2.set_xlim(maxval-1000,maxval+50) # outliers only
-#     ax2.set_ylim(ipay-0.05,ply+0.05)
-#     # hide the spines between ax and ax2
-#     ax.spines['right'].set_visible(False)
-#     ax.yaxis.tick_left()
-#     ax.yaxis.set_ticks([ipay,pry,ply])
-#     ax.yaxis.set_ticklabels(['IPA','PageRank','PathLinker'])
-#     ax.tick_params(labelright='off') # don't put tick labels at the top
-#     ax2.spines['left'].set_visible(False)
-#     # This looks pretty good, and was fairly painless, but you can get that
-#     # cut-out diagonal lines look with just a bit more work. The important
-#     # thing to know here is that in axes coordinates, which are always
-#     # between 0-1, spine endpoints are at these locations (0,0), (0,1),
-#     # (1,0), and (1,1).  Thus, we just need to put the diagonals in the
-#     # appropriate corners of each of our axes, and so long as we use the
-#     # right transform and disable clipping.
-#     d = .015 # how big to make the diagonal lines in axes coordinates
-#     # arguments to pass plot, just so we don't keep repeating them
-#     kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
-#     ax.plot((1-d,1+d),(1-d,1+d), **kwargs)      # top-left diagonal
-#     ax.plot((1-d,1+d),(-d,+d), **kwargs)    # top-right diagonal
-#     kwargs.update(transform=ax2.transAxes)  # switch to the bottom axes
-#     ax2.plot((-d,+d),(1-d,1+d), **kwargs)   # bottom-left diagonal
-#     ax2.plot((-d,+d),(-d,+d), **kwargs) # bottom-right diagonal
-#     #plt.tight_layout()
-#     plt.savefig(outprefix+'.png')
-#     print 'Wrote to '+outprefix+'.png'
-#     return
+def walkDownRankings(lines,tfs,receptors,reverse=True,pathway=None):
+    ranked_tfs = {}
+    ranked_receptors = {}
+    i=1
+    prevval = -1
+    if pathway == None:
+        for u,v,k in sorted(lines,key=lambda x:float(x[2]),reverse=reverse):
+            # only increment i if there isn't a tie.
+            if prevval != k and prevval != -1:
+                i+=1
+            prevval=k
+
+            if u in tfs and u not in ranked_tfs:
+                ranked_tfs[u] = i
+            if v in tfs and v not in ranked_tfs:
+                ranked_tfs[v] = i
+            if u in receptors and u not in ranked_receptors:
+                ranked_receptors[u] = i
+            if v in receptors and v not in ranked_receptors:
+                ranked_receptors[v] = i
+
+    else: # append pathway to items (for aggregate)
+        for u,v,k in sorted(lines,key=lambda x:float(x[2]),reverse=reverse):
+            # only increment i if there isn't a tie.
+            if prevval != k and prevval != -1:
+                i+=1
+            prevval=k
+            if (pathway,u) in tfs and (pathway,u) not in ranked_tfs:
+                ranked_tfs[(pathway,u)] = i
+            if (pathway,v) in tfs and (pathway,v) not in ranked_tfs:
+                ranked_tfs[(pathway,v)] = i
+            if (pathway,u) in receptors and (pathway,u) not in ranked_receptors:
+                ranked_receptors[(pathway,u)] = i
+            if (pathway,v) in receptors and v not in ranked_receptors:
+                ranked_receptors[(pathway,v)] = i
+            i+=1
+
+    return ranked_tfs,ranked_receptors
 
 #######################################################################
 def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outprefix,pathway, truncate):
@@ -196,23 +156,23 @@ def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outpr
     print 'max X value is %d' % (xmax)
     ## plot receptors
     ax = plt.subplot(2,1,1)
-    ax.plot(sorted(pl_receptors.values()),range(1,len(pl_receptors)+1),'-d',color=plcolor,
-            label='PathLinker Receptors',lw=2)
-    ax.plot(sorted(pr_receptors.values()),range(1,len(pr_receptors)+1),'-d',color=prcolor,
-            label='RWR Receptors',lw=2)   
+    ax.plot(sorted(pl_receptors.values()),range(1,len(pl_receptors)+1),'--d',color=plcolor,
+            label='PathLinker Receptors',lw=1)
+    ax.plot(sorted(pr_receptors.values()),range(1,len(pr_receptors)+1),'--d',color=prcolor,
+            label='RWR Receptors',lw=1)   
     ax.set_title('Receptors in the %s reconstruction' % (pathway))
-    ax.set_xlabel('Protein Ranking',size=10)
-    ax.set_ylabel('# Receptors',size=10)
-    ax.legend(loc='lower right', prop={'size':8}, numpoints=1)
+    ax.set_xlabel('Ranked Interaction',size=12)
+    ax.set_ylabel('# Receptors',size=12)
+    ax.legend(loc='lower right', prop={'size':10}, numpoints=1)
 
 
     ax2 = plt.subplot(2,1,2)
-    ax2.plot(sorted(pl_tfs.values()),range(1,len(pl_tfs)+1),'-s',color=plcolor,label='PathLinker TRs',lw=2)
-    ax2.plot(sorted(pr_tfs.values()),range(1,len(pr_tfs)+1),'-s',color=prcolor,label='RWR TRs',lw=2)
+    ax2.plot(sorted(pl_tfs.values()),range(1,len(pl_tfs)+1),'--s',color=plcolor,label='PathLinker TRs',lw=1)
+    ax2.plot(sorted(pr_tfs.values()),range(1,len(pr_tfs)+1),'--s',color=prcolor,label='RWR TRs',lw=1)
     ax2.set_title('TRs in the %s reconstruction' % (pathway))
-    ax2.set_xlabel('Protein Ranking',size=10)
-    ax2.set_ylabel('# TRs',size=10)
-    ax2.legend(loc='lower right', prop={'size':8}, numpoints=1)
+    ax2.set_xlabel('Ranked Interaction',size=12)
+    ax2.set_ylabel('# TRs',size=12)
+    ax2.legend(loc='lower right', prop={'size':10}, numpoints=1)
 
     ax.set_ylim([1,len(receptors)+1])
     ax.set_yticks([1,len(receptors)])
@@ -298,7 +258,7 @@ def main(args):
             out.write('%s\t%s\t%s\treceptor\tpathlinker\t%d\n' % (p,receptor,receptors[(p,receptor)],pl_receptors[(p,receptor)]))
 
     # read pagerank edges
-    pr_tfs,pr_receptors = readPageRankNodes(tfs,receptors,opts.indir,opts.pathway,opts.kegg)
+    pr_tfs,pr_receptors = readPageRankEdges(tfs,receptors,opts.indir,opts.pathway,opts.kegg)
     if opts.pathway!='aggregate':
         for tf in pr_tfs:
             out.write('%s\t%s\ttf\tpagerank\t%d\n' % (tf,tfs[tf],pr_tfs[tf]))
