@@ -96,7 +96,7 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 awk '($5>2 && $6>=1 && $7>=1){print $2"\t"$1}'  data/min-cuts/kegg.txt > data/kegg-analyzed-pathways.txt 
 #+END_SRC
 then manually comment out cancer/disease pathways.
-** Determining NetPath and KEGG Pathways used for analysis
+** Determine NetPath and KEGG Pathways used for analysis
 If there are no files in ~data/min-cuts/~, ~master-script.py~ will compute the min cut for every NetPath and KEGG pathway (output in ~data/min-cuts/netpath.txt~ and ~data/min-cuts/kegg.txt~).  To compute the average number of ``recoverable'' TRs:
 #+BEGIN_SRC bash
 $ cat data/netpath-analyzed-pathways.txt | grep -v '#' | cut -f 2 | grep -f - data/min-cuts/netpath.txt | cut -f 9 | awk '{a+=$1} END{print a/NR}'
@@ -497,12 +497,14 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 --graphspace --pathlinker --topk 800
 #+END_SRC
 ** Run all Algorithms on KEGG pathways
+Compute precision and recall for 32 KEGG pathways that have same min-cut qualifications as NetPath.  Also include dead-end nodes as targets (or TRs).  
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --kegg --pathlinker --pagerank --pcsf --ipa --shortestpaths --responsenet \
 --anat --computeprecrec --precrecviz --forceviz
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/kegg/aggregate.png]]
+
 *** Evaluate KEGG Inputs on NetPath/KEGG Union
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi \
@@ -541,4 +543,50 @@ python /home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py \
 /data/annaritz/datasets/svn-data//interactions/netpath/pathways//Wnt-nodes.txt
 #+END_SRC
 Add your commands here.
-
+** Run PathLinker on the PPI missing NetPath evidence
+Here, we use a different PPI version than above.  *pathlinker-signaling-children-reg-no-netpath-weighted.txt* is similar to the PPI above except that all NetPath evidence is removed. If NetPath is the only source of evidence for an edge, then the entire edge is removed.  We run this for all NetPath pathways.
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg-no-netpath --weightedppi --netpath \
+--pathlinker --shortestpaths --pagerank \
+--responsenet --pcsf --anat --ipa \
+--computeprecrec --precrecviz --forceviz 
+#+END_SRC
+** Automatically generate tables for supplementary material
+#+BEGIN_SRC bash
+python src/statistics-for-paper.py /data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-weighted.txt /data/annaritz/datasets/svn-data/interactions/netpath/pathways/
+#+END_SRC
+| PPI Table |       |        |        |            |           |
+| Type      |  #Dir | #Undir |    Tot | MeanWeight | StdWeight |
+|-----------+-------+--------+--------+------------+-----------|
+| SPIKE     | 13202 |  40183 |  93568 |       0.54 |      0.17 |
+| KEGG      | 21548 |   5806 |  33160 |       0.68 |      0.11 |
+| NetPath   |   921 |   2874 |   6669 |       0.75 |      0.00 |
+| CSBDB     |  1740 |  38688 |  79116 |       0.61 |      0.18 |
+|-----------+-------+--------+--------+------------+-----------|
+| Total     | 31371 |  64246 | 159863 |       0.54 |      0.18 |
+#+BEGIN_VERSE
+12063 total nodes and 95617 total edges
+1254 (0.1040) positive nodes and 3795 (0.0397) positive edges
+10809 (0.8960) negative nodes and 91822 (0.9603) negative edges
+0.1160 pos:neg node ratio and 0.0413 pos:neg edge ratio
+#+END_VERSE
+Now collect statistics about the interactome that is missing NetPath evidence.
+#+BEGIN_SRC bash
+python src/statistics-for-paper.py /data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-no-netpath-weighted.txt /data/annaritz/datasets/svn-data/interactions/netpath/pathways/
+#+END_SRC
+| PPI Table |       |        |        |            |           |
+| Type      |  #Dir | #Undir |    Tot | MeanWeight | StdWeight |
+|-----------+-------+--------+--------+------------+-----------|
+| SPIKE     | 13202 |  40183 |  93568 |       0.54 |      0.17 |
+| KEGG      | 21548 |   5806 |  33160 |       0.68 |      0.11 |
+| NetPath   |     0 |      0 |      0 |        nan |       nan |
+| CSBDB     |  1740 |  38688 |  79116 |       0.61 |      0.18 |
+|-----------+-------+--------+--------+------------+-----------|
+| Total     | 31254 |  63061 | 157376 |       0.54 |      0.18 |
+#+BEGIN_VERSE
+Pos:Neg ratio
+12044 total nodes and 94315 total edges
+1235 (0.1025) positive nodes and 2493 (0.0264) positive edges
+10809 (0.8975) negative nodes and 91822 (0.9736) negative edges
+0.1143 pos:neg node ratio and 0.0272 pos:neg edge ratio
+#+END_VERSE

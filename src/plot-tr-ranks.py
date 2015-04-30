@@ -156,10 +156,16 @@ def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outpr
     print 'max X value is %d' % (xmax)
     ## plot receptors
     ax = plt.subplot(2,1,1)
-    ax.plot(sorted(pl_receptors.values()),range(1,len(pl_receptors)+1),'--d',color=plcolor,
-            label='PathLinker Receptors',lw=1)
-    ax.plot(sorted(pr_receptors.values()),range(1,len(pr_receptors)+1),'--d',color=prcolor,
-            label='RWR Receptors',lw=1)   
+    if len(pl_receptors)>20:
+        ax.plot(sorted(pl_receptors.values()),range(1,len(pl_receptors)+1),'--',color=plcolor,
+                label='PathLinker Receptors',lw=2)
+        ax.plot(sorted(pr_receptors.values()),range(1,len(pr_receptors)+1),':',color=prcolor,
+                label='RWR Receptors',lw=2)   
+    else:
+        ax.plot(sorted(pl_receptors.values()),range(1,len(pl_receptors)+1),'--d',color=plcolor,
+                label='PathLinker Receptors',lw=1)
+        ax.plot(sorted(pr_receptors.values()),range(1,len(pr_receptors)+1),':d',color=prcolor,
+                label='RWR Receptors',lw=1)   
     ax.set_title('Receptors in the %s reconstruction' % (pathway))
     ax.set_xlabel('Ranked Interaction',size=12)
     ax.set_ylabel('# Receptors',size=12)
@@ -167,16 +173,20 @@ def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outpr
 
 
     ax2 = plt.subplot(2,1,2)
-    ax2.plot(sorted(pl_tfs.values()),range(1,len(pl_tfs)+1),'--s',color=plcolor,label='PathLinker TRs',lw=1)
-    ax2.plot(sorted(pr_tfs.values()),range(1,len(pr_tfs)+1),'--s',color=prcolor,label='RWR TRs',lw=1)
+    if len(pl_receptors)>20:
+        ax2.plot(sorted(pl_tfs.values()),range(1,len(pl_tfs)+1),'--',color=plcolor,label='PathLinker TRs',lw=2)
+        ax2.plot(sorted(pr_tfs.values()),range(1,len(pr_tfs)+1),':',color=prcolor,label='RWR TRs',lw=2)
+    else:
+        ax2.plot(sorted(pl_tfs.values()),range(1,len(pl_tfs)+1),'--s',color=plcolor,label='PathLinker TRs',lw=1)
+        ax2.plot(sorted(pr_tfs.values()),range(1,len(pr_tfs)+1),':s',color=prcolor,label='RWR TRs',lw=1)
     ax2.set_title('TRs in the %s reconstruction' % (pathway))
     ax2.set_xlabel('Ranked Interaction',size=12)
     ax2.set_ylabel('# TRs',size=12)
     ax2.legend(loc='lower right', prop={'size':10}, numpoints=1)
 
-    ax.set_ylim([1,len(receptors)+1])
+    ax.set_ylim([-1,len(receptors)+len(receptors)/10.])
     ax.set_yticks([1,len(receptors)])
-    ax2.set_ylim([1,len(tfs)+1])
+    ax2.set_ylim([-1,len(tfs)+len(tfs)/10.])
     ax2.set_yticks([1,len(tfs)])
 
     plt.tight_layout()
@@ -186,15 +196,15 @@ def plotDistribution(tfs,receptors,pl_tfs,pl_receptors,pr_tfs,pr_receptors,outpr
     print 'Wrote to '+outprefix+'-distribution.pdf'
 
     if not truncate:
-        ax.set_xlim([-10,xmax+10])
-        ax2.set_xlim([-10,xmax+10])  
+        ax.set_xlim([-xmax/50.,xmax+xmax/50.])
+        ax2.set_xlim([-xmax/50.,xmax+xmax/50.])  
         plt.savefig(outprefix+'-distribution-fixed-xaxis.png')
         print 'Wrote to '+outprefix+'-distribution-fixed-xaxis.png'
         plt.savefig(outprefix+'-distribution-fixed-xaxis.pdf')
         print 'Wrote to '+outprefix+'-distribution-fixed-xaxis.pdf'
     else:
-        ax.set_xlim([-10,truncate+10])
-        ax2.set_xlim([-10,truncate+10])
+        ax.set_xlim([-truncate/50.,truncate+truncate/50.])
+        ax2.set_xlim([-truncate/50.,truncate+truncate/50.])
         plt.savefig(outprefix+'-distribution-fixed-xaxis-%d.png' % (truncate))
         print 'Wrote to '+outprefix+'-distribution-fixed-xaxis-%d.png'  % (truncate)
         plt.savefig(outprefix+'-distribution-fixed-xaxis-%d.pdf' % (truncate))

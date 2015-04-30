@@ -29,7 +29,7 @@ ALLOWEDVERSIONS = [#'2013linker', # Chris's version w/ vinayagam, etc.\
     #'pathlinker-signaling',  # only weighted by sig-trans     \
     #'pathlinker-signaling-children',  # weighting\
     'pathlinker-signaling-children-reg',  # children and reg \
-    'pathlinker-no-netpath', # pathlinker-signaling-children-reg with no NetPath sources of evidence.
+    'pathlinker-signaling-children-reg-no-netpath', # pathlinker-signaling-children-reg with no NetPath sources of evidence.
 ]
 
 ## DATADIR is the path to the data/ directory checked into SVN.  
@@ -672,6 +672,8 @@ def main(args):
                 outprefix += '-netpathkeggunion'
             if opts.varyparams:
                 outprefix += '-varyparams'
+            if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
+                outprefix += '-no_netpath'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
                 ## Consruct the command.  
                 cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway %s %s --pdf' % \
@@ -707,6 +709,8 @@ def main(args):
                 outprefix += '-netpathkeggunion'   
             if opts.varyparams:
                 outprefix += '-varyparams'
+            if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
+                outprefix += '-no_netpath'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
                 cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
                       (indir,outprefix,algcmd)
@@ -870,6 +874,12 @@ def main(args):
             if not opts.printonly:
                 subprocess.check_call(cmd.split())
 
+            outprefix = 'viz/ranking-receptors-trs/kegg-aggregate'
+            cmd = 'python src/plot-tr-ranks.py --datadir %s --o %s --indir %s --pathway aggregate --kegg --truncate 3000' % (nodesdir,outprefix,indir)
+            print cmd
+            if not opts.printonly:
+                subprocess.check_call(cmd.split())
+
     if opts.falsepos:
         print 'Plotting false positives'
         
@@ -995,7 +1005,7 @@ def parseArguments(args):
     group.add_option('','--kegg',action='store_true',default=False,\
                          help='Run with KEGG inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
     group.add_option('','--wntforexperiments',action='store_true',default=False,\
-                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified')
+                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.  Only one of --onlynetpathwnt,--netpath,--kegg, --wntforexperiments may be specified')
     parser.add_option_group(group)
 
     ## Algorithms
@@ -1101,10 +1111,7 @@ def parseArguments(args):
     if opts.ignorekeggpositives and opts.ignorenetpathpositives: 
         sys.exit('ERROR: cannot ignore both KEGG positives and NetPath positives. Exiting.')
 
-    if (opts.netpath and opts.kegg) or \
-       (opts.netpath and opts.onlynetpathwnt) or (opts.kegg and opts.onlynetpathwnt) \
-       or (opts.netpath and opts.wntforexperiments) or (opts.onlynetpathwnt and opts.wntforexperiments) or \
-       (opts.kegg and opts.wntforexperiments):
+    if sum([x for x in [opts.netpath,opts.kegg,opts.onlynetpathwnt,opts.wntforexperiments]]) > 1:
         sys.exit('ERROR: only one of --netpath, --onlynetpathwnt, --kegg, or --wntforexperiments may be specified. Exiting.')
 
     return opts
