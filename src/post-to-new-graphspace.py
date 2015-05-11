@@ -19,7 +19,7 @@ import glob
 from  collections import defaultdict
 from utilsPoirel import *
 from optparse import OptionParser
-import post_edges2graphspace as graphspace
+import graphspace_interface as graphspace
 import networkx as nx
 
 # VERSIONS: see src/python/Interactomes/Human/generate-human-interactome.py.
@@ -268,7 +268,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             edgedir = True
 
         # determine edge color:
-        edgewidth = 10
+        edgewidth = 5
         htmlcolor = COLORS['neither']            
         if tuple(sorted((tail,head))) in netpathedges:
             htmlcolor = COLORS['netpath']
