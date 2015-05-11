@@ -750,81 +750,51 @@ def main(args):
     ## - Post wnt-all-receptors pathways, used to explore false positives for experimental followup
     if opts.graphspace:
         print 'Posting to GraphSpace...'
-        
+        outdir = 'viz/graphspace-json/'
         if opts.pathlinker:
-            infile = '%s/wnt-all-receptors/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
-            gsid = 'Wnt-pathlinker-top%dpaths' % (opts.topk)
-            postReconstructionsToGraphSpace('Wnt',infile,opts.topk,gsid,opts.printonly,increase=True,postunlabeled=False)
-
+            infile_allreceptors = '%s/wnt-all-receptors/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
             infile = '%s/netpath/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
-            gsid = 'pr-Wnt-pathlinker-top%dpaths' % (opts.topk)
-            postReconstructionsToGraphSpace('Wnt',infile,opts.topk,gsid,opts.printonly,\
-                                            increase=True,allreceptors=False,postannotated=False)
-
-            if opts.ignorekeggpositives: # post all overlapping
-                for (pathway,resultidir,datadir,ppifile) in pathways:
-                    infile = '%s/netpath/pathlinker/%s-k_%d-ranked-edges.txt' % (resultprefix,pathway,opts.k)
-                    gsid = 'pr-%s-pathlinker-top%dpaths' % (pathway,opts.topk)
-                    postReconstructionsToGraphSpace(pathway,infile,opts.topk,gsid,opts.printonly,\
-                                                    increase=True,allreceptors=False,postunlabeled=False)
+            gsid = 'Wnt-pathlinker-top%dpaths' % (opts.topk)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,opts.topk,\
+                                            gsid,opts.printonly,increase=True)
 
         if opts.pagerank: # Manually-determined threshold
-            ## threshold is set to 154, 270 edges (200,800 paths)
-            for thres in [0.001677,0.0003247]:
-                infile = '%s/wnt-all-receptors/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
-                gsid = 'Wnt-pagerank-thres%f' % (thres)
-                postWntReconstructionsToGraphSpace(infile,thres,gsid,opts.printonly,decrease=True)
-                
-            ## threshold is set to 153, 331 edges (200,800 paths)
-            for thres in [0.001335,0.0002441]:
+            ## threshold is set to 153 edges (200 paths)
+            for thres in [0.001335]:
+                infile_allreceptors = '%s/wnt-all-receptors/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
                 infile = '%s/netpath/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
-                gsid = 'pr-Wnt-pagerank-thres%f' % (thres)
-                postWntReconstructionsToGraphSpace(infile,thres,gsid,opts.printonly,decrease=True,allreceptors=False)
-
+                gsid = 'Wnt-pagerank-thres%.5f' % (thres)
+                postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,thres,gsid,opts.printonly,decrease=True)
+                
         if opts.anat:
-            infile = '%s/wnt-all-receptors/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
-            gsid = 'Wnt-anat-alpha0.00'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
-
+            infile_allreceptors = '%s/wnt-all-receptors/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
             infile = '%s/netpath/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
-            gsid = 'pr-Wnt-anat-alpha0.00'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,allreceptors=False)
+            gsid = 'Wnt-anat-alpha0.00'
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
 
         if opts.shortestpaths:
-            infile = '%s/wnt-all-receptors/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
-            gsid = 'Wnt-shortest-paths'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
-
+            infile_allreceptors = '%s/wnt-all-receptors/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
             infile = '%s/netpath/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
-            gsid = 'pr-Wnt-shortest-paths'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,allreceptors=False)
+            gsid = 'Wnt-shortest-paths'
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
 
         if opts.responsenet:
-            infile = '%s/wnt-all-receptors/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
-            gsid = 'Wnt-responsenet-gamma20'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
-
+            infile_allreceptors = '%s/wnt-all-receptors/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
             infile = '%s/netpath/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
-            gsid = 'pr-Wnt-responsenet-gamma20'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,allreceptors=False)
+            gsid = 'Wnt-responsenet-gamma20'
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
 
         if opts.pcsf:
             infile = '%s/wnt-all-receptors/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
+            infile_allreceptors = '%s/netpath/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
             gsid = 'Wnt-pcsf-prize5-omega0.01'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly)
-
-            infile = '%s/netpath/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
-            gsid = 'pr-Wnt-pcsf-prize5-omega0.01'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,allreceptors=False)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
 
         if opts.ipa:
-            infile = '%s/wnt-all-receptors/ipa/Wnt-nmax10.out' % (resultprefix)
-            gsid = 'Wnt-ipa-nmax10'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,undirected=True)
-
+            infile_allreceptors = '%s/wnt-all-receptors/ipa/Wnt-nmax10.out' % (resultprefix)
             infile = '%s/netpath/ipa/Wnt-nmax10.out' % (resultprefix)
-            gsid = 'pr-Wnt-ipa-nmax10'
-            postWntReconstructionsToGraphSpace(infile,None,gsid,opts.printonly,undirected=True,allreceptors=False)
+            gsid = 'Wnt-ipa-nmax10'
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,undirected=True)
 
     ## RANK TFS
     ## Little script that ranks the TRs in PathLinker predictions vs. PageRank predictions
@@ -1641,6 +1611,7 @@ def getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway):
 ## - Post un-annotated networks with labels removed.
 ##
 ## infile: file of edges, which may be ranked by a 3rd column
+## infile_allreceptors: file of edges from 'wnt-all-receptors' experiments, ranked the same as infile
 ## thres: if increase==True or decrease==True, use this threshold
 ## gsid: GraphSpace ID
 ## printonly: if True, will never execute command.
@@ -1650,43 +1621,37 @@ def getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway):
 ## are considered an entire set and not ranked by thres)
 ## undirected: if True, checks both (u,v) and (v,u) for evidence sources
 ## allreceptors: if True, takes Wnt interactome from wnt-all-receptors/ instead of netpath/
-def postReconstructionsToGraphSpace(pathway,infile,thres,gsid,printonly,increase=False,\
-                                       decrease=False,undirected=False,allreceptors=True,\
-                                       postannotated=True,postunlabeled=True):
+def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,thres,gsid,printonly,increase=False,\
+                                       decrease=False,undirected=False):
 
     ## PPI FILE is original interactome; this ensures that edges are directed as they were originally
     ## (not necessarily as they were after removing outgoing edges from TRs and incoming edges to receptors)
 
-    ## print annotated
-    if postannotated:
-        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s ' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
-        if allreceptors: ## add FZD4/FZD6 as receptors
-            cmd += ' --addfzd'
-        if increase: # ranked list - pass the threshold
-            cmd += ' --increase --thres %f' % (thres)
-        if decrease: # ranked list - pass the threshold
-            cmd += ' --decrease --thres %f' % (thres)
-        if undirected: 
-            cmd += ' --undirected'
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
+    ## print annotated from infile_allreceptors
+    cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+    if increase: # ranked list - pass the threshold
+        cmd += ' --increase --thres %f' % (thres)
+    if decrease: # ranked list - pass the threshold
+        cmd += ' --decrease --thres %f' % (thres)
+    if undirected: 
+        cmd += ' --undirected'
+    print cmd
+    if not printonly:
+        subprocess.check_call(cmd.split())
 
-    ##print unlabeled
-    if postunlabeled:
-        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % \
-              (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid+'-nolabels',pathway,pathway)
-        if allreceptors:
-            cmd += ' --addfzd'
-        if increase: # ranked list - pass the threshold
-            cmd += ' --increase --thres %f' % (thres)
-        if decrease:
-            cmd += ' --decrease --thres %f' % (thres)
-        if undirected:
-            cmd += ' --undirected'
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
+    ##print unlabeled from infile
+    gsid+='-unlabeled'
+    cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % \
+          (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+    if increase: # ranked list - pass the threshold
+        cmd += ' --increase --thres %f' % (thres)
+    if decrease:
+        cmd += ' --decrease --thres %f' % (thres)
+    if undirected:
+        cmd += ' --undirected'
+    print cmd
+    if not printonly:
+        subprocess.check_call(cmd.split())
 
     return
 
