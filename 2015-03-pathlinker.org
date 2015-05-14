@@ -526,6 +526,21 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 [[/data/annaritz/projects/2015-03-pathlinker/viz/ranking-receptors-trs/kegg-hsa04310-distribution-fixed-xaxis.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/ranking-receptors-trs/kegg-aggregate-distribution.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/ranking-receptors-trs/kegg-aggregate-distribution-fixed-xaxis.png]]
+** Run A* Benchmark
+This runs the current A* code over all of the interactomes we analyze, in addition to a non-A* version of Yen's Algorithm.
+Both verions are optimized; the version of non-A* Yen's was chosen to be a fair comparison.
+Source directory can be found in nick-sharp/work/ksp_benchmarking. Note that the input/ directory is not populated. The desired interactome and pathway files should be placed within, or linked to.
+To run benchmarking, simply execute
+#+BEGIN_SRC bash
+python bench_harness.py
+#+END_SRC 
+Note that there is a block of hardcoded parameters in that python file which should be modified for the desired benchmark.
+The plots we used in the paper can be created from the output of bench_harness.py using
+#+BEGIN_SRC bash
+python plot/comparison_plot.py
+#+END_SRC
+This is a simple utility which creates a bar graph from a tab-separated text file.
+To create the bar graph which includes several k values, I just created a new text file by hand with the numbers needed and ran it through comparison_plot.py
 ** Sample TFs/receptors (Nick)
 Here, we under- and over-sample TRs and Receptors and evaluate how robust PathLinker is to these missing/extra inputs across all pathways.
 
