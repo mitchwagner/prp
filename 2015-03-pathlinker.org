@@ -526,7 +526,7 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 [[/data/annaritz/projects/2015-03-pathlinker/viz/ranking-receptors-trs/kegg-hsa04310-distribution-fixed-xaxis.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/ranking-receptors-trs/kegg-aggregate-distribution.png]]
 [[/data/annaritz/projects/2015-03-pathlinker/viz/ranking-receptors-trs/kegg-aggregate-distribution-fixed-xaxis.png]]
-** Run A* Benchmark
+** Run A* Benchmark (Nick)
 This runs the current A* code over all of the interactomes we analyze, in addition to a non-A* version of Yen's Algorithm.
 Both verions are optimized; the version of non-A* Yen's was chosen to be a fair comparison.
 Source directory can be found in nick-sharp/work/ksp_benchmarking. Note that the input/ directory is not populated. The desired interactome and pathway files should be placed within, or linked to.
@@ -544,20 +544,26 @@ To create the bar graph which includes several k values, I just created a new te
 ** Sample TFs/receptors (Nick)
 Here, we under- and over-sample TRs and Receptors and evaluate how robust PathLinker is to these missing/extra inputs across all pathways.
 
-*For Nick:* to see how I call PathLinkecall the following code:
+The full subsampling procedure takes several days when run in serial. A simple "batch mode" is supported to parallelize it over many machines. The multi-step procedure is as follows:
+
+(1) Generate the sampled source and target sets
 #+BEGIN_SRC bash
-python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt \
---pathlinker --forcealg --printonly
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath --sample-sources-targets --only-generate-sample-sets
 #+END_SRC
-This command will only print (not execute) the following line:
+
+(2) Run PathLinker in batch mode to analyze the different sample sets. Run this command as many times as desired on the different machines you want to work on the problem (ie. run this command 4 times each on two different machines)
 #+BEGIN_SRC bash
-python /home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py \
--k 20000 --write-paths \
---output results/pathlinker-signaling-children-reg/weighted//netpath//pathlinker//Wnt- \
-/data/annaritz/projects/2015-03-pathlinker/data/pathway-specific-interactomes//pathlinker-signaling-children-reg/weighted//netpath//Wnt-interactome.txt \
-/data/annaritz/datasets/svn-data//interactions/netpath/pathways//Wnt-nodes.txt
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath --sample-sources-targets --batch-run
 #+END_SRC
-Add your commands here.
+
+(3) Run once more to compute PR and generate plots. Note that if any processes were terminated prematurely during the batch-run, there may be leftover files that contain only "Working...". They will result in errors when the command below is executed. Just delete them and re-execute, the proper output will be generated.
+#+BEGIN_SRC bash
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath --sample-sources-targets
+#+END_SRC
+
+The robustness analysis supports the --forcealg, --forceviz, and --printonly options as would be expected.
+Be careful not to overwrite the subsampled nodesets, it invalidates the PathLinker run (from --batchrun), which takes a while to recompute. This analysis is a multistep process, and the code DOES NOT automatically detect when a previous step has been re-run and something needs to be recomputed. You need to manage that yourself.
+Finally, note that there is a hardcoded directory where all of the results and intermediate files are placed; it is currently in /data/nick-sharp.
 ** Run PathLinker on the PPI missing NetPath evidence
 Here, we use a different PPI version than above.  *pathlinker-signaling-children-reg-no-netpath-weighted.txt* is similar to the PPI above except that all NetPath evidence is removed. If NetPath is the only source of evidence for an edge, then the entire edge is removed.  We run this for all NetPath pathways.
 #+BEGIN_SRC bash
