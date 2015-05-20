@@ -91,6 +91,7 @@ COLORS = { 'inner':'gray',
            'neither':'#D8D8D8',#'#848484',
            'white':'#FFFFFF',
            'darkgray':'#6E6E6E',
+           'crosstalk':'#D0A9F5',
 }
 NODESHAPES = { 'target':'Square',
                'source':'Diamond',
@@ -222,6 +223,9 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         else: #internal node
             nodeshape = NODESHAPES['inner']
 
+        #crosstalk line widths
+        crosstalknodes = ['SMAD','NOTCH','MAPK','PIK3','EGFR']
+
         # determine node color:
         if nolabels:
             if n in receptors and n in netpathnodes:
@@ -235,6 +239,8 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
                 htmlcolor = COLORS['netpath']
             elif n in keggnodes:
                 htmlcolor = COLORS['kegg']
+            elif any([cn in n for cn in crosstalknodes]):
+                htmlcolor = COLORS['crosstalk']
             else:
                 htmlcolor = COLORS['neither']
         

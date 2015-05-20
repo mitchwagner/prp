@@ -372,6 +372,10 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 --pathlinker --shortestpaths --pagerank \
 --responsenet --pcsf --anat --ipa \
 --computeprecrec --precrecviz --forceviz
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt \
+--pathlinker --shortestpaths --pagerank \
+--responsenet --pcsf --anat --ipa \
+--computeprecrec --precrecviz --forceviz --ignorekeggpositives
 #+END_SRC
 Note that these may be run on different machines: ~--weightedppi --onlynetpathwnt~ arguments must always be specified.
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt.png]]
@@ -455,10 +459,10 @@ python src/report-precrec-for-wntexperiments.py
 | PathLinker (top 300 paths)          |    201 |          301 |     0.661 |   0.227 |   0.929 |   0.227 |
 | PathLinker (top 800 paths)          |    331 |          801 |     0.651 |   0.326 |   0.933 |   0.326 |
 | PathLinker (top 1000 paths)         |    469 |         1023 |     0.593 |   0.372 |   0.877 |   0.372 |
-| PageRank                            |    153 | 1.335330e-03 |     0.615 |   0.140 |   1.000 |   0.140 |
-| PageRank                            |    201 | 5.359690e-04 |     0.608 |   0.180 |   1.000 |   0.180 |
-| PageRank                            |    331 | 2.441320e-04 |     0.628 |   0.285 |   0.831 |   0.285 |
-| PageRank                            |    469 | 6.202930e-05 |     0.667 |   0.430 |   0.787 |   0.430 |
+| PageRank                            |    153 | 1.407620e-03 |     0.651 |   0.163 |   0.933 |   0.163 |
+| PageRank                            |    201 | 8.744160e-04 |     0.636 |   0.203 |   0.854 |   0.203 |
+| PageRank                            |    331 | 3.498440e-04 |     0.625 |   0.320 |   0.846 |   0.320 |
+| PageRank                            |    469 | 2.519080e-04 |     0.680 |   0.494 |   0.817 |   0.494 |
 | IPA (nmax=5)                        |     93 |          N/A |     0.600 |   0.070 |   0.923 |   0.070 |
 | IPA (nmax=10)                       |    213 |          N/A |     0.723 |   0.198 |   0.919 |   0.198 |
 | IPA (nmax=15)                       |    340 |          N/A |     0.623 |   0.221 |   0.809 |   0.221 |
@@ -466,35 +470,58 @@ python src/report-precrec-for-wntexperiments.py
 | PCSF                                |     24 |          N/A |     0.000 |   0.000 |   0.000 |   0.000 |
 | ResponseNet                         |     35 |          N/A |     0.700 |   0.041 |   1.000 |   0.041 |
 | ANAT                                |     98 |          N/A |     0.652 |   0.087 |   1.000 |   0.087 |
+|-------------------------------------+--------+--------------+-----------+---------+---------+---------|
+| PathLinker (recall<=0.203))         |    193 |          247 |     0.648 |   0.203 |   0.921 |   0.203 |
+| PageRank (recall<=0.203)            |    208 | 8.259960e-04 |     0.614 |   0.203 |   0.854 |   0.203 |
+| IPA (nmax=10)                       |    213 |          N/A |     0.723 |   0.198 |   0.919 |   0.198 |
+
 
 | SYSTEMATIC PRECREC (FROM PR CURVES)   |        |              |           |         |           |          |
 | EXCLUDE KEGG POSITIVES IN LAST 2 COLS |        |              |   Exclude | Exclude |   Exclude |  Exclude |
 | Method                                | #Edges |    Threshold | None Prec | NoneRec | KEGG Prec | KEGG Rec |
 |---------------------------------------+--------+--------------+-----------+---------+-----------+----------|
-| PathLinker (top 200 paths)            |    153 |          203 |     0.568 |   0.122 |     0.875 |    0.122 |
-| PathLinker (top 300 paths)            |    201 |          301 |     0.661 |   0.227 |     0.929 |    0.227 |
-| PathLinker (top 800 paths)            |    331 |          801 |     0.651 |   0.326 |     0.933 |    0.326 |
-| PathLinker (top 1000 paths)           |    469 |         1023 |     0.593 |   0.372 |     0.877 |    0.372 |
-| PageRank                              |    153 | 1.335330e-03 |     0.615 |   0.140 |     1.000 |    0.140 |
-| PageRank                              |    201 | 5.359690e-04 |     0.608 |   0.180 |     1.000 |    0.180 |
-| PageRank                              |    331 | 2.441320e-04 |     0.628 |   0.285 |     0.831 |    0.285 |
-| PageRank                              |    469 | 6.202930e-05 |     0.667 |   0.430 |     0.787 |    0.430 |
-| IPA (nmax=5)                          |     93 |          N/A |     0.600 |   0.070 |     0.923 |    0.070 |
-| IPA (nmax=10)                         |    213 |          N/A |     0.723 |   0.198 |     0.919 |    0.198 |
-| IPA (nmax=15)                         |    340 |          N/A |     0.623 |   0.221 |     0.809 |    0.221 |
-| ShortestPaths                         |    175 |          N/A |     0.595 |   0.128 |     0.846 |    0.128 |
+| PathLinker (top 200 paths)            |    153 |          203 |     0.568 |   0.122 |     0.750 |    0.122 |
+| PathLinker (top 300 paths)            |    201 |          301 |     0.661 |   0.227 |     0.750 |    0.227 |
+| PathLinker (top 800 paths)            |    331 |          801 |     0.651 |   0.326 |     0.737 |    0.326 |
+| PathLinker (top 1000 paths)           |    469 |         1023 |     0.593 |   0.372 |     0.646 |    0.372 |
+| PageRank                              |    153 | 1.407620e-03 |     0.651 |   0.163 |     0.750 |    0.140 |
+| PageRank                              |    201 | 8.744160e-04 |     0.636 |   0.203 |     0.795 |    0.180 |
+| PageRank                              |    331 | 3.498440e-04 |     0.625 |   0.320 |     0.710 |    0.285 |
+| PageRank                              |    469 | 2.519080e-04 |     0.680 |   0.494 |     0.733 |    0.430 |
+| IPA (nmax=5)                          |     93 |          N/A |     0.600 |   0.070 |     0.571 |    0.070 |
+| IPA (nmax=10)                         |    213 |          N/A |     0.723 |   0.198 |     0.739 |    0.198 |
+| IPA (nmax=15)                         |    340 |          N/A |     0.623 |   0.221 |     0.633 |    0.221 |
+| ShortestPaths                         |    175 |          N/A |     0.595 |   0.128 |     0.611 |    0.128 |
 | PCSF                                  |     24 |          N/A |     0.000 |   0.000 |     0.000 |    0.000 |
-| ResponseNet                           |     35 |          N/A |     0.700 |   0.041 |     1.000 |    0.041 |
-| ANAT                                  |     98 |          N/A |     0.652 |   0.087 |     1.000 |    0.087 |
+| ResponseNet                           |     35 |          N/A |     0.700 |   0.041 |     0.778 |    0.041 |
+| ANAT                                  |     98 |          N/A |     0.652 |   0.087 |     0.682 |    0.087 |
+|---------------------------------------+--------+--------------+-----------+---------+-----------+----------|
+| PathLinker (recall<=0.203))           |    193 |          247 |     0.648 |   0.203 |     0.745 |    0.203 |
+| PageRank (recall<=0.203)              |    208 | 8.259960e-04 |     0.614 |   0.203 |     0.680 |    0.198 |
+| IPA (nmax=10)                         |    213 |          N/A |     0.723 |   0.198 |     0.739 |    0.198 |
+
 
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --graphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet
 #+END_SRC
-Posts the runs in bold to GraphSpace.  Parameters are included in the naming conventions.  These are hard-coded except for pathlinker, which is determined by the ~--topk~ variable. To run the top 800 paths:
+Posts the runs in bold to Python GraphSpace.  Parameters are included in the naming conventions.  These are hard-coded except for pathlinker, which is determined by the ~--topk~ variable. 
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--oldgraphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet
+#+END_SRC
+Posts the runs in bold to Perl GraphSpace.
+To run the top 800 paths:
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --graphspace --pathlinker --topk 800
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--oldgraphspace --pathlinker --topk 800
+#+END_SRC
+*** Run PathLinker, PageRank, and IPA at same recall
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--graphspace --pathlinker --topk 191
 #+END_SRC
 ** Run all Algorithms on KEGG pathways
 Compute precision and recall for 32 KEGG pathways that have same min-cut qualifications as NetPath.  Also include dead-end nodes as targets (or TRs).  

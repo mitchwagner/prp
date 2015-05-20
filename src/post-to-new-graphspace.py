@@ -82,15 +82,16 @@ COLORS = { 'inner':'gray',
            'red':'#FE2E2E', 
            'gray':'#C8C6C6',
            'pink':'#F5A9A9',
-           'kegg':'#FAAC58',
-           'netpath':'#31B404',
+           'kegg':'#AC58FA',#'#FAAC58',
+           'netpath':'#01DF01',#'#31B404',
            'both':'#CC2EFA',
            'neither':'#D8D8D8',#'#848484',
            'white':'#FFFFFF',
            'darkgray':'#6E6E6E',
+           'crosstalk':'#FACC2E',#'#D0A9F5',
 }
 NODESHAPES = { 'target':'rectangle',
-               'source':'pentagon',
+               'source':'triangle',
                'inner':'ellipse',
                'ligand':'hexagon',
 }
@@ -124,7 +125,10 @@ def getPredictedEdges(predfile,increase,decrease,thres):
         lines = readColumns(predfile,1,2)
         edges = {(UNIPROT2NAME.get(u,u),UNIPROT2NAME.get(v,v)):0 for u,v in lines}
 
-    print '%d edges' % (len(edges))
+    print '%d edges in reconstruction' % (len(edges))
+
+    undiredges = set([tuple(sorted([u,v])) for u,v in edges])
+    print '%d edges in reconstruction excluding direction'  %(len(undiredges))
 
     # make sure all nodes are in PPI
     toremove = set()
@@ -162,7 +166,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
 
     # get metadata
     desc = getGraphDescription(increase,decrease,thres,prededgefile,netpath,kegg)
-    metadata = {'description':desc,'tags':[]}
+    metadata = {'description':desc,'tags':['pathlinker-paper']}
 
     prednodes = set([t for t,h in prededges]).union(set([h for t,h in prededges]))
     if netpath == None:
@@ -203,9 +207,9 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         elif increase or decrease:
             val = min([prededges[(u,v)] for (u,v) in prededges if n==u or n==v])
             if int(val)==val:
-                name = '%s (%d)' % (n,val)
+                name = '%s\n%d' % (n,val)
             else:
-                name = '%s (%.2e)' % (n,val)
+                name = '%s\n%.2e' % (n,val)
         else:
             name = n
 
@@ -218,6 +222,9 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             nodeshape = NODESHAPES['ligand']
         else: #internal node
             nodeshape = NODESHAPES['inner']
+
+        #crosstalk nodes
+        crosstalknodes = ['SMAD','NOTCH','MAPK','PIK3','EGFR']
 
         # determine node color:
         if nolabels:
@@ -232,6 +239,8 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
                 htmlcolor = COLORS['netpath']
             elif n in keggnodes:
                 htmlcolor = COLORS['kegg']
+            elif any([cn in n for cn in crosstalknodes]):
+                htmlcolor = COLORS['crosstalk']
             else:
                 htmlcolor = COLORS['neither']
         
@@ -240,17 +249,18 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         annotation = getNodeAnnotation(n,pathswithnode)
 
         ## add node
-        if nodeshape == 'triangle' or nodeshape == 'pentagon': # double the height of the label
-            graphspace.add_node(G,n,label=name,color=htmlcolor,shape=nodeshape,popup=annotation,k=int(min(pathswithnode)),height=50)
+        if nolabels:
+            graphspace.add_node(G,n,label=name,color=htmlcolor,shape=nodeshape,popup=annotation,k=int(min(pathswithnode)),width=20,height=20)
         else:
-            graphspace.add_node(G,n,label=name,color=htmlcolor,shape=nodeshape,popup=annotation,k=int(min(pathswithnode)))
+            graphspace.add_node(G,n,label=name,color=htmlcolor,shape=nodeshape,popup=annotation,k=int(min(pathswithnode)),width=45,height=45,textoutlinecolor=htmlcolor)
         addednodes.add(n)
 
     # add ligand nodes if necessary
     # these are white hexagons.
     for n in ligandnodes:
         if n not in addednodes:
-            graphspace.add_node(G,n,label=n,color=COLORS['white'],shape=NODESHAPES['ligand'],popup='Ligand (not in paths)',k=0)
+            graphspace.add_node(G,n,label=n,color=COLORS['white'],shape=NODESHAPES['ligand'],popup='Ligand (not in paths)',k=0,textoutlinecolor=htmlcolor)
+            print G.get_node_data(n)
             addednodes.add(n)
             print 'Adding ligand node %s..' % (n)
 
@@ -268,7 +278,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             edgedir = True
 
         # determine edge color:
-        edgewidth = 5
+        edgewidth = 3
         htmlcolor = COLORS['neither']            
         if tuple(sorted((tail,head))) in netpathedges:
             htmlcolor = COLORS['netpath']
@@ -291,7 +301,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
         else:
             edgedir = True
         graphspace.add_edge(G,tail,head,color=COLORS['darkgray'],directed=edgedir,width=0.25,popup='Ligand-receptor edge (not in paths)',k=0)
-    return G
+    return G,metadata
 
 ##########################################################
 def getGraphDescription(increase,decrease,thres,predfile,netpath,kegg):
@@ -671,12 +681,12 @@ def main(args):
         ligandedges = set()
 
     # Construct NetworkX Graph
-    G = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges)
+    G,metadata = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges)
 
     # Post to GraphSpace\
     print 'graphID is %s' % (opts.gsid)
     outfile = '%s/%s.json' % (opts.outdir,opts.gsid)
-    graphspace.postGraph(G,opts.gsid,outfile=outfile,user=USERNAME,password=PASSWORD)
+    graphspace.postGraph(G,opts.gsid,outfile=outfile,user=USERNAME,password=PASSWORD,metadata=metadata)
     if GROUP != None:
         graphspace.shareGraph(opts.gsid,user=USERNAME,password=PASSWORD,group=GROUP)
     print 'DONE\n'

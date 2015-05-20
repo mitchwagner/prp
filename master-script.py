@@ -748,7 +748,7 @@ def main(args):
     ## Post two different Wnt pathway runs.
     ## - Post NetPath Wnt pathways, used to compute precision and recall.  These are prepended with "pr"
     ## - Post wnt-all-receptors pathways, used to explore false positives for experimental followup
-    if opts.graphspace:
+    if opts.graphspace or opts.oldgraphspace:
         print 'Posting to GraphSpace...'
         outdir = 'viz/graphspace-json/'
         if opts.pathlinker:
@@ -756,47 +756,47 @@ def main(args):
             infile = '%s/netpath/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
             gsid = 'Wnt-pathlinker-top%dpaths' % (opts.topk)
             postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,opts.topk,\
-                                            gsid,opts.printonly,increase=True)
+                                            gsid,opts.printonly,increase=True,oldgs=opts.oldgraphspace)
 
         if opts.pagerank: # Manually-determined threshold
-            ## threshold is set to 153 edges (200 paths)
-            for thres in [0.001335]:
+            ## threshold is set to recall of 0.203
+            for thres in [0.000825996]:
                 infile_allreceptors = '%s/wnt-all-receptors/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
                 infile = '%s/netpath/pagerank/Wnt-q_0.50-edge-fluxes.txt' % (resultprefix)
                 gsid = 'Wnt-pagerank-thres%.5f' % (thres)
-                postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,thres,gsid,opts.printonly,decrease=True)
+                postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,thres,gsid,opts.printonly,decrease=True,oldgs=opts.oldgraphspace)
                 
         if opts.anat:
             infile_allreceptors = '%s/wnt-all-receptors/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
             infile = '%s/netpath/anat/Wnt-alpha0.00-edges.out' % (resultprefix)
             gsid = 'Wnt-anat-alpha0.00'
-            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,oldgs=opts.oldgraphspace)
 
         if opts.shortestpaths:
             infile_allreceptors = '%s/wnt-all-receptors/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
             infile = '%s/netpath/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
             gsid = 'Wnt-shortest-paths'
-            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,oldgs=opts.oldgraphspace)
 
         if opts.responsenet:
             infile_allreceptors = '%s/wnt-all-receptors/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
             infile = '%s/netpath/reponsenet/Wnt-gamma_20_responsenet-edges.out' % (resultprefix)
             gsid = 'Wnt-responsenet-gamma20'
-            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,oldgs=opts.oldgraphspace)
 
         if opts.pcsf:
             infile = '%s/wnt-all-receptors/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
             infile_allreceptors = '%s/netpath/pcsf/Wnt-prize5-omega0.01_PCSF-edges.out' % (resultprefix)
             gsid = 'Wnt-pcsf-prize5-omega0.01'
-            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,oldgs=opts.oldgraphspace)
 
         if opts.ipa:
             infile_allreceptors = '%s/wnt-all-receptors/ipa/Wnt-nmax10.out' % (resultprefix)
             infile = '%s/netpath/ipa/Wnt-nmax10.out' % (resultprefix)
             gsid = 'Wnt-ipa-nmax10'
-            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,undirected=True)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,undirected=True,oldgs=opts.oldgraphspace)
 
-    ## RANK TFS
+    ## RANK TF
     ## Little script that ranks the TRs in PathLinker predictions vs. PageRank predictions
     ## Only plot Wnt and aggregate rankings.
     if opts.ranktfs:
@@ -1037,7 +1037,9 @@ def parseArguments(args):
     group.add_option('','--venn',action='store_true',default=False,\
                          help='plot venn diagrams. Only with dbpcompare.')
     group.add_option('','--graphspace',action='store_true',default=False,\
-                         help='post Wnt networks to graphspace.')
+                         help='post Wnt networks to python (new) graphspace.')
+    group.add_option('','--oldgraphspace',action='store_true',default=False,\
+                         help='post Wnt networks to perl (old) graphspace.')
     group.add_option('','--paper',action='store_true',default=False,\
                          help='Make plots for paper.')
     group.add_option('','--weightviz',action='store_true',default=False,\
@@ -1622,17 +1624,19 @@ def getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway):
 ## undirected: if True, checks both (u,v) and (v,u) for evidence sources
 ## allreceptors: if True, takes Wnt interactome from wnt-all-receptors/ instead of netpath/
 def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,thres,gsid,printonly,increase=False,\
-                                       decrease=False,undirected=False):
-
+                                       decrease=False,undirected=False,oldgs=False):
     ## PPI FILE is original interactome; this ensures that edges are directed as they were originally
     ## (not necessarily as they were after removing outgoing edges from TRs and incoming edges to receptors)
 
     ## print annotated from infile_allreceptors
-    cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+    if oldgs:
+        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+    else:
+        cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
     if increase: # ranked list - pass the threshold
-        cmd += ' --increase --thres %f' % (thres)
+        cmd += ' --increase --thres %.8f' % (thres)
     if decrease: # ranked list - pass the threshold
-        cmd += ' --decrease --thres %f' % (thres)
+        cmd += ' --decrease --thres %.8f' % (thres)
     if undirected: 
         cmd += ' --undirected'
     print cmd
@@ -1641,12 +1645,14 @@ def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,th
 
     ##print unlabeled from infile
     gsid+='-unlabeled'
-    cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % \
-          (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+    if oldgs:
+        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
+    else:
+        cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway,pathway)
     if increase: # ranked list - pass the threshold
-        cmd += ' --increase --thres %f' % (thres)
+        cmd += ' --increase --thres %.8f' % (thres)
     if decrease:
-        cmd += ' --decrease --thres %f' % (thres)
+        cmd += ' --decrease --thres %.8f' % (thres)
     if undirected:
         cmd += ' --undirected'
     print cmd

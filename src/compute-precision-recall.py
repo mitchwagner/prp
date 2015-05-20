@@ -42,9 +42,7 @@ def getPredictions(edgefile,edgecol,nodefile,nodecol,descending):
         key = tuple(sorted([t,h]))
         ## we may have seen this key before. If so, keep the smallest or largest 
         ## value according to the descending flag
-        if key not in epreds or \
-           (val < epreds[key] and not descending) or \
-           (val > epreds[key] and descending):
+        if key not in epreds or val < epreds[key]:
             epreds[key]=val
 
         if nodefile == None: # read nodes as we read edges.
