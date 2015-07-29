@@ -224,7 +224,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             nodeshape = NODESHAPES['inner']
 
         #crosstalk nodes
-        crosstalknodes = ['SMAD','NOTCH','MAPK','PIK3','EGFR']
+        crosstalknodes = ['SMAD','NOTCH','MAPK','PIK3','EGFR','SRC']
 
         # determine node color:
         if nolabels:

@@ -1384,7 +1384,7 @@ def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
     nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
+    
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/pagerank/' % (resultdir)
