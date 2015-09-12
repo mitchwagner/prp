@@ -88,6 +88,11 @@ Located in [[/data/annaritz/datasets/svn-data/interactions/netpath/pathways/]].
 - List of the 15 analyzed pathways for the PathLinker paper is [[/data/annaritz/projects/2015-03-pathlinker/data/netpath-analyzed-pathways.txt]].  Note that BCR is commented out because it has a mincut of 2.
 *** Only Wnt Signaling Pathway from NetPath (~--onlynetpathwnt~)
 Only returns the Wnt signaling pathway from NetPath, rather than all 15 analyzed pathways.
+*** All NetPath pathways (~--allnetpath~)
+New as of September 11, 2015.  A reviewer asked why we only do a subset of NetPath/KEGG pathways.  In response, we want to run PathLinker with all NetPath pathways. I made a file of all pathways in data/netpath-all-pathways.txt:
+#+BEGIN_SRC bash
+ls /data/annaritz/datasets/svn-data/interactions/netpath/pathways/*-nodes.txt | sed 's/.*pathways\///g' | sed 's/-nodes.txt//g'  > data/netpath-all-pathways.txt
+#+END_SRC
 ** KEGG Pathways (~--kegg~)
 Located in [[/data/annaritz/datasets/svn-data/interactions/kegg/2015-03-23/hsa/edge-files/]].  Note that both edge files *and* node files are here - we had to run an additional ~annotate-nodes.py~ script to get the nodelist.
 - List of the analyzed pathways for the PathLinker paper is [[/data/annaritz/projects/2015-03-pathlinker/data/kegg-analyzed-pathways.txt]].
@@ -380,7 +385,7 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 Note that these may be run on different machines: ~--weightedppi --onlynetpathwnt~ arguments must always be specified.
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/Wnt.png]]
 
-** Run All Algorithms on NetPath Pathways
+** Run All Algorithms on Analyzed NetPath Pathways
 #+BEGIN_SRC bash 
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath \
 --pathlinker --shortestpaths --pagerank \
@@ -388,6 +393,12 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 --computeprecrec --precrecviz --forceviz
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]]
+** Run PathLinker and PageRank on All NetPath Pathways
+#+BEGIN_SRC bash 
+python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --allnetpath --pathlinker --pagerank \ 
+--computeprecrec --precrecviz --forceviz
+#+END_SRC
+[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]
 *** Visualize False Positives
 #+BEGIN_SRC bash
 python master-script.py --netpath --ppiversion pathlinker-signaling-children-reg \

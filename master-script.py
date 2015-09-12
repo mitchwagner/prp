@@ -113,8 +113,8 @@ def main(args):
     ## pathways is a set() of (pathwayname,resultdir,datadir,ppidir) tuples.
     pathways = set()
     kegg2netpath = {} # will be populated if kegg pathways are specified.
-    if opts.netpath or opts.onlynetpathwnt:
-        pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.ignorekeggpositives or opts.netpathkeggunion)
+    if opts.netpath or opts.onlynetpathwnt or opts.allnetpath:
+        pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.ignorekeggpositives or opts.netpathkeggunion,opts.allnetpath)
         resultdir = '%s/netpath/' %(resultprefix)
         checkDir(resultdir) 
         datadir = NETPATHDIR
@@ -640,7 +640,7 @@ def main(args):
         ## Speficy the input directory to read the precision-recall values from.
         ## if --netpathkeggunion is specified, add the netpathkeggunion directory
         ## so we look in the correct place.
-        if opts.netpath or opts.onlynetpathwnt:
+        if opts.netpath or opts.onlynetpathwnt or opts.allnetpath:
             if opts.netpathkeggunion:
                 indir = '%s/netpath/precision-recall/netpathkeggunion/' % (resultprefix)
             else:
@@ -657,6 +657,7 @@ def main(args):
             ## if --wntforexperiments is specified, add "all-receptors" 
             ## to label. If --ignorekeggpositives is specified, add "ignorekeggpositives"
             ## to label.  if --netpathkeggunion is specified, add "netpathkeggunion" to label.
+	    ## If --allnetpath is specified, add "allnetpath" to label.
             ## Otherwise, label is simply the pathway name.
             if 'netpath' in datadir:
                 outprefix = 'viz/precision-recall/netpath/%s' % (pathway)
@@ -670,6 +671,8 @@ def main(args):
                 outprefix += '-ignorenetpathpositives' 
             elif opts.netpathkeggunion:
                 outprefix += '-netpathkeggunion'
+  	    elif opts.allnetpath:
+		outprefix += '-allnetpath'
             if opts.varyparams:
                 outprefix += '-varyparams'
             if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
@@ -969,13 +972,15 @@ def parseArguments(args):
     group.add_option('','--weightedppi',action='store_true',default=False,\
                          help='Run with weighted PPI.')
     group.add_option('','--onlynetpathwnt',action='store_true',default=False,\
-                         help='Only run NetPath Wnt. Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
+                         help='Only run NetPath Wnt. Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments--allnetpath may be specified.')
     group.add_option('','--netpath',action='store_true',default=False,\
-                         help='Run with NetPath inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
+                         help='Run with NetPath inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments,--allnetpath may be specified.')
+    group.add_option('','--allnetpath',action='store_true',default=False,\
+			help='Run with all NetPath pathways. Only one of --onlynetpathwnt, --netpath, --kegg, --wntforexpeirments, --allnetpath may be specified.')
     group.add_option('','--kegg',action='store_true',default=False,\
-                         help='Run with KEGG inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments may be specified.')
+                         help='Run with KEGG inputs.  Only one of --onlynetpathwnt,--netpath,--kegg,--wntforexperiments,--allnetpath may be specified.')
     group.add_option('','--wntforexperiments',action='store_true',default=False,\
-                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.  Only one of --onlynetpathwnt,--netpath,--kegg, --wntforexperiments may be specified')
+                     help='Run special wnt that includes FZD4/FZD6 receptors, for analyzing via networks.  Only one of --onlynetpathwnt,--netpath,--kegg, --wntforexperiments,--allnetpath may be specified')
     parser.add_option_group(group)
 
     ## Algorithms
@@ -1083,8 +1088,8 @@ def parseArguments(args):
     if opts.ignorekeggpositives and opts.ignorenetpathpositives: 
         sys.exit('ERROR: cannot ignore both KEGG positives and NetPath positives. Exiting.')
 
-    if sum([x for x in [opts.netpath,opts.kegg,opts.onlynetpathwnt,opts.wntforexperiments]]) > 1:
-        sys.exit('ERROR: only one of --netpath, --onlynetpathwnt, --kegg, or --wntforexperiments may be specified. Exiting.')
+    if sum([x for x in [opts.netpath,opts.kegg,opts.onlynetpathwnt,opts.wntforexperiments,opts.allnetpath]]) > 1:
+        sys.exit('ERROR: only one of --netpath, --onlynetpathwnt, --kegg, or --wntforexperiments, --allnetpath may be specified. Exiting.')
 
     return opts
 
@@ -1194,11 +1199,13 @@ def checkDir(dirname):
 ## them as a list.
 ## onlynetpathwnt: if True, only return Wnt
 ## dbcompare: if True, only return the 6 pathways in common with KEGG
-def getNetPathPathways(onlynetpathwnt,overlapwithkegg):
+def getNetPathPathways(onlynetpathwnt,overlapwithkegg,allnetpath):
     if onlynetpathwnt:
         return ['Wnt']
     if overlapwithkegg: # only return the 6 pathways in common with KEGG.
         analyzedpathwayfile = 'data/netpath-dbcompare-pathways.txt'
+    if allnetpath:
+	analyzedpathwayfile = 'data/netpath-all-pathways.txt'
     else:
         analyzedpathwayfile = 'data/netpath-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
@@ -1208,9 +1215,8 @@ def getNetPathPathways(onlynetpathwnt,overlapwithkegg):
 ## getAllNetPathPathways reads the pathways in the NETPATHDIR 
 ## directory and outputs them.
 def getAllNetPathPathways():
-    pathways = glob.glob('%s/*-nodes.txt' % (NETPATHDIR))
-    pathways = [p.split('/')[-1] for p in pathways]
-    pathways = [p.replace('-nodes.txt','') for p in pathways]
+    analyzedpathwayfile = 'data/netpath-all-pathways.txt'
+    pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
 ############################################################
