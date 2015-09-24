@@ -335,7 +335,13 @@ def main(args):
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
-
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
                     ## compute aggregate for KEGG
                     inputdir = getPRoutdir('pathlinker',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -425,6 +431,14 @@ def main(args):
                                                         opts.forceprecrec,opts.printonly,descending=True,
                                                         param=param,\
                                                     union=opts.netpathkeggunion)
+
+                    if opts.allnetpath:
+                        ## comput aggregate for all of Netpath
+                        inputdir = getPRoutdir('pagerank',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,descending=True,param=param,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
 
                     if opts.kegg:
                         ## compute aggregate for KEGG
@@ -657,7 +671,6 @@ def main(args):
             ## if --wntforexperiments is specified, add "all-receptors" 
             ## to label. If --ignorekeggpositives is specified, add "ignorekeggpositives"
             ## to label.  if --netpathkeggunion is specified, add "netpathkeggunion" to label.
-	    ## If --allnetpath is specified, add "allnetpath" to label.
             ## Otherwise, label is simply the pathway name.
             if 'netpath' in datadir:
                 outprefix = 'viz/precision-recall/netpath/%s' % (pathway)
@@ -671,9 +684,7 @@ def main(args):
                 outprefix += '-ignorenetpathpositives' 
             elif opts.netpathkeggunion:
                 outprefix += '-netpathkeggunion'
-  	    elif opts.allnetpath:
-		outprefix += '-allnetpath'
-            if opts.varyparams:
+	    if opts.varyparams:
                 outprefix += '-varyparams'
             if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
                 outprefix += '-no_netpath'
@@ -703,19 +714,25 @@ def main(args):
             else:
                 print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
                 
-        ## If --netpath is specified, plot the aggregate precision-recall plots.
-        if opts.netpath: 
+        ## If --netpath or --allnetpath is specified, plot the aggregate precision-recall plots.
+        if opts.netpath or opts.allnetpath: 
             outprefix = 'viz/precision-recall/netpath/aggregate'
             if opts.ignorekeggpositives:
                 outprefix += '-ignorekeggpositives' 
             elif opts.netpathkeggunion:
-                outprefix += '-netpathkeggunion'   
+                outprefix += '-netpathkeggunion'
+	    elif opts.allnetpath:
+	        outprefix += '-allnetpath'   
             if opts.varyparams:
                 outprefix += '-varyparams'
             if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
                 outprefix += '-no_netpath'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
-                cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
+		if opts.allnetpath:
+ 		    cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate-allpathways %s --pdf' % \
+                      (indir,outprefix,algcmd)
+		else:
+                    cmd = 'python src/plot-precision-recall.py --indir %s --outprefix %s --pathway aggregate %s --pdf' % \
                       (indir,outprefix,algcmd)
                 if opts.varyparams:
                     cmd += '  --varyparams'
@@ -1770,7 +1787,12 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
 ## param: additional string to append to outfile
 ## netpath: if True, run NetPath aggregate. Otherwise run KEGG aggregate.
 ## union: if True, use union of NetPath & KEGG as positives.
-def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpathpos,subsamplefps,forceprecrec,printonly,descending=True,param=None,netpath=True,union=False):
+
+## ANNA POTENTIAL BUG CAUGHT SEPT 11, 2015!!
+## The default value for descending was True.  This was inconsistent with the computePrecisionRecall function above.
+## As a result, I suspect that PathLinker/ANAT/ResponseNet/APSP were ordered incorrectly when computing aggregate precision
+## and recall.  I am confirming this now.
+def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpathpos,subsamplefps,forceprecrec,printonly,descending=False,param=None,netpath=True,union=False, allpathways=False):
 
     if ignorekeggpos and not netpath:
         sys.exit('ERROR: cannot ignore kegg positives with kegg datasets. Exiting.')
@@ -1783,6 +1805,8 @@ def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpath
             finalfile = '%saggregate-pathways_shared_with_kegg-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
         elif ignorenetpathpos:
             finalfile = '%saggregate-pathways_shared_with_netpath-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
+	elif allpathways:
+            finalfile = '%saggregate-allpathways-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
         else:
             finalfile = '%saggregate-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,negtype,subsamplefps)
     else:
@@ -1790,7 +1814,9 @@ def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpath
             finalfile = '%saggregate-pathways_shared_with_kegg-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
         elif ignorenetpathpos:
              finalfile = '%saggregate-pathways_shared_with_netpath-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
-        else:
+        elif allpathways:
+            finalfile = '%saggregate-allpathways-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
+	else:
             finalfile = '%saggregate-%s-exclude_%s-sample_%dX-node-precision-recall.txt' % (inputdir,param,negtype,subsamplefps)
     if not forceprecrec and os.path.isfile(finalfile):
         print 'Skipping aggregate, file exists. Use --forceprecrec to override.'
@@ -1801,6 +1827,8 @@ def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpath
         cmd += ' --netpath'
     else:
         cmd += ' --kegg'
+    if allpathways:
+	cmd += ' --allpathways'
     if param != None:
         cmd += ' --param %s' % (param)
     if descending:

@@ -102,7 +102,7 @@ VARYPARAMS_NAMES = {
 
 ##################################################################
 def getTitle(name,ignorekegg,ignorenetpath,numpathways):
-    if name != 'aggregate':
+    if 'aggregate' not in name:
         if ignorekegg:
             titles = {
                 'node': {
@@ -286,15 +286,15 @@ def readFiles(varyparams,algs,indir,pathway,negtypes,ignorekegg,ignorenetpath):
         filepatterns = FILELOCATIONS['singleparam']
 
     # shift variable shifts the column if it's aggregate.
-    if pathway == 'aggregate': # first column is pathway
+    if 'aggregate' in pathway: # first column is pathway
         shift = 1
     else: 
         shift = 0
 
-    if ignorekegg and pathway == 'aggregate':
+    if ignorekegg and 'aggregate' in pathway:
         ## only get 6 pathways
         pathway += '-pathways_shared_with_kegg'
-    elif ignorenetpath and pathway == 'aggregate':
+    elif ignorenetpath and 'aggregate' in pathway:
         pathway += '-pathways_shared_with_netpath'
 
     nodeprecrec = {}

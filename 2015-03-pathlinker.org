@@ -395,7 +395,8 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg --weighte
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]]
 ** Run PathLinker and PageRank on All NetPath Pathways
 #+BEGIN_SRC bash 
-python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --allnetpath --pathlinker --pagerank \ 
+python master-script.py --ppiversion pathlinker-signaling-children-reg \
+--weightedppi --allnetpath --pathlinker --pagerank \ 
 --computeprecrec --precrecviz --forceviz
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]
