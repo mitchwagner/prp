@@ -146,7 +146,7 @@ def main(args):
     ## If --varyparams is specified, iterate through (pathway,param) combinations
     ## and cal the run() method.
 
-    ## PathLinker ##
+    ## PathLinker #
     if opts.pathlinker:
         print 'Running PathLinker:'
         for (pathway,resultdir,datadir,ppidir) in pathways:
@@ -159,6 +159,13 @@ def main(args):
         for (pathway,resultdir,datadir,ppidir) in pathways:
             runShortestPaths(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
         print 'Done Running Shortest Paths\n'
+
+    ## BowtieBuilder ##
+    if opts.bowtiebuilder:
+        print 'Running BowTieBuilder'
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runBowTieBuilder(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
+        print 'Done Running BowTieBuilder\n'
 
     ## Induced Subgraph ##
     if opts.inducedsubgraph:
@@ -369,13 +376,37 @@ def main(args):
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
                 if opts.kegg:
-                    ## compute aggregate for NetPath
+                    ## compute aggregate for KEGG
                     inputdir = getPRoutdir('shortestpaths',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,netpath=False,\
                                                     union=opts.netpathkeggunion)
-            
+            ## BowTieBUilder ##                                                                                
+            if opts.bowtiebuilder:
+                sortcol = None # no sorting; entire file is the set of edges returned by BowTieBuilder.                                                                   
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    edgefile = '%s/bowtiebuilder/%s-bowtiebuilder.txt' % (resultdir,pathway)
+                    outdir = getPRoutdir('bowtiebuilder',resultdir,opts.netpathkeggunion)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
+                                           sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
+                                           union=opts.netpathkeggunion)
+                if opts.netpath:
+                    ## compute aggregate for NetPath                                                                                                  
+                    inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion)
+                if opts.kegg:
+                    ## compute aggregate for KEGG                                                                                                  
+                    inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,netpath=False,\
+                                                    union=opts.netpathkeggunion)
             ## Induced Subgraph ##
             if opts.inducedsubgraph:
                 sortcol = 3 # ksp
@@ -395,7 +426,7 @@ def main(args):
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
                 if opts.kegg:
-                    ## compute aggregate for NetPath
+                    ## compute aggregate for KEGG
                     inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -465,7 +496,7 @@ def main(args):
                                            opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,descending=True,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    ## compute aggregate for NetPath
+                    ## compute aggregate for KEGG
                     inputdir = getPRoutdir('eqed',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -638,6 +669,8 @@ def main(args):
             algcmd += ' --alg pagerank'
         if opts.shortestpaths:
             algcmd += ' --alg shortestpaths'
+        if opts.bowtiebuilder:
+            algcmd += ' --alg bowtiebuilder'
         if opts.inducedsubgraph:
             algcmd += ' --alg inducedsubgraph'
         if opts.eqed:
@@ -796,6 +829,13 @@ def main(args):
             infile_allreceptors = '%s/wnt-all-receptors/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
             infile = '%s/netpath/shortestpaths/Wnt-shortest-paths.txt' % (resultprefix)
             gsid = 'Wnt-shortest-paths'
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,oldgs=opts.oldgraphspace)
+
+
+        if opts.bowtiebuilder:
+            infile_allreceptors = '%s/wnt-all-receptors/bowtiebuilder/Wnt-bowtiebuilder.txt' % (resultprefix)
+            infile = '%s/netpath/bowtiebuilder/Wnt-bowtiebuilder.txt' % (resultprefix)
+            gsid = 'Wnt-bowtiebuilder'
             postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,oldgs=opts.oldgraphspace)
 
         if opts.responsenet:
@@ -1006,6 +1046,8 @@ def parseArguments(args):
                           help='Run PathLinker (KSP) on input files.')
     group.add_option('','--shortestpaths',action='store_true',default=False,\
                      help='Compute shortest paths from each receptor to each TF, incl. ties (reviewer comment)')
+    group.add_option('','--bowtiebuilder',action='store_true',default=False,\
+                     help='Run BowTieBuilder (reviewer comment)')
     group.add_option('','--inducedsubgraph',action='store_true',default=False,\
                      help='Re-rank Linker nodes by taking induced subgraph.')
     group.add_option('','--rerank',action='store_true',default=False,\
@@ -1325,6 +1367,42 @@ def runShortestPaths(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     else:
         print 'Skipping %s: %s exists. Use --forcealg to override' % (pathway,outfile)
     return
+
+############################################################                                                   
+## Run BowTieBuilder
+## NEW September 2015 (Anna integrated into master-script.py; Allison implemented the program)                           
+## pathway: pathway to run (e.g., Wnt)                                                                         
+## resultdir: directory for results.  
+## datadir: directory to find positives for the pathway                                    
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)                                     
+## forcealg: if True, will not skip over pre-written files.                                                        
+## printonly: if True, will never execute command.                                                                  
+def runBowTieBuilder(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+    print '-'*25 + pathway + '-'*25
+
+    # node file contains node annotated with 'tf' or 'receptor' or 'none'                                           
+    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
+
+    # create output directory, make sure it exists, and                                                             
+    # append pathway name for output filename                                                                       
+    outdir = '%s/bowtiebuilder/' % (resultdir)
+    checkDir(outdir)
+    outfile = '%s/%s-bowtiebuilder.txt' % (outdir,pathway)
+
+    ## pathway-specific interactome                                                                                 
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
+    if forcealg or not os.path.isfile(outfile):
+        script = '/home/annaritz/src/python/CellCycle/bowtiebuilder.py'
+        cmd = 'python %s --network %s --annotations %s --out %s --weight --log-transform' % (script,\
+ppifile,nodefile,outfile)
+        print cmd
+        if not printonly:
+            subprocess.check_call(cmd.split())
+    else:
+        print 'Skipping %s: %s exists. Use --forcealg to override' % (pathway,outfile)
+    return
+
 
 ############################################################
 ## Run Induced Subgraph

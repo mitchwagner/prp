@@ -23,6 +23,7 @@ FILELOCATIONS = {
         'pathlinker':'%s/pathlinker/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'pagerank':  '%s/pagerank/%s-q_0.50-exclude_%s-sample_50X-%s-precision-recall.txt',
         'shortestpaths': '%s/shortestpaths/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'bowtiebuilder': '%s/bowtiebuilder/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'inducedsubgraph':'%s/inducedsubgraph/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'eqed':'%s/eqed/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'responsenet':'%s/responsenet/%s-gamma_20-exclude_%s-sample_50X-%s-precision-recall.txt',
@@ -34,6 +35,7 @@ FILELOCATIONS = {
         'pathlinker':'%s/pathlinker/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'pagerank':  '%s/pagerank/%s-q_%.2f-exclude_%s-sample_50X-%s-precision-recall.txt',
         'shortestpaths': '%s/shortestpaths/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'bowtiebuilder': '%s/bowtiebuilder/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'inducedsubgraph':'%s/inducedsubgraph/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'eqed':'%s/eqed/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'responsenet':'%s/responsenet/%s-gamma_%d-exclude_%s-sample_50X-%s-precision-recall.txt',
@@ -65,6 +67,7 @@ COLORS = {
      'inducedsubgraph': '#66CCFF',
     'shortestpaths':'#F4FA58', # yellow
     'ipa':'#F78181', # pink
+    'bowtiebuilder': '#0404B4' # whateer eqed was.
 }
 
 SHAPES = {
@@ -73,7 +76,8 @@ SHAPES = {
     'pcsf':'v',
     'anat':'d',
     'ipa':'o',
-    'inducedsubgraph':'v'
+    'inducedsubgraph':'v',
+    'bowtiebuilder':'>'
 }
 
 NAMES = {
@@ -86,6 +90,7 @@ NAMES = {
      'inducedsubgraph': 'InducedSubgraph',
     'shortestpaths':'ShortestPaths',
     'ipa':'IPA',
+    'bowtiebuilder':'BowTieBuilder',
 }
 
 VARYPARAMS_NAMES = {
@@ -184,17 +189,17 @@ def plotPR(methodlist,precrecs,f,name,pdf,negtypes,ignorekegg,ignorenetpath,nump
 
             ## if negtype == 'file' or negtype == 'adjacent', add original ('none') lines/points with transparency
             #if negtype == 'file':
-            for alg in methodlist:
-                color,linewidth,markersize,markerstyle,label = getstyle(alg,increments,methodlist)
-                pr = precrecs[display]['none'][alg]
+            #for alg in methodlist:
+            #    color,linewidth,markersize,markerstyle,label = getstyle(alg,increments,methodlist)
+            #    pr = precrecs[display]['none'][alg]
 
-                if len(pr)==1: # plot single point
-                    ax.plot([r for p,r in pr], [p for p,r in pr],markerstyle,ms=markersize,color=color,label='_nolegend_',alpha=0.4)
-                elif alg == 'ipa': # plot points AND line
-                    ax.plot([r for p,r in pr],[p for p,r in pr],'--'+markerstyle,ms=markersize,\
-                            lw=1,color=color,label='_nolegend_',alpha=0.4)
-                else: # plot line only.
-                    ax.plot([r for p,r in pr], [p for p,r in pr],lw=1,color=color,label='_nolegend_',alpha=0.4)
+            #    if len(pr)==1: # plot single point
+            #        ax.plot([r for p,r in pr], [p for p,r in pr],markerstyle,ms=markersize,color=color,label='_nolegend_',alpha=0.4)
+            #    elif alg == 'ipa': # plot points AND line
+            #        ax.plot([r for p,r in pr],[p for p,r in pr],'--'+markerstyle,ms=markersize,\
+            #                lw=1,color=color,label='_nolegend_',alpha=0.4)
+            #    else: # plot line only.
+            #        ax.plot([r for p,r in pr], [p for p,r in pr],lw=1,color=color,label='_nolegend_',alpha=0.4)
 
             ## add opaque lines/points for this negtype
             for alg in methodlist:

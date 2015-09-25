@@ -375,11 +375,11 @@ If the files exist in the directories, they will not be overwritten.  To execute
 #+BEGIN_SRC bash 
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt \
 --pathlinker --shortestpaths --pagerank \
---responsenet --pcsf --anat --ipa \
+--responsenet --pcsf --anat --ipa --bowtiebuilder \
 --computeprecrec --precrecviz --forceviz
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --onlynetpathwnt \
 --pathlinker --shortestpaths --pagerank \
---responsenet --pcsf --anat --ipa \
+--responsenet --pcsf --anat --ipa --bowtiebuilder \
 --computeprecrec --precrecviz --forceviz --ignorekeggpositives
 #+END_SRC
 Note that these may be run on different machines: ~--weightedppi --onlynetpathwnt~ arguments must always be specified.
@@ -389,10 +389,10 @@ Note that these may be run on different machines: ~--weightedppi --onlynetpathwn
 #+BEGIN_SRC bash 
 python master-script.py --ppiversion pathlinker-signaling-children-reg --weightedppi --netpath \
 --pathlinker --shortestpaths --pagerank \
---responsenet --pcsf --anat --ipa \
+--responsenet --pcsf --anat --ipa --bowtiebuilder \
 --computeprecrec --precrecviz --forceviz
 #+END_SRC
-[[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]]
+   [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/netpath/aggregate.png]]
 ** Run PathLinker and PageRank on All NetPath Pathways
 #+BEGIN_SRC bash 
 python master-script.py --ppiversion pathlinker-signaling-children-reg \
@@ -456,10 +456,11 @@ This takes a special Wnt nodes file that includes FZD4 and FZD6.
 #+BEGIN_SRC bash
 python master-script.py --ppiversion pathlinker-signaling-children-reg \
 --weightedppi --wntforexperiments --pagerank --pathlinker --shortestpaths \
---pcsf --anat --ipa --responsenet --computeprecrec
+--pcsf --anat --ipa --responsenet --bowtiebuilder --computeprecrec
 #+END_SRC
 Runs PathLinker, PCSF, ANAT, IPA, and ResponseNet for the wnt pathway that is used for experimental followup.  
 Precision and Recall for different methods (considering edges here):
+*** TODO add bowTieBuilder here.
 #+BEGIN_SRC bash
 python src/report-precrec-for-wntexperiments.py
 #+END_SRC
@@ -515,12 +516,12 @@ python src/report-precrec-for-wntexperiments.py
 
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
---graphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet
+--graphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet --bowtiebuilder
 #+END_SRC
 Posts the runs in bold to Python GraphSpace.  Parameters are included in the naming conventions.  These are hard-coded except for pathlinker, which is determined by the ~--topk~ variable. 
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
---oldgraphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet
+--oldgraphspace --pathlinker --pagerank --anat --shortestpaths --pcsf --ipa --responsenet --bowtiebuilder
 #+END_SRC
 Posts the runs in bold to Perl GraphSpace.
 To run the top 800 paths:
@@ -539,7 +540,7 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 Compute precision and recall for 32 KEGG pathways that have same min-cut qualifications as NetPath.  Also include dead-end nodes as targets (or TRs).  
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
---kegg --pathlinker --pagerank --pcsf --ipa --shortestpaths --responsenet \
+--kegg --pathlinker --pagerank --pcsf --ipa --shortestpaths --responsenet --bowtiebuilder \
 --anat --computeprecrec --precrecviz --forceviz
 #+END_SRC
 [[/data/annaritz/projects/2015-03-pathlinker/viz/precision-recall/kegg/aggregate.png]]
