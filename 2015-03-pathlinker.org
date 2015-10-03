@@ -460,7 +460,6 @@ python master-script.py --ppiversion pathlinker-signaling-children-reg \
 #+END_SRC
 Runs PathLinker, PCSF, ANAT, IPA, and ResponseNet for the wnt pathway that is used for experimental followup.  
 Precision and Recall for different methods (considering edges here):
-*** TODO add bowTieBuilder here.
 #+BEGIN_SRC bash
 python src/report-precrec-for-wntexperiments.py
 #+END_SRC
@@ -531,6 +530,12 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --oldgraphspace --pathlinker --topk 800
 #+END_SRC
+To run the paths that get the public tag added:
+#+BEGIN_SRC bash
+python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
+--graphspace --pathlinker --pagerank --ipa --tag
+#+END_SRC
+*** TODO add bowTieBuilder here.
 *** Run PathLinker, PageRank, and IPA at same recall
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
