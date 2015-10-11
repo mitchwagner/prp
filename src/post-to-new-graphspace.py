@@ -159,7 +159,7 @@ def getLigandInformation(ligandfile,prededges,receptors):
     return ligandedges    
 
 ##########################################################
-def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels,ligandedges,addtag):
+def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels,ligandedges,addtag,nocrosstalk):
     evidence = getEvidence(prededges)
 
     # NetworkX object
@@ -168,7 +168,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
     # get metadata
     desc = getGraphDescription(increase,decrease,thres,prededgefile,netpath,kegg)
     if addtag:
-        taglist = ['pathlinker-paper',TAG]
+        taglist = [TAG]
     else:
         taglist = ['pathlinker-paper']
     metadata = {'description':desc,'tags':taglist}
@@ -244,7 +244,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
                 htmlcolor = COLORS['netpath']
             elif n in keggnodes:
                 htmlcolor = COLORS['kegg']
-            elif any([cn in n for cn in crosstalknodes]):
+            elif any([cn in n for cn in crosstalknodes]) and not nocrosstalk:
                 htmlcolor = COLORS['crosstalk']
             else:
                 htmlcolor = COLORS['neither']
@@ -630,6 +630,8 @@ def main(args):
                       help='pass file of nodes to connect to receptors.  First column contains IDs, second column contains names.')
     parser.add_option('','--tag',action='store_true',default=False,\
                       help='Tag with 2015-npj-sysbio-app-pathlinker tag, which is public.')
+    parser.add_option('','--nocrosstalk',action='store_true',help='Do not color\
+ crosstalk nodes')
     
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -688,7 +690,7 @@ def main(args):
         ligandedges = set()
 
     # Construct NetworkX Graph
-    G,metadata = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges,opts.tag)
+    G,metadata = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges,opts.tag,opts.nocrosstalk)
 
     # Post to GraphSpace\
     print 'graphID is %s' % (opts.gsid)

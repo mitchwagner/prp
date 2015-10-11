@@ -797,11 +797,13 @@ def main(args):
             else:
                 print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
 
+
     ## Post Wnt Pathways to Graphspace
     ## Post two different Wnt pathway runs.
     ## - Post NetPath Wnt pathways, used to compute precision and recall.  These are prepended with "pr"
     ## - Post wnt-all-receptors pathways, used to explore false positives for experimental followup
-    if opts.graphspace or opts.oldgraphspace:
+    ## New: only runs when --nepath option is NOT specified. Otherwise all NetPath pathways are run (see below)
+    if (opts.graphspace or opts.oldgraphspace) and not opts.netpath:
         print 'Posting to GraphSpace...'
         outdir = 'viz/graphspace-json/'
         if opts.pathlinker:
@@ -855,7 +857,17 @@ def main(args):
             infile = '%s/netpath/ipa/Wnt-nmax10.out' % (resultprefix)
             gsid = 'Wnt-ipa-nmax10'
             postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,None,gsid,opts.printonly,undirected=True,oldgs=opts.oldgraphspace,posttag=opts.tag)
-
+    ## Post NetPath Pathways:
+    if (opts.graphspace or opts.oldgraphspace) and opts.netpath:
+        print 'Posting to GraphSpace...'
+        outdir = 'viz/graphspace-json/'
+        if not opts.pathlinker:
+            sys.exit("ERROR: when posting all NP pathways to GraphSpace, only PathLinker graphs are currently posted.")
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            infile = '%s/netpath/pathlinker/%s-k_%d-ranked-edges.txt' % (resultprefix,pathway,opts.k)
+            gsid = 'NetPath-%s-pathlinker-top%dpaths' % (pathway,opts.topk)
+            postNetPathReconstructionsToGraphSpace(pathway,infile,outdir,opts.topk,\
+                                            gsid,opts.printonly,increase=True,oldgs=opts.oldgraphspace,posttag=opts.tag)
     ## RANK TF
     ## Little script that ranks the TRs in PathLinker predictions vs. PageRank predictions
     ## Only plot Wnt and aggregate rankings.
@@ -1768,6 +1780,34 @@ def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,th
         subprocess.check_call(cmd.split())
 
     return
+
+## post NetPath reconstructions (no extra FZD receptors, no KEGG coloring)
+def postNetPathReconstructionsToGraphSpace(pathway,infile,outdir,thres,gsid,printonly,increase=False\
+,\
+                                       decrease=False,undirected=False,oldgs=False,posttag=False):
+    ## PPI FILE is original interactome; this ensures that edges are directed as they were originally             
+    ## (not necessarily as they were after removing outgoing edges from TRs and incoming edges to receptors)      
+
+    ## print annotated from infile_allreceptors                                                                   
+    labeledgsid = gsid
+    if oldgs:
+        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpat\
+h %s' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway)
+    else:
+        cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --\
+gsid %s --netpath %s --nocrosstalk' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid\
+                         ,pathway)
+    if increase: # ranked list - pass the threshold                                                               
+        cmd += ' --increase --thres %.8f' % (thres)
+    if decrease: # ranked list - pass the threshold                                                               
+        cmd += ' --decrease --thres %.8f' % (thres)
+    if undirected:
+        cmd += ' --undirected'
+    if posttag:
+        cmd += ' --tag'
+    print cmd
+    if not printonly:
+        subprocess.check_call(cmd.split())
 
 ############################################################
 ## Computes precision and recall and writes values to file.

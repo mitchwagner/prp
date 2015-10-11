@@ -85,13 +85,13 @@ COLORS = { 'inner':'gray',
            'red':'#FE2E2E', 
            'gray':'#C8C6C6',
            'pink':'#F5A9A9',
-           'kegg':'#FAAC58',
-           'netpath':'#31B404',
+           'kegg':'#FAAC58', ## orange
+           'netpath':'#31B404', ## green
            'both':'#CC2EFA',
            'neither':'#D8D8D8',#'#848484',
            'white':'#FFFFFF',
            'darkgray':'#6E6E6E',
-           'crosstalk':'#D0A9F5',
+           'crosstalk':'#D0A9F5', ## purple
 }
 NODESHAPES = { 'target':'Square',
                'source':'Diamond',
@@ -159,7 +159,7 @@ def getLigandInformation(ligandfile,prededges,receptors):
     return ligandedges    
 
 ##########################################################
-def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels,ligandedges):
+def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,prededgefile,undirected,nolabels,ligandedges,nocrosstalk):
     evidence = getEvidence(prededges)
     desc = getGraphDescription(increase,decrease,thres,prededgefile,netpath,kegg)
     graph = Graph(layout='ForceDirected', tags=[], description=desc)
@@ -238,8 +238,10 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
             if n in netpathnodes:
                 htmlcolor = COLORS['netpath']
             elif n in keggnodes:
+                print '%s is in keggnodes!!' % (n)
                 htmlcolor = COLORS['kegg']
-            elif any([cn in n for cn in crosstalknodes]):
+            elif any([cn in n for cn in crosstalknodes]) and not nocrosstalk:
+                print '%s is in crosstalknodes!!' % (n)
                 htmlcolor = COLORS['crosstalk']
             else:
                 htmlcolor = COLORS['neither']
@@ -625,7 +627,8 @@ def main(args):
                       help='Do not show labels.')
     parser.add_option('','--ligandfile',type='str',metavar='STR',\
                       help='pass file of nodes to connect to receptors.  First column contains IDs, second column contains names.')
-    
+    parser.add_option('','--nocrosstalk',action='store_true',help='Do not color crosstalk nodes')
+
     # parse the command line arguments
     (opts, args) = parser.parse_args()
     if opts.version not in VERSIONS:
@@ -681,7 +684,8 @@ def main(args):
         ligandedges = set()
 
     # Construct Graph
-    graph = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges)
+    graph = constructGraph(receptors,tfs,prededges,opts.increase,opts.decrease,opts.thres,\
+                           opts.netpath,opts.kegg,opts.infile,opts.undirected,opts.nolabels,ligandedges,opts.nocrosstalk)
 
     # Post to GraphSpace
     client = GraphSpace(user = USERNAME, password = PASSWORD,url = GRAPHSERVER)
