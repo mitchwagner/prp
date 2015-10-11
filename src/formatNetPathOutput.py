@@ -1,7 +1,7 @@
 from utilsPoirel import *
 import sys
 
-interactome = 'data/formatted/background-interactome-pathlinker-2015.txt'
+interactome = 'results/formatted/background-interactome-pathlinker-2015.txt'
 npdir = 'results/pathlinker-signaling-children-reg/weighted/netpath/pathlinker'
 
 pathways = readItemSet('data/netpath-analyzed-pathways.txt')
@@ -24,7 +24,7 @@ for pathway in pathways:
                 edgeorder.append(e)
             edges[e].append(int(k))
     
-    out = open('data/formatted/%s-pathlinker-20000_paths.txt'% (pathway),'w')
+    out = open('results/formatted/%s-pathlinker-20000_paths.txt'% (pathway),'w')
     out.write('#tail\thead\tedge_weight\tedge_type\tpaths\n')
     for e in edgeorder:
         out.write('%s\t%s\t%s\t%s\t%s\n' % (e[0],e[1],ppiedges[e][0],ppiedges[e][1],'|'.join([str(a) for a in edges[e]])))
