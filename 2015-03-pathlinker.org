@@ -530,6 +530,7 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --oldgraphspace --pathlinker --topk 800
 #+END_SRC
+** Visualize all NetPath PathLinker networks and post them with a public tag
 To run the paths that get the public tag added:
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
@@ -656,3 +657,10 @@ Pos:Neg ratio
 10809 (0.8975) negative nodes and 91822 (0.9736) negative edges
 0.1143 pos:neg node ratio and 0.0272 pos:neg edge ratio
 #+END_VERSE
+** Rebuild background PPI and NetPath PathLinker solutions for release
+#+BEGIN_SRC bash
+ln -s /data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-weighted.txt data/background-interactome-pathlinker-2015.txt
+python src/formatNetPathOutput.py
+#+END_SRC
+*** TODO Make legend for GS graphs
+*** TODO Add pubmed IDs for interactome and netPath subgraphs.
