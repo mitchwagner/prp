@@ -530,7 +530,13 @@ python master-script.py --weightedppi --ppiversion pathlinker-signaling-children
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --oldgraphspace --pathlinker --topk 800
 #+END_SRC
-** Visualize all NetPath PathLinker networks and post them with a public tag
+*** Post Pathways to GraphSpace for Publication
+**** Post All NP Pathways to GraphSpace
+#+BEGIN_SRC bash
+python master-script.py  --ppiversion pathlinker-signaling-children-reg \
+--weightedppi --netpath --pathlinker --graphspace --tag
+#+END_SRC
+**** Visualize all NetPath PathLinker networks and post them with a public tag
 To run the paths that get the public tag added:
 #+BEGIN_SRC bash
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
