@@ -542,6 +542,12 @@ To run the paths that get the public tag added:
 python master-script.py --weightedppi --ppiversion pathlinker-signaling-children-reg \
 --graphspace --pathlinker --pagerank --ipa --tag
 #+END_SRC
+**** Make tags public on GS
+#+BEGIN_SRC bash
+curl -X POST "http://graphspace.org/api/tags/user/annaritz@vt.edu/2015-npj-sysbio-appl-pathlinker/makePublic/" -F "username=annaritz@vt.edu" -F "password=platypus"; echo
+curl -X POST "http://graphspace.org/api/tags/user/annaritz@vt.edu/pathlinker-all-netpath-pathways/makePublic/" -F "username=annaritz@vt.edu" -F "password=platypus"; echo
+curl -X POST "http://graphspace.org/api/tags/user/annaritz@vt.edu/wnt-networks-all-methods/makePublic/" -F "username=annaritz@vt.edu" -F "password=platypus"; echo
+#+END_SRC
 *** TODO add bowTieBuilder here.
 *** Run PathLinker, PageRank, and IPA at same recall
 #+BEGIN_SRC bash

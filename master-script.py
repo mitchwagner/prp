@@ -1746,7 +1746,8 @@ def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,th
     ## print annotated from infile_allreceptors
     labeledgsid = gsid+'-labeled'
     if oldgs:
-        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,ORIGINALPPI,PPIVERSION,DATADIR,labeledgsid,pathway,pathway)
+        print 'ERROR: old GS functions commented out.'
+       # cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,ORIGINALPPI,PPIVERSION,DATADIR,labeledgsid,pathway,pathway)
     else:
         cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,outdir,ORIGINALPPI,PPIVERSION,DATADIR,labeledgsid,pathway,pathway)
     if increase: # ranked list - pass the threshold
@@ -1756,15 +1757,19 @@ def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,th
     if undirected: 
         cmd += ' --undirected'
     if posttag:
-        cmd += ' --tag'
+        cmd += ' --tag wnt-networks-all-methods'
     print cmd
     if not printonly:
         subprocess.check_call(cmd.split())
 
+    if posttag: # only post labeled pathways.
+        return
+
     ##print unlabeled from infile
     unlabeledgsid=gsid+'-unlabeled'
     if oldgs:
-        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,unlabeledgsid,pathway,pathway)
+        print 'ERRROR: old GS functions commented out.'
+        #cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,unlabeledgsid,pathway,pathway)
     else:
         cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,unlabeledgsid,pathway,pathway)
     if increase: # ranked list - pass the threshold
@@ -1773,8 +1778,6 @@ def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,th
         cmd += ' --decrease --thres %.8f' % (thres)
     if undirected:
         cmd += ' --undirected'
-    if posttag:
-        cmd += ' --tag'
     print cmd
     if not printonly:
         subprocess.check_call(cmd.split())
@@ -1791,20 +1794,22 @@ def postNetPathReconstructionsToGraphSpace(pathway,infile,outdir,thres,gsid,prin
     ## print annotated from infile_allreceptors                                                                   
     labeledgsid = gsid
     if oldgs:
-        cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpat\
-h %s' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway)
+        print 'ERROR: old GS functions commented out.' 
+        #cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway)
     else:
-        cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --\
-gsid %s --netpath %s --nocrosstalk' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid\
-                         ,pathway)
-    if increase: # ranked list - pass the threshold                                                               
+        cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --nocrosstalk' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway)
+    if increase: # ranked list - pass the threshold                                                         
         cmd += ' --increase --thres %.8f' % (thres)
-    if decrease: # ranked list - pass the threshold                                                               
+    if decrease: # ranked list - pass the threshold                                                        
         cmd += ' --decrease --thres %.8f' % (thres)
     if undirected:
         cmd += ' --undirected'
     if posttag:
-        cmd += ' --tag'
+        cmd += ' --tag pathlinker-all-netpath-pathways'
+
+    keggpathways,kegg2netpath = getKEGGPathways(True)
+    if pathway in kegg2netpath.values():
+        cmd += ' --kegg %s' % (pathway)
     print cmd
     if not printonly:
         subprocess.check_call(cmd.split())

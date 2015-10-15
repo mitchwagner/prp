@@ -168,7 +168,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
     # get metadata
     desc = getGraphDescription(increase,decrease,thres,prededgefile,netpath,kegg)
     if addtag:
-        taglist = [TAG]
+        taglist = [TAG,addtag]
     else:
         taglist = ['pathlinker-paper']
     metadata = {'description':desc,'tags':taglist}
@@ -628,8 +628,8 @@ def main(args):
                       help='Do not show labels.')
     parser.add_option('','--ligandfile',type='str',metavar='STR',\
                       help='pass file of nodes to connect to receptors.  First column contains IDs, second column contains names.')
-    parser.add_option('','--tag',action='store_true',default=False,\
-                      help='Tag with 2015-npj-sysbio-app-pathlinker tag, which is public.')
+    parser.add_option('','--tag',type='str',metavar='STR',\
+                      help='Tag with 2015-npj-sysbio-app-pathlinker tag AND tag specified by argument, which is public.')
     parser.add_option('','--nocrosstalk',action='store_true',help='Do not color\
  crosstalk nodes')
     
