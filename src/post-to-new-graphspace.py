@@ -271,7 +271,7 @@ def constructGraph(receptors,tfs,prededges,increase,decrease,thres,netpath,kegg,
 
     # Add edges to graph
     seen = set()
-    for (tail,head) in prededges:       
+    for (tail,head) in sorted(prededges, key=prededges.get):       
         if (head,tail) in seen:
             continue
         seen.add((tail,head))
