@@ -10,6 +10,7 @@ import os
 import os.path
 import subprocess
 import glob
+import time
 
 ##############################################################
 ## GLOBAL VARIABLES
@@ -141,6 +142,10 @@ def main(args):
     else:
         print '%d total pathways considered.' % (len(pathways))
 
+    # reverse the order of the pathways. Useful for running the same algorithm on two different computers.
+    if opts.rev_pathways:
+        pathways = list(pathways)[::-1]
+
     ## ALGORITHMS ##
     ## For each algorithm, iterate through pathways and call the run() method.
     ## If --varyparams is specified, iterate through (pathway,param) combinations
@@ -152,6 +157,41 @@ def main(args):
         for (pathway,resultdir,datadir,ppidir) in pathways:
             runPathLinker(pathway,resultdir,datadir,ppidir,opts.k,opts.forcealg,opts.printonly)
         print 'Done Running PathLinker\n'
+
+    ## PathLinkerNoDiv #
+    if opts.pathlinker_no_div:
+        print 'Running PathLinkerNoDiv:'
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,opts.k,opts.forcealg,opts.printonly)
+        print 'Done Running PathLinkerNoDiv\n'
+
+    ## PageRankPathLinker #
+    if opts.pagerank_pathlinker:
+        print 'Running PageRankPathLinker:'
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runPageRankPathLinker(pathway,resultdir,datadir,ppidir,opts.q,opts.k,opts.forcealg,opts.printonly)
+        print 'Done Running PageRankPathLinker\n'
+
+    ## CycLinker #
+    if opts.cyclinker:
+        print 'Running CycLinker:'
+        start = time.time()
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            runCycLinker(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
+        print 'Done Running CycLinker\n'
+        print 'Total time taken: %0.4f'%(time.time() - start)
+
+    ## PageRank CycLinker #
+    if opts.pagerank_cyclinker:
+        print 'Running PageRankCycLinker:'
+        start = time.time()
+        for (pathway,resultdir,datadir,ppidir) in pathways:
+            # make sure the pagerank output is available to use as input for cyclinker 
+            runPageRank(pathway,resultdir,datadir,ppidir,opts.q,opts.forcealg,opts.printonly)
+            runPageRankCycLinker(pathway,resultdir,datadir,ppidir,opts.q,opts.forcealg,opts.printonly)
+        print 'Done Running PageRankCycLinker\n'
+        print 'Total time taken: %0.4f'%(time.time() - start)
+
 
     ## Shortest Paths ##
     if opts.shortestpaths:
@@ -219,6 +259,9 @@ def main(args):
             for (pathway,resultdir,datadir,ppidir) in pathways:
                 runPCSF(pathway,resultdir,datadir,ppidir,opts.prize,opts.omega,opts.forcealg,opts.printonly)
         else: # vary prize and omega
+            #if len(opts.prize) > 1 or len(opts.omega) > 1:
+            #    VARYPARAMS['prize'] = opts.prize
+            #    VARYPARAMS['omega'] = opts.omega
             for varyprize in VARYPARAMS['prize']:
                 for varyomega in VARYPARAMS['omega']:
                     for (pathway,resultdir,datadir,ppidir) in pathways:
@@ -357,6 +400,156 @@ def main(args):
                                                     opts.forceprecrec,opts.printonly,netpath=False,\
                                                     union=opts.netpathkeggunion)
                     
+            ## PATHLINKER No Div##
+            if opts.pathlinker_no_div:
+                sortcol = 3 # ksp
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    edgefile = '%s/pathlinker-no-div/%s-k_%s-ranked-edges.txt' % (resultdir,pathway,opts.k)
+                    outdir = getPRoutdir('pathlinker-no-div',resultdir,opts.netpathkeggunion)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
+                                           sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
+                                           union=opts.netpathkeggunion)
+                if opts.netpath:
+                    ## compute aggregate for NetPath
+                    inputdir = getPRoutdir('pathlinker-no-div',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion)
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('pathlinker-no-div',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
+                if opts.kegg:
+                    ## compute aggregate for KEGG
+                    inputdir = getPRoutdir('pathlinker-no-div',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,netpath=False,\
+                                                    union=opts.netpathkeggunion)
+                    
+            ## PAGERANK PATHLINKER ##
+            if opts.pagerank_pathlinker:
+                sortcol = 3 # ksp
+                if not opts.varyparams: # just run with opts.q value
+                    params = ['q_%.2f' % (opts.q)]
+                else: # vary opts.q value
+                    params = ['q_%.2f' % p for p in VARYPARAMS['q']]
+                for param in params:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
+                        edgefile = '%s/pagerank-pathlinker/%s-q_%.2fk_%s-ranked-edges.txt' % (resultdir,pathway,opts.q,opts.k)
+                        outdir = getPRoutdir('pagerank-pathlinker',resultdir,opts.netpathkeggunion)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
+                                               sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
+                                               param=param,\
+                                               union=opts.netpathkeggunion)
+                    if opts.netpath:
+                        ## compute aggregate for NetPath
+                        inputdir = getPRoutdir('pagerank-pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion)
+                    if opts.allnetpath:
+                        ## comput aggregate for all of Netpath
+                        inputdir = getPRoutdir('pagerank-pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion,allpathways=True)
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('pagerank-pathlinker',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,netpath=False,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion)
+                    
+            ## CycLinker ##
+            if opts.cyclinker:
+                sortcol = 3 # ksp
+                for (pathway,resultdir,datadir,ppidir) in pathways:
+                    edgefile = '%s/cyclinker/%s-ranked-edges.txt' % (resultdir,pathway)
+                    outdir = getPRoutdir('cyclinker',resultdir,opts.netpathkeggunion)
+                    sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
+                    computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                           opts.ignorekeggpositives,opts.ignorenetpathpositives,\
+                                           sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
+                                           union=opts.netpathkeggunion)
+                if opts.netpath:
+                    ## compute aggregate for NetPath
+                    inputdir = getPRoutdir('cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion)
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
+                if opts.kegg:
+                    ## compute aggregate for KEGG
+                    inputdir = getPRoutdir('cyclinker',resultprefix+'/kegg/',opts.netpathkeggunion)
+                    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,netpath=False,\
+                                                    union=opts.netpathkeggunion)
+            ## PAGERANK CYCLINKER ##
+            if opts.pagerank_cyclinker:
+                sortcol = 3 # ksp
+                if not opts.varyparams: # just run with opts.q value
+                    params = ['q_%.2f' % (opts.q)]
+                else: # vary opts.q value
+                    params = ['q_%.2f' % p for p in VARYPARAMS['q']]
+                for param in params:
+                    for (pathway,resultdir,datadir,ppidir) in pathways:
+                        edgefile = '%s/pagerank-cyclinker/%s-q_%.2f-ranked-edges.txt' % (resultdir,pathway,opts.q)
+                        outdir = getPRoutdir('pagerank-cyclinker',resultdir,opts.netpathkeggunion)
+                        sampleoutprefix = getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway)
+                        computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,sortcol,negtype,\
+                                               opts.ignorekeggpositives,opts.ignorenetpathpositives,\
+                                               sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
+                                               param=param,\
+                                               union=opts.netpathkeggunion)
+                    if opts.netpath:
+                        ## compute aggregate for NetPath
+                        inputdir = getPRoutdir('pagerank-cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion)
+                    if opts.allnetpath:
+                        ## comput aggregate for all of Netpath
+                        inputdir = getPRoutdir('pagerank-cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion,allpathways=True)
+                    if opts.kegg:
+                        ## compute aggregate for KEGG
+                        inputdir = getPRoutdir('pagerank-cyclinker',resultprefix+'/kegg/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,netpath=False,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion)
+                    
+                    
             ## Shortest Paths ##
             if opts.shortestpaths:
                 sortcol = None # no sorting; entire file is shortest paths subgraph.
@@ -375,6 +568,13 @@ def main(args):
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('shortestpaths',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
                     ## compute aggregate for KEGG
                     inputdir = getPRoutdir('shortestpaths',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -400,6 +600,13 @@ def main(args):
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
                     ## compute aggregate for KEGG                                                                                                  
                     inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -425,6 +632,13 @@ def main(args):
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
                     ## compute aggregate for KEGG
                     inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -459,7 +673,7 @@ def main(args):
                         inputdir = getPRoutdir('pagerank',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
-                                                        opts.forceprecrec,opts.printonly,descending=True,
+                                                        opts.forceprecrec,opts.printonly,descending=True,\
                                                         param=param,\
                                                     union=opts.netpathkeggunion)
 
@@ -468,7 +682,8 @@ def main(args):
                         inputdir = getPRoutdir('pagerank',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
-                                                    opts.forceprecrec,opts.printonly,descending=True,param=param,\
+                                                    opts.forceprecrec,opts.printonly,descending=True,\
+                                                    param=param,\
                                                     union=opts.netpathkeggunion,allpathways=True)
 
                     if opts.kegg:
@@ -503,6 +718,13 @@ def main(args):
                                                     opts.forceprecrec,opts.printonly,descending=True,\
                                                     union=opts.netpathkeggunion)
 
+		if opts.allnetpath:
+		    ## comput aggregate for all of Netpath
+		    inputdir = getPRoutdir('eqed',resultprefix+'/netpath/',opts.netpathkeggunion)
+		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                    opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                    opts.forceprecrec,opts.printonly,descending=True,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
                     ## compute aggregate for KEGG
                     inputdir = getPRoutdir('eqed',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -537,8 +759,16 @@ def main(args):
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
                                                         param=param,\
-                                                    union=opts.netpathkeggunion)
+                                                        union=opts.netpathkeggunion)
 
+                    if opts.allnetpath:
+                        ## comput aggregate for all of Netpath
+                        inputdir = getPRoutdir('responsenet',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion,allpathways=True)
                     if opts.kegg:
                         ## compute aggregate for KEGG
                         inputdir = getPRoutdir('responsenet',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -546,7 +776,7 @@ def main(args):
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
                                                         param=param,netpath=False,\
-                                                    union=opts.netpathkeggunion)
+                                                        union=opts.netpathkeggunion)
             ## PCSF ##
             if opts.pcsf:
                 sortcol = None # no sorting; entire file is shortest paths subgraph.
@@ -575,6 +805,14 @@ def main(args):
                                                         opts.forceprecrec,opts.printonly,\
                                                         param=param,\
                                                     union=opts.netpathkeggunion)
+                    if opts.allnetpath:
+                        ## comput aggregate for all of Netpath
+                        inputdir = getPRoutdir('pcsf',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion,allpathways=True)
 
                     if opts.kegg:
                         ## compute aggregate for KEGG
@@ -609,6 +847,14 @@ def main(args):
                                                         opts.forceprecrec,opts.printonly,\
                                                         param=param,\
                                                     union=opts.netpathkeggunion)
+                    if opts.allnetpath:
+                        ## comput aggregate for all of Netpath
+                        inputdir = getPRoutdir('anat',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        param=param,\
+                                                        union=opts.netpathkeggunion,allpathways=True)
                     if opts.kegg:
                         ## compute aggregate for KEGG
                         inputdir = getPRoutdir('anat',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -648,6 +894,15 @@ def main(args):
                                                         descending=True,param=param,\
                                                     union=opts.netpathkeggunion)
 
+                    if opts.allnetpath:
+                        ## compute aggregate for NetPath
+                        inputdir = getPRoutdir('ipa',resultprefix+'/netpath/',opts.netpathkeggunion)
+                        computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
+                                                        opts.ignorenetpathpositives,opts.subsamplefps,\
+                                                        opts.forceprecrec,opts.printonly,\
+                                                        descending=True,param=param,\
+                                                    union=opts.netpathkeggunion,allpathways=True)
+
                     if opts.kegg:
                         ## compute aggregate for KEGG
                         inputdir = getPRoutdir('ipa',resultprefix+'/kegg/',opts.netpathkeggunion)
@@ -665,6 +920,14 @@ def main(args):
         algcmd = ''
         if opts.pathlinker:
             algcmd += ' --alg pathlinker'
+        if opts.pathlinker_no_div:
+            algcmd += ' --alg pathlinker-no-div'
+        if opts.pagerank_pathlinker:
+            algcmd += ' --alg pagerank-pathlinker'
+        if opts.cyclinker:
+            algcmd += ' --alg cyclinker'
+        if opts.pagerank_cyclinker:
+            algcmd += ' --alg pagerank-cyclinker'
         if opts.pagerank:
             algcmd += ' --alg pagerank'
         if opts.shortestpaths:
@@ -709,6 +972,7 @@ def main(args):
                 outprefix = 'viz/precision-recall/netpath/%s' % (pathway)
             else:
                 outprefix = 'viz/precision-recall/kegg/%s' % (pathway)
+            checkDir(os.path.dirname(outprefix))
             if opts.wntforexperiments and 'wnt-all-receptors' in resultdir:
                 outprefix += '-all-receptors'
             elif opts.ignorekeggpositives:
@@ -719,6 +983,9 @@ def main(args):
                 outprefix += '-netpathkeggunion'
 	    if opts.varyparams:
                 outprefix += '-varyparams'
+                if opts.pcsf and not opts.pathlinker:
+                    outprefix += '-%s'%('_'.join([str(o) for o in VARYPARAMS['omega']]))
+                    outprefix += '-%s'%('_'.join([str(p) for p in VARYPARAMS['prize']]))
             if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
                 outprefix += '-no_netpath'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
@@ -737,6 +1004,9 @@ def main(args):
                         print 'WARNING: not plotting non-Wnt pathway %s with varying parameters' % (pathway)
                     else:
                         cmd += '  --varyparams'
+                        if opts.pcsf and not opts.pathlinker:
+                            cmd += ' --varyomega %s'%('_'.join([str(o) for o in VARYPARAMS['omega']]))
+                            cmd += ' --varyprize %s'%('_'.join([str(p) for p in VARYPARAMS['prize']]))
                         print cmd
                         if not opts.printonly:
                             subprocess.check_call(cmd.split())
@@ -758,6 +1028,9 @@ def main(args):
 	        outprefix += '-allnetpath'   
             if opts.varyparams:
                 outprefix += '-varyparams'
+                if opts.pcsf and not opts.pathlinker:
+                    outprefix += '-%s'%('_'.join([str(o) for o in VARYPARAMS['omega']]))
+                    outprefix += '-%s'%('_'.join([str(p) for p in VARYPARAMS['prize']]))
             if PPIVERSION == 'pathlinker-signaling-children-reg-no-netpath':
                 outprefix += '-no_netpath'
             if opts.forceviz or not os.path.isfile('%s.pdf' % (outprefix)):
@@ -769,6 +1042,9 @@ def main(args):
                       (indir,outprefix,algcmd)
                 if opts.varyparams:
                     cmd += '  --varyparams'
+                    if opts.pcsf and not opts.pathlinker:
+                        cmd += ' --varyomega %s'%('_'.join([str(o) for o in VARYPARAMS['omega']]))
+                        cmd += ' --varyprize %s'%('_'.join([str(p) for p in VARYPARAMS['prize']]))
                 if opts.ignorekeggpositives:
                     cmd += ' --ignorekegg'
                 print cmd
@@ -810,6 +1086,13 @@ def main(args):
             infile_allreceptors = '%s/wnt-all-receptors/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
             infile = '%s/netpath/pathlinker/Wnt-k_%d-ranked-edges.txt' % (resultprefix,opts.k)
             gsid = 'Wnt-pathlinker-top%dpaths' % (opts.topk)
+            postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,opts.topk,\
+                                            gsid,opts.printonly,increase=True,oldgs=opts.oldgraphspace,posttag=opts.tag)
+
+        if opts.cyclinker:
+            infile_allreceptors = '%s/wnt-all-receptors/cyclinker/Wnt-ranked-edges.txt' % (resultprefix)
+            infile = '%s/netpath/cyclinker/Wnt-ranked-edges.txt' % (resultprefix)
+            gsid = 'Wnt-cyclinker-top%dpaths' % (opts.topk)
             postReconstructionsToGraphSpace('Wnt',infile,infile_allreceptors,outdir,opts.topk,\
                                             gsid,opts.printonly,increase=True,oldgs=opts.oldgraphspace,posttag=opts.tag)
 
@@ -1056,6 +1339,14 @@ def parseArguments(args):
     group = OptionGroup(parser,'Algorithms')
     group.add_option('','--pathlinker',action='store_true',default=False,\
                           help='Run PathLinker (KSP) on input files.')
+    group.add_option('','--pathlinker-no-div',action='store_true',default=False,\
+                          help='Run PathLinker (KSP) without the large division of each edge weight on input files.')
+    group.add_option('','--pagerank-pathlinker',action='store_true',default=False,\
+                          help='Run PathLinker (KSP) by first re-weighting edges using PageRank and without the large division of each edge weight on input files.')
+    group.add_option('','--cyclinker',action='store_true',default=False,\
+                          help='Run CycLinker on input files.')
+    group.add_option('','--pagerank-cyclinker',action='store_true',default=False,\
+                          help='Run CycLinker by first re-weighting edges using PageRank on input files.')
     group.add_option('','--shortestpaths',action='store_true',default=False,\
                      help='Compute shortest paths from each receptor to each TF, incl. ties (reviewer comment)')
     group.add_option('','--bowtiebuilder',action='store_true',default=False,\
@@ -1138,9 +1429,9 @@ def parseArguments(args):
                      help='Input current for eQED. Default = 10000')
     group.add_option('','--gamma',type='int',default=20,metavar='INT',\
                          help='Gamma value for ResponseNet. Default is 20.')
-    group.add_option('','--prize',type='float',default=5,metavar='FLOAT',\
-                         help='Prize for PCSF. Default is 5.')
-    group.add_option('','--omega',type='float',default='0.01',metavar='FLOAT',\
+    group.add_option('','--prize',type='int',default=1,metavar='FLOAT',\
+                         help='Prize for PCSF. Default is 1.')
+    group.add_option('','--omega',type='float',default=0.01,metavar='FLOAT',\
                      help='Cost of adding additional trees to PCSF forest. Default is 0.01.')
     group.add_option('','--alpha',type='float',default=0.0,metavar='FLOAT',\
                      help='Tradeoff between shortest paths and steiner trees in ANAT. Default is 0.00.')
@@ -1150,6 +1441,8 @@ def parseArguments(args):
                          help='Subsample so the number of FPs is this many times the # of TPs for each pathway.  If this value is -1, then all negatives are used.')
     group.add_option('','--bullseyerecall',type='float',default=0.5,metavar='FLOAT',\
 			 help='Recall for bullseye plots.  Default is 0.5.')
+    group.add_option('','--rev-pathways',action='store_true',default=False,\
+			 help='Reverse the order of the pathways when running the algorithms. Useful for running the same algorithm on two different machines')
     parser.add_option_group(group)
     
     # parse the command line arguments
@@ -1203,6 +1496,7 @@ def generatePathwaySpecificInteractomes(ppifile):
     interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (PPIDIR)
     if not os.path.isfile(interactomefile):
         print 'Making Wnt All receptors Interactome'
+        #nodefile = 'mydata/wnt-all-receptors/Wnt-nodes.txt'
         nodefile = 'data/wnt-all-receptors/Wnt-nodes.txt'
         generatePPI(edges,nodefile,interactomefile,header)
 
@@ -1347,6 +1641,159 @@ def runPathLinker(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
             subprocess.check_call(cmd.split())
     else:
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
+    return
+
+############################################################
+## Run PathLinker
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## k: # of paths to run
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
+def runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
+    print '-'*25 + pathway + '-'*25
+    
+    # node file contains node annotated with 'tf' or 'receptor' or 'none'
+    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
+
+    # create output directory, make sure it exists, and
+    # append pathway name for output prefix
+    outdir = '%s/pathlinker-no-div/' % (resultdir)
+    checkDir(outdir)
+    outprefix = '%s/%s-' % (outdir,pathway)
+
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
+    # pathlinker command
+    if forcealg or not os.path.isfile('%sk_%d-paths.txt' % (outprefix,k)):
+        script = '/home/jeffl/git-workspace/PathLinker/PathLinker.py'
+        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,nodefile) 
+        print cmd              
+        if not printonly:
+            subprocess.check_call(cmd.split())
+    else:
+        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
+    return
+
+############################################################
+## Run PathLinker with PageRank
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## q: teleportation probability
+## k: # of paths to run
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
+def runPageRankPathLinker(pathway,resultdir,datadir,ppidir,q,k,forcealg,printonly):
+    print '-'*25 + pathway + '-'*25
+    
+    # node file contains node annotated with 'tf' or 'receptor' or 'none'
+    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
+
+    # create output directory, make sure it exists, and
+    # append pathway name for output prefix
+    outdir = '%s/pagerank-pathlinker/' % (resultdir)
+    checkDir(outdir)
+    outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
+
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
+    # pathlinker with pagerank command
+    if forcealg or not os.path.isfile('%sk_%d-paths.txt' % (outprefix,k)):
+        script = '/home/jeffl/git-workspace/PathLinker/PathLinker.py'
+        cmd = 'python %s --PageRank -q %s -k %d --write-paths --output %s %s %s' % (script,q,k,outprefix,ppifile,nodefile) 
+        print cmd              
+        if not printonly:
+            subprocess.check_call(cmd.split())
+    else:
+        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
+    return
+
+############################################################
+## Run CycLinker with PageRank
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## q: teleportation probability
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
+def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
+    print '-'*25 + pathway + '-'*25
+    
+    # node file contains node annotated with 'tf' or 'receptor' or 'none'
+    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
+
+    # create output directory, make sure it exists, and
+    # append pathway name for output prefix
+    outdir = '%s/pagerank-cyclinker/' % (resultdir)
+    checkDir(outdir)
+    outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
+
+    ## pagerank modified weights
+    pagerank_weighted_ppifile = '%s/pagerank/%s-q_%.2f-edge-fluxes.txt' % (resultdir,pathway,q)
+
+    # cyclinker command
+    if forcealg or not os.path.isfile('%s-ranked-edges.txt' % (outprefix)):
+        script = 'CycLinker'
+        # k option not yet implemented
+        cmd = 'java %s %s %s %s' % (script,os.path.abspath(pagerank_weighted_ppifile),nodefile,os.path.abspath(outprefix)) 
+        print cmd              
+        if not printonly:
+            # for some reason, the java program only works if you're in the same dir. Change dir there, and then change dir back
+            curr_dir = os.getcwd()
+            os.chdir('/home/jeffl/git-workspace/CycLinker/src')
+            subprocess.check_call(cmd.split())
+            #os.system(cmd)
+            os.chdir(curr_dir)
+    else:
+        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
+    return
+
+############################################################
+## Run CycLinker algorithm created by Peter Steele
+## pathway: pathway to run (e.g., Wnt)
+## resultdir: directory for results.
+## datadir: directory to find positives for the pathway
+## ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+## k: # of paths to run
+## forcealg: if True, will not skip over pre-written files.
+## printonly: if True, will never execute command.
+def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+    print '-'*25 + pathway + '-'*25
+    
+    # node file contains node annotated with 'tf' or 'receptor' or 'none'
+    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
+
+    # create output directory, make sure it exists, and
+    # append pathway name for output prefix
+    outdir = '%s/cyclinker/' % (resultdir)
+    checkDir(outdir)
+    outprefix = '%s/%s' % (outdir,pathway)
+
+    ## pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
+    # cyclinker command
+    if forcealg or not os.path.isfile('%s-ranked-edges.txt' % (outprefix)):
+        script = 'CycLinker'
+        # k option not yet implemented
+        cmd = 'java %s %s %s %s' % (script,ppifile,nodefile,os.path.abspath(outprefix)) 
+        print cmd              
+        if not printonly:
+            # for some reason, the java program only works if you're in the same dir. Change dir there, and then change dir back
+            curr_dir = os.getcwd()
+            os.chdir('/home/jeffl/git-workspace/CycLinker/src')
+            subprocess.check_call(cmd.split())
+            #os.system(cmd)
+            os.chdir(curr_dir)
+    else:
+        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
     return
 
 ############################################################
@@ -1621,7 +2068,7 @@ def runPCSF(pathway,resultdir,datadir,ppidir,prize,omega,forcealg,printonly):
     
     # run PCSF
     if forcealg or not os.path.isfile('%s_PCSF-edges.out' % (outprefix)):
-        script = '/data/annaritz/sig-path-other-methods/src/PCSF_weighted.py'
+        script = '/home/jeffl/svnrepo/src/python/Algorithms/PCSF_weighted.py'
         cmd = 'python %s -e %s -n %s -o %s -p %d --omega %.2f' % (script,ppifile,nodefile,outprefix,prize,omega)
         print cmd
         if not printonly:
@@ -1691,7 +2138,7 @@ def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
 
     outfile = '%s/%s-nmax%d.out' % (outdir,pathway,nmax)
     if forcealg or not os.path.isfile(outfile):
-        script = '/data/annaritz/signaling/2014-06-linker/src/ipa-network-generation.py'
+        script = '/home/jeffl/svnrepo/src/python/Algorithms/ipa-network-generation.py'
         cmd = 'python %s --ppi %s --nodes %s --nmax %d --outfile %s'  % \
                 (script,ppifile,nodefile,nmax,outfile)
         print cmd

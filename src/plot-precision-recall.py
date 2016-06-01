@@ -21,13 +21,17 @@ from collections import OrderedDict
 FILELOCATIONS = {
     'singleparam': {  # "default" parameters
         'pathlinker':'%s/pathlinker/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'pathlinker-no-div':'%s/pathlinker-no-div/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'pagerank-pathlinker':'%s/pagerank-pathlinker/%s-q_0.50-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'cyclinker':'%s/cyclinker/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'pagerank-cyclinker':'%s/pagerank-cyclinker/%s-q_0.50-exclude_%s-sample_50X-%s-precision-recall.txt',
         'pagerank':  '%s/pagerank/%s-q_0.50-exclude_%s-sample_50X-%s-precision-recall.txt',
         'shortestpaths': '%s/shortestpaths/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'bowtiebuilder': '%s/bowtiebuilder/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'inducedsubgraph':'%s/inducedsubgraph/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'eqed':'%s/eqed/%s-exclude_%s-sample_50X-%s-precision-recall.txt',
         'responsenet':'%s/responsenet/%s-gamma_20-exclude_%s-sample_50X-%s-precision-recall.txt',
-        'pcsf':'%s/pcsf/%s-prize5-omega0.01-exclude_%s-sample_50X-%s-precision-recall.txt',
+        'pcsf':'%s/pcsf/%s-prize1-omega0.01-exclude_%s-sample_50X-%s-precision-recall.txt',
         'anat':'%s/anat/%s-alpha0.00-exclude_%s-sample_50X-%s-precision-recall.txt',
         'ipa':'%s/ipa/%s-nmax35-exclude_%s-sample_50X-%s-precision-recall.txt',
     },
@@ -60,6 +64,10 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],
 COLORS = {
     'pagerank' : '#99CCFF', # light blue
     'pathlinker' : '#009933',  # medium green
+    'pathlinker-no-div' : '#81F79F', # light green
+    'pagerank-pathlinker' : '#B0F751', # green-yellow
+    'cyclinker' : '#FE9A2E', # orange
+    'pagerank-cyclinker' : '#ffb84d', # light orange
     'eqed' : '#0404B4', 
     'pcsf' : '#CC3300', # red
     'anat' : '#81F79F', # light green
@@ -83,6 +91,10 @@ SHAPES = {
 NAMES = {
     'pagerank' : 'RWR',
     'pathlinker' : 'PathLinker', 
+    'pathlinker-no-div' : 'PathLinker No Div', 
+    'pagerank-pathlinker' : 'PageRank PathLinker', 
+    'cyclinker' : 'CycLinker', 
+    'pagerank-cyclinker' : 'PageRank CycLinker', 
     'eqed' : 'eQED',
     'pcsf' : 'PCSF',
     'anat' : 'ANAT',
@@ -440,6 +452,11 @@ def main(args):
                       help='Instead of plotting exclude-adjacent, plot exclude-file ignoring KEGG positives.')
     parser.add_option('','--ignorenetpath',action='store_true',default=False,\
                       help='Instead of plotting exclude-adjacent, plot exclude-file ignoring NetPath positives.')
+    # temporary option for pcsf so I don't need to change the code in two places
+    parser.add_option('','--varyomega',action='store',\
+                      help='vary the omega parameters. Floats seperated by underscore (i.e., 0_0.1_0.2)')
+    parser.add_option('','--varyprize',action='store',\
+                      help='vary the prize parameters. ints seperated by underscore (i.e., 1_10_20)')
 
     # parse the command line arguments
     (opts, args) = parser.parse_args()
@@ -461,6 +478,10 @@ def main(args):
         negtypes = ['none','file']
     else:
         negtypes = ['none','adjacent']
+
+    if opts.varyomega and opts.varyprize:
+        VARYPARAMS['omega'] = [float(o) for o in opts.varyomega.split('_')]
+        VARYPARAMS['prize'] = [int(p) for p in opts.varyprize.split('_')]
 
     ## Read files for nodes and edges
     precrecs = {}
