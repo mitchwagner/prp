@@ -1,8 +1,5 @@
 #!/usr/bin/python
 
-## Anna Ritz, March 2015
-## Master Script for running PathLinker for Nat. Methods submisssion.
-
 from optparse import OptionParser,OptionGroup
 from utilsPoirel import *
 import sys
