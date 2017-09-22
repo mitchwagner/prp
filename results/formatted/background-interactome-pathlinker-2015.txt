@@ -1,1 +1,0 @@
-/data/annaritz/datasets/svn-data/interactomes/human/pathlinker-signaling-children-reg-weighted.txt
