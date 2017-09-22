@@ -1,0 +1,33 @@
+Miscellaneous notes involving subsampling:
+
+    - Subsampling requires a list of all TFs and RECs in the PPI. Right now
+      this is found by taking the union of the TFs and RECs for any pathway.
+      This means that if the script is run with a small [pathways] list, it can
+      have unintended results. See code.
+
+    - If samplesets are regenerated, PathLinker of course must be re-run on all
+      of those sets. However, nothing in the code enforces this for now.
+      --forcealg must be used to keep everything in sync, but it is very
+      expensive.
+
+    - To run this in parallel:
+        - First start one process, let it create all of the sample sets in
+          serial (this takes a maybe 30 minutes)
+        
+        - Then kill that process, and start as many as you want with the
+          --batch-run flag (and NOT --force-alg). This will run the PathLinker
+          step in parallel, which is the expensive step. Note that if any of
+          these processes terminate prematurely, they may leave behind
+          temporary files where results should be, which is a problem. These
+          temporary files can be found by hand (maybe by attempting to do the
+          prec-rec computation), and deleted to recover.
+
+        - Note that once you begin this process, you CANNOT run subsampling
+          with --forcealg, or you will regenerate the sample sets and leave the
+          results in a confusing state. The way to recover is re-running
+          everything.
+
+    - I'm still using my own PR calculation code. I believe the task is
+      slightly different here because of all of the merging that goes on.
+      Either I should convert this to use the standard PR code, or someone
+      should look over mine.
