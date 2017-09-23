@@ -2190,21 +2190,25 @@ def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,outfile)
     return
 
-############################################################
-# Auxiliary function to get the Precision/Recall output 
-# directory, depending on whether --netpathkeggunion is
-# specified.
-def getPRoutdir(alg,resultdir,netpathkeggunion):
+
+def getPRoutdir(alg, resultdir, netpathkeggunion):
+    """
+    Auxiliary function to get the Precision/Recall output
+    directory, depending on whether --netpathkeggunion is
+    specified.
+    """
     if netpathkeggunion:
         return '%s/precision-recall/netpathkeggunion/%s/' % (resultdir,alg)
     else:
         return '%s/precision-recall/%s/' % (resultdir,alg)
 
-############################################################
-# Auxiliary function to get the PRecision/Recall subsample
-# file prefix, depending on whether this result directory
-# is for --wntforexperiments (contains "wnt-all-receptors")
-def getPRsubsampleprefix(resultdir,wntsampledir,sampledir,pathway):
+def getPRsubsampleprefix(resultdir, wntsampledir, sampledir, pathway):
+    """
+    Auxiliary function to get the PRecision/Recall subsample
+    file prefix, depending on whether this result directory
+    is for --wntforexperiments (contains "wnt-all-receptors")
+    """
+
     if 'wnt-all-receptors' in resultdir:
         return '%s/%s' % (wntsampledir,pathway)
     else:
@@ -2273,12 +2277,16 @@ def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,th
 
     return
 
-# post NetPath reconstructions (no extra FZD receptors, no KEGG coloring)
-def postNetPathReconstructionsToGraphSpace(pathway,infile,outdir,thres,gsid,printonly,increase=False\
-,\
-                                       decrease=False,undirected=False,oldgs=False,posttag=False):
-    # PPI FILE is original interactome; this ensures that edges are directed as they were originally             
-    # (not necessarily as they were after removing outgoing edges from TRs and incoming edges to receptors)      
+def postNetPathReconstructionsToGraphSpace(
+        pathway, infile, outdir, thres, gsid, printonly, increase=False,
+        decrease=False, undirected=False, oldgs=False, posttag=False):
+    """
+    Post NetPath reconstructions (no extra FZD receptors, no KEGG
+    coloring)
+    """
+    # PPI FILE is original interactome; this ensures that edges are directed as
+    # they were originally  (not necessarily as they were after removing
+    # outgoing edges from TRs and incoming edges to receptors)      
 
     # print annotated from infile_allreceptors                                                                   
     labeledgsid = gsid
@@ -2303,30 +2311,60 @@ def postNetPathReconstructionsToGraphSpace(pathway,infile,outdir,thres,gsid,prin
     if not printonly:
         subprocess.check_call(cmd.split())
 
-############################################################
-# Computes precision and recall and writes values to file.
-# pathway: pathway to compute precision and recall for (e.g., Wnt).
-# datadir: directory for true edge file and true node file for pathway
-# ppidir: directory for pathway-specific interactomes
-# edgefile: predicted edges
-# outdir: output directory
-# edgesortcol: sort column for edges. If None, then take edges as a set.
-# negtype: one of 'none','adjacent', or 'file'.
-# ignorekeggpos: ignore KEGG positives when sampling negatives (negtype=='file')
-# ignorenetpathpos: ignore NetPath positives when sampling negatives (negtype='file')
-# sampleoutprefix: prefix of subsampled negatives and positives for the pathway
-# subsamplefps: Number of negatives to sample (a factor of the size of the positives
-# forceprecrec: Continue even if files have been written
-# printonly: if True, never execute commands
-# nodefile: predicted nodes (if different from edgefile)
-# nodesortcol: sort column for nodes
-# descending: if True, rank in descending order
-# param: additional string to append to outfile
-# union: if True, use union of NetPath & KEGG as positives.
-def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,negtype,ignorekeggpos,\
-                           ignorenetpathpos,sampleoutprefix,\
-                           subsamplefps,forceprecrec,printonly,\
-                           nodefile=None,nodesortcol=None,descending=False,param=None,union=False):
+
+def computePrecisionRecall(
+        pathway, datadir, ppidir, edgefile, outdir, edgesortcol, negtype,
+        ignorekeggpos, ignorenetpathpos, sampleoutprefix, subsamplefps,
+        forceprecrec, printonly, nodefile=None, nodesortcol=None,
+        descending=False, param=None, union=False):
+    """
+    Computes precision and recall and writes values to file.
+
+    :param pathway: Pathway tocompute precision and recall for 
+        (e.g., Wnt)
+
+    :param datadir: Directory for true edge file and true node file
+        for pathway
+        
+    :param ppidir: Directory for pathway-specific interactomes
+
+    :param edgefile: Predicted edges.
+
+    :param outdir: Output directory
+
+    :param edgesortcol: Sort column for edges. If None, then take
+        edges as a set
+
+    :param negtype: One of 'none', 'adjacent', or 'file'
+
+    :param ignorekeggpos: ignore KEGG positives when sampling 
+        negatives (negtype=='file')
+
+    :param ignorenetpathpos: ignore NetPath positives when sampling 
+        negatives (negtype='file')
+
+    :param sampleoutprefix: prefix of subsampled negatives and 
+        positives for the pathway
+
+    :param subsamplefps: Number of negatives to sample (a factor of 
+        the size of the positives
+
+    :param forceprecrec: Continue even if files have been written
+
+    :param printonly: If True, never execute commands
+
+    :param nodefile: Predicted nodes (if different from edgefile)
+
+    :param nodesortcol: Sort column for nodes
+
+    :param descending: If True, rank in descending order
+
+    :param param: Additional string to append to outfile
+
+    :param union: If True, use union of NetPath and KEGG as positives
+
+    :return: None
+    """
 
     # Get true edge file and true node file from the data directory.
     if union:
@@ -2393,25 +2431,44 @@ def computePrecisionRecall(pathway,datadir,ppidir,edgefile,outdir,edgesortcol,ne
         subprocess.check_call(cmd.split())
     return
 
-############################################################
-# Computes aggregate precision and recall
-# inputdir: directory of precision-recall files for individual pathways
-# negtype: one of 'none' or 'adjacent'
-# ignorekeggpos: ignore KEGG positives when sampling negatives (negtype=='file' and netpath = True)
-# ignorenetpathpos: ignore NetPath positives when sampling negatives (negtype='file' and netpath=False)
-# subsamplefps: Number of negatives to sample (a factor of the size of the positives)
-# forceprecrec: Continue even if files have been written
-# printonly: if True, never execute commands
-# descending: if True, rank in descending order
-# param: additional string to append to outfile
-# netpath: if True, run NetPath aggregate. Otherwise run KEGG aggregate.
-# union: if True, use union of NetPath & KEGG as positives.
 
 # ANNA POTENTIAL BUG CAUGHT SEPT 11, 2015!!
 # The default value for descending was True.  This was inconsistent with the computePrecisionRecall function above.
 # As a result, I suspect that PathLinker/ANAT/ResponseNet/APSP were ordered incorrectly when computing aggregate precision
 # and recall.  I am confirming this now.
 def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpathpos,subsamplefps,forceprecrec,printonly,descending=False,param=None,netpath=True,union=False, allpathways=False):
+    """
+    Computes aggregate precision and recall
+
+    :param inputdir: Directory of precision-recall files for individual
+        pathways
+
+    :param negtype: One of 'none' or 'adjacent'
+
+    :param ignorekeggpos: Ignore KEGG positives when sampling negatives
+        (negtype='file' and netpath = True)
+
+    :param ignorenetpathpos: ignore NetPath positives when sampling negatives
+        (negtype='file' and netpath=False)
+
+    :param subsamplefps: Number of negatives to sample (a factor of the size
+        of the positives)
+
+    :param forceprecrec: Continue even if files have been written
+
+    :param printonly: If True, never execute commands
+
+    :param descending: If True, rank in descending order
+
+    :param param: Additional string to append to outfile
+
+    :param netpath: If True, run NetPath aggregate. Otherwise run KEGG
+        aggregate.
+
+    :param union: If True, use union of NetPath and KEGG as positives
+
+    :return: None
+    """
 
     if ignorekeggpos and not netpath:
         sys.exit('ERROR: cannot ignore kegg positives with kegg datasets. Exiting.')
