@@ -1756,17 +1756,21 @@ def runPageRankPathLinker(pathway,resultdir,datadir,ppidir,q,k,forcealg,printonl
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
     return
 
-############################################################
-# Run CycLinker with PageRank
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# q: teleportation probability
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     print '-'*25 + pathway + '-'*25
+    """
+    Run CycLinker with PageRank
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param q: Teleportation probability
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    :return: None
+    """
     
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
     nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
@@ -1797,16 +1801,19 @@ def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
     return
 
-############################################################
-# Run CycLinker algorithm created by Peter Steele
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# k: # of paths to run
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+    """
+    Run CycLinker algorithm.
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param esultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param k: Number of paths to run
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    """
     print '-'*25 + pathway + '-'*25
     
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -1838,15 +1845,20 @@ def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
     return
 
-############################################################
-# Run ShortestPaths
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runShortestPaths(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+    """
+    Run ShortestPaths
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    :return: None
+
+    """
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -1871,16 +1883,20 @@ def runShortestPaths(pathway,resultdir,datadir,ppidir,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override' % (pathway,outfile)
     return
 
-############################################################                                                   
-# Run BowTieBuilder
-# NEW September 2015 (Anna integrated into master-script.py; Allison implemented the program)                           
-# pathway: pathway to run (e.g., Wnt)                                                                         
-# resultdir: directory for results.  
-# datadir: directory to find positives for the pathway                                    
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)                                     
-# forcealg: if True, will not skip over pre-written files.                                                        
-# printonly: if True, will never execute command.                                                                  
-def runBowTieBuilder(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+def runBowTieBuilder(
+        pathway, resultdir, datadir, ppidir, forcealg, printonly):
+    """
+    Run BowTieBuilder
+
+    :param pathway: Pathway to run (e.g., Wnt)                                                                         
+    :param resultdir: Directory for results.  
+    :param datadir: Directory to find positives for the pathway                                    
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)                                     
+    :param forcealg: If True, will not skip over pre-written files.                                                        
+    :param printonly: If True, will never execute command.                                                                  
+
+    :return: None
+    """
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'                                           
@@ -1907,15 +1923,21 @@ ppifile,nodefile,outfile)
     return
 
 
-############################################################
-# Run Induced Subgraph
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
-def runInducedSubgraph(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+def runInducedSubgraph(
+        pathway, resultdir, datadir, ppidir, forcealg, printonly):
+    """
+    Run Induced Subgraph
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    :return: None
+    """
+
     print '-'*25 + pathway + '-'*25
 
     # paths file is pathlinker run for k=20,000.
@@ -1942,15 +1964,20 @@ def runInducedSubgraph(pathway,resultdir,datadir,ppidir,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,outfile)
     return
 
-############################################################
-# Rerank PathLinker predictions by paths with AT LEAST ONE new edge
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
-def rerankPathLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+def rerankPathLinker(
+    pathway, resultdir, datadir, ppidir, forcealg, printonly):
+    """
+    Re-rank PathLinker predictions by paths with at least one new edge
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    :return: None
+    """
     print '-'*25 + pathway + '-'*25
 
     # paths file is pathlinker run for k=20,000.
@@ -1974,16 +2001,20 @@ def rerankPathLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-unique-edges_paths.txt' % (outprefix))
     return
 
-############################################################
-# Run PageRank
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# q: teleportation probability
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
+    """
+    Run PageRank
+
+    :param pathway: pathway to run (e.g., Wnt)
+    :param resultdir: directory for results.
+    :param datadir: directory to find positives for the pathway
+    :param ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param q: teleportation probability
+    :param forcealg: if True, will not skip over pre-written files.
+    :param printonly: if True, will never execute command.
+
+    :return: None
+    """
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2011,16 +2042,23 @@ def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
         print 'Skipping %s: %s Exists. Use --forcealg to override.' % (pathway,'%s-pagerank.txt' % (outprefix))
     return
 
-############################################################
-# Runs EQED
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# inputcurrent: amount of current to "inject" into receptors
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
-def runEQED(pathway,resultdir,datadir,ppidir,inputcurrent,forcealg,printonly):
+def runEQED(
+        pathway, resultdir, datadir, ppidir, inputcurrent, forcealg, 
+        printonly):
+    """
+    Runs EQED
+
+    :param pathway: pathway to run (e.g., Wnt)
+    :param resultdir: directory for results.
+    :param datadir: directory to find positives for the pathway
+    :param ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param inputcurrent: amount of current to "inject" into receptors
+    :param forcealg: if True, will not skip over pre-written files.
+    :param printonly: if True, will never execute command.
+
+    :return: None
+    """
+
     print '-'*25 + pathway + '-'*25
 
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2046,16 +2084,29 @@ def runEQED(pathway,resultdir,datadir,ppidir,inputcurrent,forcealg,printonly):
     return
 
 
-############################################################
-# Run ResponseNet
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# gamma: parameter that varies the penalty for additional edges with flow
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
-def runResponseNet(pathway,resultdir,datadir,ppidir,gamma,forcealg,printonly):
+def runResponseNet(
+        pathway, resultdir, datadir, ppidir, gamma, forcealg,
+        printonly):
+    """
+    Run ResponseNet
+
+    :param pathway: pathway to run (e.g., Wnt)
+
+    :param resultdir: directory for results.
+
+    :param datadir: directory to find positives for the pathway
+
+    :param ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
+
+    :param gamma: parameter that varies the penalty for additional 
+        edges with flow
+
+    :param forcealg: if True, will not skip over pre-written files.
+
+    :param printonly: if True, will never execute command.
+
+    :return: None
+    """
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2083,17 +2134,24 @@ def runResponseNet(pathway,resultdir,datadir,ppidir,gamma,forcealg,printonly):
         print 'Skipping %s w/ gamma %d: %s exists. Use --forcealg to override.' % (pathway,gamma,'%s_responsenet-edges.out' % (outprefix))
     return
 
-############################################################
-# Run PCSF
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# prize: prize to place on TFs (terminal nodes)
-# omega: penalty for adding aditional trees to the forest
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
-def runPCSF(pathway,resultdir,datadir,ppidir,prize,omega,forcealg,printonly):
+def runPCSF(    
+        pathway, resultdir, datadir, ppidir, prize, omega, 
+        forcealg, printonly):
+    """
+    Run PCSF
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param prize: Prize to place on TFs (terminal nodes)
+    :param omega: Penalty for adding aditional trees to the forest
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    :return: None
+    """
+
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2119,16 +2177,28 @@ def runPCSF(pathway,resultdir,datadir,ppidir,prize,omega,forcealg,printonly):
         print 'Skipping %s: %s exists. Not running PCSF.' % (pathway,'%s_PCSF-edges.out' % (outprefix))
     return
 
-############################################################
-# Run ANAT
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# alpha: parameter for the tradeoff between shortest-paths and steiner trees.
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
+    """
+    Run ANAT
+
+    :param pathway: Pathway to run (e.g., Wnt)
+
+    :param resultdir: Directory for results.
+
+    :param datadir: Directory to find positives for the pathway
+
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+
+    :param alpha: Parameter for the tradeoff between shortest-paths 
+        and Steiner trees
+
+    :param forcealg: If True, will not skip over pre-written files.
+
+    :param printonly: If True, will never execute command.
+
+    :return: None
+
+    """
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2155,16 +2225,21 @@ def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
         print 'Skipping %s: %s exists. Not running ANAT.' % (pathway,'%s-edges.out' % (outprefix))
     return
 
-############################################################
-# Run IPA
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# nmax: maximum sub-network size
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
+    """
+    Run IPA
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory for results.
+    :param datadir: Directory to find positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param nmax: Maximum sub-network size
+    :param forcealg: If True, will not skip over pre-written files.
+    :param printonly: If True, will never execute command.
+
+    :return: None
+
+    """
     print '-'*25 + pathway + '-'*25
                    
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2214,27 +2289,49 @@ def getPRsubsampleprefix(resultdir, wntsampledir, sampledir, pathway):
     else:
         return '%s/%s' % (sampledir,pathway)
 
-############################################################
-# Posts Wnt Reconstructions to GraphSpace
-# Posts two different visualizations:
-# - Post annotated networks with gene names and ranked value, if predictions are ranked.
-# - Post un-annotated networks with labels removed.
-#
-# infile: file of edges, which may be ranked by a 3rd column
-# infile_allreceptors: file of edges from 'wnt-all-receptors' experiments, ranked the same as infile
-# thres: if increase==True or decrease==True, use this threshold
-# gsid: GraphSpace ID
-# printonly: if True, will never execute command.
-# increase: if True, rank edges in inceasing order
-# decrease: if True, rank edges in decreasing order
-# (note: if increase==False and decrease==False, then the edges
-# are considered an entire set and not ranked by thres)
-# undirected: if True, checks both (u,v) and (v,u) for evidence sources
-# allreceptors: if True, takes Wnt interactome from wnt-all-receptors/ instead of netpath/
-def postReconstructionsToGraphSpace(pathway,infile,infile_allreceptors,outdir,thres,gsid,printonly,increase=False,\
-                                       decrease=False,undirected=False,oldgs=False,posttag=False):
-    # PPI FILE is original interactome; this ensures that edges are directed as they were originally
-    # (not necessarily as they were after removing outgoing edges from TRs and incoming edges to receptors)
+def postReconstructionsToGraphSpace(
+        pathway, infile, infile_allreceptors, outdir, thres,gsid,
+        printonly, increase=False, decrease=False, undirected=False,
+        oldgs=False, posttag=False):
+    """
+    Posts Wnt Reconstructions to GraphSpace
+    Posts two different visualizations:
+        - Posts annotated networks with gene names and ranked value,
+          if predictions are ranked
+
+        - Posts un-annotated networks with labels removed
+
+    :param infile: File of edges, which may be ranked by a 3rd column
+
+    :param infile_allreceptors: File of edges from 'wnt-all-receptors' 
+        experiments, ranked the same as infile
+
+    :param thres: If increase==True or decrease==True, use this threshold
+
+    :param gsid: GraphSpace ID
+
+    :param printonly: If True, will never execute command.
+
+    :param increase: If True, rank edges in inceasing order
+
+    :param decrease: If True, rank edges in decreasing order
+
+    :param undirected: If True, checks both (u,v) and (v,u) for 
+        evidence sources
+
+    :param allreceptors: If True, takes Wnt interactome from 
+        wnt-all-receptors/ instead of netpath/
+
+    :return: None
+
+    """
+    # (note: if increase==False and decrease==False, then the edges 
+    # are considered an entire set and not ranked by thres)
+
+    # PPI FILE is original interactome; this ensures that edges are 
+    # directed as they were originally (not necessarily as they were 
+    # after removing outgoing edges from TRs and incoming edges to 
+    # receptors)
 
     # print annotated from infile_allreceptors
     labeledgsid = gsid+'-labeled'
