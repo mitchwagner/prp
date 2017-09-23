@@ -21,7 +21,8 @@ import time
 # transduction" GO term as well as "regulation of signal transduction." All
 # other versions are commented out.
 PPIVERSION = ''
-ALLOWEDVERSIONS = [#'2013linker', # Chris's version w/ vinayagam, etc.\
+ALLOWEDVERSIONS = [
+    #'2013linker', # Chris's version w/ vinayagam, etc.\
     #'2015pathlinker', # new version, reg weighting\
     #'pathlinker-old-kegg-buggy', # debug version\
     #'pathlinker-old-kegg-fixed', # debug version\
@@ -37,24 +38,26 @@ ALLOWEDVERSIONS = [#'2013linker', # Chris's version w/ vinayagam, etc.\
 # The interactomes, KEGG, and NetPath edge files are all checked in.
 DATADIR = '/data/annaritz/datasets/svn-data/'
 
-# ORIGINALPPI is the name of the original interactome, before making the pathway
-# specific interactomes. THis is used when posting to GrpahSpace so the directionality
-# of the edges reflects the original interactome.  It is set in the main method.
+# ORIGINALPPI is the name of the original interactome, before making the
+# pathway specific interactomes. THis is used when posting to GrpahSpace so the
+# directionality of the edges reflects the original interactome.  It is set in
+# the main method.
 ORIGINALPPI = ''
 
-# PPIDIR is the directory that contains the pathway-specific interactomes.
-# For each NetPath pathway, we take the PPIVERSION network and remove incoming 
-# edges to receptors and outgoing edges from tfs.  Thus, there is one interactome
-# for each NetPath pathway in the PPIDIR directory.  Note that 
-# "pathway-specific" is a bit too strong of a phrase, and shouldn't be used
-# in the paper. 
+# PPIDIR is the directory that contains the pathway-specific interactomes.  For
+# each NetPath pathway, we take the PPIVERSION network and remove incoming
+# edges to receptors and outgoing edges from tfs.  Thus, there is one
+# interactome for each NetPath pathway in the PPIDIR directory.  Note that
+# "pathway-specific" is a bit too strong of a phrase, and shouldn't be used in
+# the paper. 
 PPIDIR = '/data/annaritz/projects/2015-03-pathlinker/data/pathway-specific-interactomes/'
 
 # MAPPING VARIABLES
 # There is a human-gene-map.txt (originally from Chris) that is checked into
-# SVN.  This is used to map between UniProtKB and the common name.
-# TODO: Once CSBDB is bug-free, we should use CSBDB to do this mapping.  However
-# that will require changing many of the auxilliary scripts.
+# SVN.  This is used to map between UniProtKB and the common name.  
+
+# TODO: Once CSBDB is bug-free, we should use CSBDB to do this mapping.
+# However that will require changing many of the auxilliary scripts.
 MAPPINGFILE = '%s/namespace-mappers/human-gene-map.txt' % (DATADIR)
 MAPFROMCOL = 6
 MAPTOCOL = 1
@@ -143,9 +146,9 @@ def main(args):
     else:
         print '%d total pathways considered.' % (len(pathways))
 
-    # reverse the order of the pathways. Useful for running the same algorithm on two different computers.
-    if opts.rev_pathways:
-        pathways = list(pathways)[::-1]
+    # reverse the order of the pathways. Useful for running the same algorithm
+    # on two different computers.
+    if opts.rev_pathways: pathways = list(pathways)[::-1]
 
     # ALGORITHMS ##
     # For each algorithm, iterate through pathways and call the run() method.
@@ -187,9 +190,18 @@ def main(args):
         print 'Running PageRankCycLinker:'
         start = time.time()
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            # make sure the pagerank output is available to use as input for cyclinker 
-            runPageRank(pathway,resultdir,datadir,ppidir,opts.q,opts.forcealg,opts.printonly)
-            runPageRankCycLinker(pathway,resultdir,datadir,ppidir,opts.q,opts.forcealg,opts.printonly)
+
+            # make sure the pagerank output is available to use as input for
+            # cyclinker 
+
+            runPageRank(
+                pathway, resultdir, datadir, ppidir, opts.q, 
+                opts.forcealg, opts.printonly)
+
+            runPageRankCycLinker(
+                pathway, resultdir, datadir, ppidir, opts.q,
+                opts.forcealg, opts.printonly)
+
         print 'Done Running PageRankCycLinker\n'
         print 'Total time taken: %0.4f'%(time.time() - start)
 
@@ -197,14 +209,22 @@ def main(args):
     if opts.shortestpaths:
         print 'Running Shortest Paths'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runShortestPaths(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
+
+            runShortestPaths(
+                pathway, resultdir, datadir, ppidir, opts.forcealg,
+                opts.printonly)
+
         print 'Done Running Shortest Paths\n'
 
     # BowtieBuilder #
     if opts.bowtiebuilder:
         print 'Running BowTieBuilder'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runBowTieBuilder(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
+
+            runBowTieBuilder(
+                pathway, resultdir, datadir, ppidir, opts.forcealg,
+                opts.printonly)
+
         print 'Done Running BowTieBuilder\n'
 
     # Induced Subgraph #
@@ -330,21 +350,23 @@ def main(args):
         # Compute precision and recall for each negtype described above.
         for negtype in negtypes:
 
-            # All algorithms use the same set of positives and subsampled negatives 
-            # for the dataset specified.  The sampledir variable points to the directory,
-            # depending on the PPIVERSION and the negtype.  If --netpathkeggunion is 
-            # specified, this is a new set of positives (union of NetPath and KEGG).  Thus,
-            # the sample directory is prepended with "netpathkeggunion".
+            # All algorithms use the same set of positives and subsampled
+            # negatives for the dataset specified.  The sampledir variable
+            # points to the directory, depending on the PPIVERSION and the
+            # negtype.  If --netpathkeggunion is specified, this is a new set
+            # of positives (union of NetPath and KEGG).  Thus, the sample
+            # directory is prepended with "netpathkeggunion".
             if opts.netpathkeggunion:
                 sampledir = '%s/netpathkeggunion-samples-exclude-%s' % (resultprefix,negtype)
             else:
                 sampledir = '%s/samples-exclude-%s' % (resultprefix,negtype)
             checkDir(sampledir)
 
-            # If --wntforexperimets is specified, then there is one dataset in pathways variable
-            # that corresponds to wnt-all-receptors.  Since there is a different set of positives 
-            # than in NetPath Wnt pathway (e.g., FZD4/FZD6 are added), we need to subsample a 
-            # different set of negatives.  Thus, the wntsampledir directory is prepended with 
+            # If --wntforexperimets is specified, then there is one dataset in
+            # pathways variable that corresponds to wnt-all-receptors.  Since
+            # there is a different set of positives than in NetPath Wnt pathway
+            # (e.g., FZD4/FZD6 are added), we need to subsample a different set
+            # of negatives.  Thus, the wntsampledir directory is prepended with
             # "wntforexperiments"
             if opts.wntforexperiments:
                 wntsampledir = '%s/wntforexperiments-samples-exclude-%s' % (resultprefix,negtype)
@@ -365,7 +387,8 @@ def main(args):
             #   - compute precision and recall
             # (3) if --netpath is specified, also compute aggregate precision and recall
             #
-            # If --varyparams is specified, executes (2) and (3) for every parameter value.
+            # If --varyparams is specified, executes (2) and (3) for every
+            # parameter value.
 
             # PATHLINKER #
             if opts.pathlinker:
@@ -552,7 +575,8 @@ def main(args):
                     
             # Shortest Paths #
             if opts.shortestpaths:
-                sortcol = None # no sorting; entire file is shortest paths subgraph.
+                # no sorting; entire file is shortest paths subgraph.
+                sortcol = None 
                 for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/shortestpaths/%s-shortest-paths.txt' % (resultdir,pathway)
                     outdir = getPRoutdir('shortestpaths',resultdir,opts.netpathkeggunion)
@@ -584,7 +608,11 @@ def main(args):
                                                     union=opts.netpathkeggunion)
             # BowTieBUilder #                                                                                
             if opts.bowtiebuilder:
-                sortcol = None # no sorting; entire file is the set of edges returned by BowTieBuilder.                                                                   
+
+                # no sorting; entire file is the set of edges returned by
+                # BowTieBuilder.
+                sortcol = None 
+
                 for (pathway,resultdir,datadir,ppidir) in pathways:
                     edgefile = '%s/bowtiebuilder/%s-bowtiebuilder.txt' % (resultdir,pathway)
                     outdir = getPRoutdir('bowtiebuilder',resultdir,opts.netpathkeggunion)
@@ -735,8 +763,8 @@ def main(args):
 
             # ResponseNet #
             if opts.responsenet:
-                # ANNA CHANGE: take union of edges/nodes with positive flow as a subgraph.
-                # both sort columns are in decreasing order.
+                # ANNA CHANGE: take union of edges/nodes with positive flow as
+                # a subgraph.  both sort columns are in decreasing order.
                 edgesortcol = None 
                 if not opts.varyparams: # just run with opts.gamma value
                     params = ['gamma_%d' % (opts.gamma)]
@@ -779,8 +807,11 @@ def main(args):
                                                         union=opts.netpathkeggunion)
             # PCSF #
             if opts.pcsf:
-                sortcol = None # no sorting; entire file is shortest paths subgraph.
-                if not opts.varyparams: # just run with opts.prize and opts.omega values
+                # no sorting; entire file is shortest paths subgraph.
+                sortcol = None 
+
+                # just run with opts.prize and opts.omega values
+                if not opts.varyparams: 
                     params = ['prize%d-omega%.2f' % (opts.prize,opts.omega)]
                 else: # vary prize and omega
                     params = []
@@ -824,11 +855,16 @@ def main(args):
                                                     union=opts.netpathkeggunion)
             # ANAT #
             if opts.anat:
-                sortcol = None # no sorting; entire file is shortest paths subgraph.
-                if not opts.varyparams: # just run with opts.alpha value
+                # no sorting; entire file is shortest paths subgraph.
+                sortcol = None 
+
+                # just run with opts.alpha value
+                if not opts.varyparams: 
                     params = ['alpha%.2f' % (opts.alpha)]
+
                 else: # vary opts.alpha value
                     params = ['alpha%.2f' % p for p in VARYPARAMS['alpha']]
+
                 for param in params:
                     for (pathway,resultdir,datadir,ppidir) in pathways:
                         edgefile = '%s/anat/%s-%s-edges.out' % (resultdir,pathway,param)
@@ -915,8 +951,9 @@ def main(args):
     # Plot precision and recall, once the values have been computed.
     if opts.precrecviz:
         print 'Plot Precision Recall'
-        # The algcmd variable contains all of the algorithms that have been specified in the command
-        # line. These are the algorithms that will be plotted in the precision-recall curves.
+        # The algcmd variable contains all of the algorithms that have been
+        # specified in the command line. These are the algorithms that will be
+        # plotted in the precision-recall curves.
         algcmd = ''
         if opts.pathlinker:
             algcmd += ' --alg pathlinker'
@@ -948,8 +985,8 @@ def main(args):
             algcmd += ' --alg ipa'
 
         # Speficy the input directory to read the precision-recall values from.
-        # if --netpathkeggunion is specified, add the netpathkeggunion directory
-        # so we look in the correct place.
+        # if --netpathkeggunion is specified, add the netpathkeggunion
+        # directory so we look in the correct place.
         if opts.netpath or opts.onlynetpathwnt or opts.allnetpath:
             if opts.netpathkeggunion:
                 indir = '%s/netpath/precision-recall/netpathkeggunion/' % (resultprefix)
@@ -964,10 +1001,11 @@ def main(args):
         # For each pathway, determine the output prefix, construct the call to 
         # plot-precision-recall.py, and execute it.
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            # if --wntforexperiments is specified, add "all-receptors" 
-            # to label. If --ignorekeggpositives is specified, add "ignorekeggpositives"
-            # to label.  if --netpathkeggunion is specified, add "netpathkeggunion" to label.
-            # Otherwise, label is simply the pathway name.
+            # if --wntforexperiments is specified, add "all-receptors" to
+            # label. If --ignorekeggpositives is specified, add
+            # "ignorekeggpositives" to label.  if --netpathkeggunion is
+            # specified, add "netpathkeggunion" to label.  Otherwise, label is
+            # simply the pathway name.
             if 'netpath' in datadir:
                 outprefix = 'viz/precision-recall/netpath/%s' % (pathway)
             else:
@@ -997,8 +1035,8 @@ def main(args):
                 if opts.ignorenetpathpositives:
                     cmd += ' --ignorenetpath'
 
-                # Only plot the varying parameters for Wnt.  This reduces the amount of 
-                # clutter in the viz/ directory.
+                # Only plot the varying parameters for Wnt.  This reduces the
+                # amount of clutter in the viz/ directory.
                 if opts.varyparams:
                     if pathway != 'Wnt':
                         print 'WARNING: not plotting non-Wnt pathway %s with varying parameters' % (pathway)
@@ -1017,7 +1055,8 @@ def main(args):
             else:
                 print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
                 
-        # If --netpath or --allnetpath is specified, plot the aggregate precision-recall plots.
+        # If --netpath or --allnetpath is specified, plot the aggregate
+        # precision-recall plots.
         if opts.netpath or opts.allnetpath: 
             outprefix = 'viz/precision-recall/netpath/aggregate'
             if opts.ignorekeggpositives:
@@ -1074,11 +1113,12 @@ def main(args):
                 print '%s.pdf exists; not overwriting. Use --forceviz to override.' % (outprefix)
 
 
-    # Post Wnt Pathways to Graphspace
-    # Post two different Wnt pathway runs.
-    # - Post NetPath Wnt pathways, used to compute precision and recall.  These are prepended with "pr"
-    # - Post wnt-all-receptors pathways, used to explore false positives for experimental followup
-    # New: only runs when --nepath option is NOT specified. Otherwise all NetPath pathways are run (see below)
+    # Post Wnt Pathways to Graphspace Post two different Wnt pathway runs.  -
+    # Post NetPath Wnt pathways, used to compute precision and recall.  These
+    # are prepended with "pr" - Post wnt-all-receptors pathways, used to
+    # explore false positives for experimental followup New: only runs when
+    # --nepath option is NOT specified. Otherwise all NetPath pathways are run
+    # (see below)
     if (opts.graphspace or opts.oldgraphspace) and not opts.netpath:
         print 'Posting to GraphSpace...'
         outdir = 'viz/graphspace-json/'
@@ -1152,8 +1192,8 @@ def main(args):
             postNetPathReconstructionsToGraphSpace(pathway,infile,outdir,opts.topk,\
                                             gsid,opts.printonly,increase=True,oldgs=opts.oldgraphspace,posttag=opts.tag)
     # RANK TF
-    # Little script that ranks the TRs in PathLinker predictions vs. PageRank predictions
-    # Only plot Wnt and aggregate rankings.
+    # Little script that ranks the TRs in PathLinker predictions vs. PageRank
+    # predictions Only plot Wnt and aggregate rankings.
     if opts.ranktfs:
         if opts.netpath:            
             indir = '%s/netpath/' % (resultprefix)
@@ -1790,11 +1830,12 @@ def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
         cmd = 'java %s %s %s %s' % (script,os.path.abspath(pagerank_weighted_ppifile),nodefile,os.path.abspath(outprefix)) 
         print cmd              
         if not printonly:
-            # for some reason, the java program only works if you're in the same dir. Change dir there, and then change dir back
+
+            # for some reason, the java program only works if you're in the
+            # same dir. Change dir there, and then change dir back
             curr_dir = os.getcwd()
             os.chdir('/home/jeffl/git-workspace/CycLinker/src')
             subprocess.check_call(cmd.split())
-            #os.system(cmd)
             os.chdir(curr_dir)
     else:
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
@@ -1834,7 +1875,10 @@ def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
         cmd = 'java %s %s %s %s' % (script,ppifile,nodefile,os.path.abspath(outprefix)) 
         print cmd              
         if not printonly:
-            # for some reason, the java program only works if you're in the same dir. Change dir there, and then change dir back
+
+            # for some reason, the java program only works if you're in the
+            # same dir. Change dir there, and then change dir back
+
             curr_dir = os.getcwd()
             os.chdir('/home/jeffl/git-workspace/CycLinker/src')
             subprocess.check_call(cmd.split())
@@ -2335,8 +2379,7 @@ def postReconstructionsToGraphSpace(
     # print annotated from infile_allreceptors
     labeledgsid = gsid+'-labeled'
     if oldgs:
-        print 'ERROR: old GS functions commented out.'
-       # cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,ORIGINALPPI,PPIVERSION,DATADIR,labeledgsid,pathway,pathway)
+        print 'ERROR: old GS functions deprecated.'
     else:
         cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --addfzd' % (infile_allreceptors,outdir,ORIGINALPPI,PPIVERSION,DATADIR,labeledgsid,pathway,pathway)
     if increase: # ranked list - pass the threshold
@@ -2357,8 +2400,7 @@ def postReconstructionsToGraphSpace(
     #print unlabeled from infile
     unlabeledgsid=gsid+'-unlabeled'
     if oldgs:
-        print 'ERRROR: old GS functions commented out.'
-        #cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,unlabeledgsid,pathway,pathway)
+        print 'ERRROR: old GS functions deprecated.'
     else:
         cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --kegg %s --nolabels' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,unlabeledgsid,pathway,pathway)
     if increase: # ranked list - pass the threshold
@@ -2387,8 +2429,7 @@ def postNetPathReconstructionsToGraphSpace(
     # print annotated from infile_allreceptors                                                                   
     labeledgsid = gsid
     if oldgs:
-        print 'ERROR: old GS functions commented out.' 
-        #cmd = 'python src/post-to-graphspace.py --infile %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s' % (infile,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway)
+        print 'ERROR: old GS functions deprecated.' 
     else:
         cmd = 'python src/post-to-new-graphspace.py --infile %s --outdir %s --ppi %s --version %s --datadir %s --gsid %s --netpath %s --nocrosstalk' % (infile,outdir,ORIGINALPPI,PPIVERSION,DATADIR,gsid,pathway)
     if increase: # ranked list - pass the threshold                                                         
@@ -2528,10 +2569,11 @@ def computePrecisionRecall(
     return
 
 
-# ANNA POTENTIAL BUG CAUGHT SEPT 11, 2015!!
-# The default value for descending was True.  This was inconsistent with the computePrecisionRecall function above.
-# As a result, I suspect that PathLinker/ANAT/ResponseNet/APSP were ordered incorrectly when computing aggregate precision
-# and recall.  I am confirming this now.
+# ANNA POTENTIAL BUG CAUGHT SEPT 11, 2015!!  The default value for descending
+# was True.  This was inconsistent with the computePrecisionRecall function
+# above.  As a result, I suspect that PathLinker/ANAT/ResponseNet/APSP were
+# ordered incorrectly when computing aggregate precision and recall.  I am
+# confirming this now.
 def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpathpos,subsamplefps,forceprecrec,printonly,descending=False,param=None,netpath=True,union=False, allpathways=False):
     """
     Computes aggregate precision and recall
@@ -2649,22 +2691,28 @@ def performSubsampling(pathways, k, forceRecalc, forcePRRecalc, printonly, batch
 
     # Generate upsampled and downsampled node sets
     if not batchrun:
-        sampleNodeSets(pathways, subsamplingDir, forceRecalc, printonly, sampleSizes, nSamples)
+        sampleNodeSets(
+            pathways, subsamplingDir, forceRecalc, printonly, 
+            sampleSizes, nSamples)
     
     if opts.only_generate_sample_sets:
         return
 
     # Run PathLinker on every sampled nodesets
-    runPathLinkerSampledSets(pathways, k, subsamplingDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples)
+    runPathLinkerSampledSets(
+        pathways, k, subsamplingDir, forceRecalc, printonly, 
+        batchrun, sampleSizes, nSamples)
 
     # Compute PR for each run, including aggregate
     if not batchrun:
-        computeSampledPR(pathways, k, subsamplingDir, forceRecalc, forcePRRecalc, printonly, sampleSizes, nSamples)
+        computeSampledPR(pathways, k, subsamplingDir, forceRecalc, 
+        forcePRRecalc, printonly, sampleSizes, nSamples)
     
     # Plot the results
     if not batchrun:
         forcePlot = forceRecalc or forcePRRecalc
-        plotRobustness(pathways, k, subsamplingDir, forcePlot, printonly, sampleSizes, nSamples)
+        plotRobustness(pathways, k, subsamplingDir, forcePlot, 
+        printonly, sampleSizes, nSamples)
 
 def sampleNodeSets(
         pathways, sampledSetDir, forceRecalc, printonly, sampleSizes, 
@@ -2762,9 +2810,10 @@ def runPathLinkerSampledSets(
                 testFile = '%sk_%d-ranked-edges.txt' % (outprefix,k)
                 if forceRecalc or not os.path.isfile(testFile):
 
-                    # Mark the file, to stop another instance of this program from overwriting 
-                    # it when run simultaneously. (Note: this is not a good solution to this problem,
-                    # but it works well enough here)
+                    # Mark the file, to stop another instance of this program
+                    # from overwriting it when run simultaneously. (Note: this
+                    # is not a good solution to this problem, but it works well
+                    # enough here)
                     if batchrun and not printonly:
                         testF = open(testFile, 'w')
                         testF.write("Working...\n")
