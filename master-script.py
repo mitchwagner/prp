@@ -1,4 +1,7 @@
 #!/usr/bin/python
+"""
+Master script for producing PathLinker comparative analyses.
+"""
 
 from optparse import OptionParser,OptionGroup
 from utilsPoirel import *
@@ -73,9 +76,10 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],  # PageRank teleportation probab
               'nmax':[5,10,15, 25, 35, 50, 75, 100, 200, 500], # IPA parameter
           }
 
-##############################################################
-# The main method parses all parameters and runs all experiments.
 def main(args):
+    """
+    The main method parses all parameters and runs all experiments.
+    """
     global PPIVERSION, PPIDIR, ORIGINALPPI
 
     # parse arguments
@@ -1298,9 +1302,10 @@ def main(args):
     print 'DONE'
     return
 
-############################################################
-# Parses (lots and lots) of options.  
 def parseArguments(args):
+    """
+    Parses command-line options
+    """
     usage = 'master-script.py [options]\n'
     parser = OptionParser(usage=usage)
 
@@ -1456,12 +1461,17 @@ def parseArguments(args):
 
     return opts
 
-############################################################
-# For each pathway in KEGG, NetPath, and the wnt-all-receptors
-# datasets, remove the incoming edges to receptors and outgoing
-# edges to TRs and save them in the PPIDIR.
-# ppifile: original PPI file (e.g., pathlinker-signaling-children-reg-weighted.txt)
 def generatePathwaySpecificInteractomes(ppifile):
+    """
+    For each pathway in KEGG, NetPath, and the wnt-all-receptors 
+    datasets, remove the incoming edges to receptors and outgoing
+    edges to TRs and save them in the PPIDIR
+
+    ppifile: original PPI file 
+        (e.g., pathlinker-signaling-children-reg-weighted.txt)
+
+    """
+
     # Read original PPI file 
     edges = [] # list of (u,v,line) tuples
     header = ''
@@ -1519,13 +1529,18 @@ def generatePathwaySpecificInteractomes(ppifile):
         os.system(cmd)
     return
 
-############################################################
-# generatePPI makes the pathway-specific interactome.
-# edges: original PPI edges
-# nodefile: file of nodes (to get receptors and TRs)
-# interactomefile: name of output file
-# header: common header to put at the top of the output file
 def generatePPI(edges,nodefile,interactomefile,header):
+    """
+    generatePPI makes the pathway-specific interactome.
+
+    :param edges: Original PPI edges
+    :param nodefile: File of nodes (to get receptors and TRs)
+    :param interactomefile: Name of ouptut file
+    :param header: Common header to put at the top of the output file
+
+    :return: None
+
+    """
     # get receptors and tfs
     nodes = readColumns(nodefile,1,2)
     receptors = set([n for n,t in nodes if t == 'receptor'])
@@ -1549,21 +1564,34 @@ def generatePPI(edges,nodefile,interactomefile,header):
     #print 'Removed %d edges (%.2e)' % (numskipped,numskipped/float(len(edges)))
     return
 
-############################################################
-# checkDir checks to see if a directory exists. If it doesn't,
-# then it is created and a warning is output.
 def checkDir(dirname):
+    """
+    checkDir checks to see if a directory exists. if it doesn't,
+    then it is created and a warning is written to stdout.
+
+    TODO: Make sure this functionality doesn't already exist in
+          the stdlib
+
+    :param dirname: Directory to check existence of
+
+    :return: None
+    """
+
     if not os.path.isdir(dirname):
         print 'WARNING: %s does not exist. Creating...' % (dirname)
         os.makedirs(dirname)
     return
 
-############################################################
-# getNetPathPathways reads the pathways for NetPath and returns
-# them as a list.
-# onlynetpathwnt: if True, only return Wnt
-# dbcompare: if True, only return the 6 pathways in common with KEGG
 def getNetPathPathways(onlynetpathwnt,overlapwithkegg,allnetpath):
+    """
+    Reads the pathways for NetPath and returns them as a list.
+
+    :param onlynetpathwnt: If True, only return Wnt
+
+    :param dbcompare: If True, only return the 6 pathways in common
+        with KEGG
+
+    """
     if onlynetpathwnt:
         return ['Wnt']
     if overlapwithkegg: # only return the 6 pathways in common with KEGG.
@@ -1575,18 +1603,20 @@ def getNetPathPathways(onlynetpathwnt,overlapwithkegg,allnetpath):
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
-############################################################
-# getAllNetPathPathways reads the pathways in the NETPATHDIR 
-# directory and outputs them.
 def getAllNetPathPathways():
+    """
+    Reads the pathways in the NETPATHDIR directory and
+    returns them
+    """
     analyzedpathwayfile = 'data/netpath-all-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
-############################################################
-# getKEGGPathways reads the pathways for KEGG and returns
-# them as a list. It also returns a dictionary of {keggid:netpathname}
 def getKEGGPathways(overlapwithnetpath):
+    """
+    Reads the pathways for KEGG and returns them as a list.
+    It also returns a dictionary of {keggid:netpathname}
+    """
     if overlapwithnetpath:
         analyzedpathwayfile = 'data/kegg-dbcompare-pathways.txt'
     else:
@@ -1596,25 +1626,29 @@ def getKEGGPathways(overlapwithnetpath):
     kegg2netpath = readDict(analyzedpathwayfile,2,1)
     return pathways,kegg2netpath
 
-############################################################
-# getAllKEGGPathways reads the pathways in the KEGGDIR
-# directory and outputs them.
 def getAllKEGGPathways():
+    """
+    Reads the pathways in the KEGGDIR directory and returns them.
+    """
     pathways = glob.glob('%s/*-nodes.txt' % (KEGGDIR))
     pathways = [p.split('/')[-1] for p in pathways]
     pathways = [p.replace('-nodes.txt','') for p in pathways]
     return pathways
    
-############################################################
-# Run PathLinker
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# k: # of paths to run
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runPathLinker(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
+    """
+    Run PathLinker.
+
+    :param pathway: PathWay to run (e.g., Wnt)
+    :param resultdir: Directory for results
+    :param datadir: Directory containing positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
+    :param k: Number of paths to run
+    :param forcealg: If True, will not skip over pre-written files
+    :param printonly: If True, will never execute command.
+
+    :return: None
+    """
     print '-'*25 + pathway + '-'*25
     
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -1640,16 +1674,21 @@ def runPathLinker(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
     return
 
-############################################################
-# Run PathLinker
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# k: # of paths to run
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
+    """
+    Run PathLinker.
+    TODO: Reduce duplication with above method!
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory to write results to.
+    :param datadir: Directory containing positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interacomte.txt)
+    :param k: Number of paths to run
+    :param forcealg: If True, will not skip over pre-written files
+    :param printonly: If True, will never execute command.
+
+    :return: None
+    """
     print '-'*25 + pathway + '-'*25
     
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -1675,17 +1714,23 @@ def runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
     return
 
-############################################################
-# Run PathLinker with PageRank
-# pathway: pathway to run (e.g., Wnt)
-# resultdir: directory for results.
-# datadir: directory to find positives for the pathway
-# ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-# q: teleportation probability
-# k: # of paths to run
-# forcealg: if True, will not skip over pre-written files.
-# printonly: if True, will never execute command.
 def runPageRankPathLinker(pathway,resultdir,datadir,ppidir,q,k,forcealg,printonly):
+    """
+    Run PathLinker with PageRank.
+    TODO: Potentially reduce duplication with code above
+
+    :param pathway: Pathway to run (e.g., Wnt)
+    :param resultdir: Directory to write results to
+    :param datadir: Directory containing positives for the pathway
+    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt) 
+    :param q: Teleporation probability
+    :param k: Number of paths to run
+    :param forcealg: If True will not skip over pre-written files
+    :param printonly: If True, will never execute command
+
+    :return: None
+
+    """
     print '-'*25 + pathway + '-'*25
     
     # node file contains node annotated with 'tf' or 'receptor' or 'none'
@@ -2418,10 +2463,11 @@ def computeAggregatePrecisionRecall(inputdir,negtype,ignorekeggpos,ignorenetpath
         subprocess.check_call(cmd.split())
     return
 
-############################################################
-# Performs a subsampling analysis
-# stuff: docs
 def performSubsampling(pathways, k, forceRecalc, forcePRRecalc, printonly, batchrun, opts):
+    """
+    Performs a subsampling analysis
+    stuff: docs (what??)
+    """
 
     # This analysis only makes sense to run on multiple pathways. Verify
     # that the opts obey this.
@@ -2467,67 +2513,72 @@ def performSubsampling(pathways, k, forceRecalc, forcePRRecalc, printonly, batch
         forcePlot = forceRecalc or forcePRRecalc
         plotRobustness(pathways, k, subsamplingDir, forcePlot, printonly, sampleSizes, nSamples)
 
-############################################################
-# Create sampled TR/Rec node sets for each pathway.
-def sampleNodeSets(pathways, sampledSetDir, forceRecalc, printonly, sampleSizes, nSamples):
+def sampleNodeSets(
+        pathways, sampledSetDir, forceRecalc, printonly, sampleSizes, 
+        nSamples):
+    """
+    Create sampled TR/Rec node sets for each pathway.
+    """
     
-        # Create the master list of all TFs and RECs in the network
-        print("\n === Creating master receptor and TF sets ===")
-        
-        pathwayPathsList = " ".join([path + name + "-nodes.txt" for (name,_,path,_) in pathways])
-        masterListsLoc = sampledSetDir + "master-"
-        
-        cmd = 'python src/create-master-TF-REC-lists.py -o %s %s'%(masterListsLoc, pathwayPathsList)
-        if(forceRecalc):
-            cmd += " --force-recalc"    
+    # Create the master list of all TFs and RECs in the network
+    print("\n === Creating master receptor and TF sets ===")
+    
+    pathwayPathsList = " ".join([path + name + "-nodes.txt" for (name,_,path,_) in pathways])
+    masterListsLoc = sampledSetDir + "master-"
+    
+    cmd = 'python src/create-master-TF-REC-lists.py -o %s %s'%(masterListsLoc, pathwayPathsList)
+    if(forceRecalc):
+        cmd += " --force-recalc"    
 
-        print(cmd)
-        if(not printonly):
-            subprocess.check_call(cmd.split())
-            
+    print(cmd)
+    if(not printonly):
+        subprocess.check_call(cmd.split())
         
-        # Generate the sampled nodeset for each pathway
-        print("\n === Creating sampled nodesets ===")
-        masterTFLoc = masterListsLoc + "TFs.txt"
-        masterRECLoc = masterListsLoc + "RECs.txt"
-        
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-       
-            # Get the pathway specific interactome
-            ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
- 
+    
+    # Generate the sampled nodeset for each pathway
+    print("\n === Creating sampled nodesets ===")
+    masterTFLoc = masterListsLoc + "TFs.txt"
+    masterRECLoc = masterListsLoc + "RECs.txt"
+    
+    for (pathway,resultdir,datadir,ppidir) in pathways:
+   
+        # Get the pathway specific interactome
+        ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+
+        # Ensure the output directory exists
+        pathwayDir = sampledSetDir + "/" + pathway
+        if not printonly:
+            checkDir(pathwayDir)
+
+        for sampSize in sampleSizes:
+
             # Ensure the output directory exists
-            pathwayDir = sampledSetDir + "/" + pathway
+            sampleSizeDir = pathwayDir + "/" + str(sampSize)
             if not printonly:
-                checkDir(pathwayDir)
+                checkDir(sampleSizeDir)
+            sampleDir = sampleSizeDir + "/sampled-nodesets/"
+            if not printonly:
+                checkDir(sampleDir)
 
-            for sampSize in sampleSizes:
+            # Perform the sampling
+            nodeFile = datadir + pathway + "-nodes.txt"
+            cmd = 'python src/create-sample-sets.py %s -o %s -n %s -p %s --ppi %s --all-TFs %s --all-Recs %s'%(nodeFile, sampleDir, nSamples, sampSize, ppifile, masterTFLoc, masterRECLoc)
 
-                # Ensure the output directory exists
-                sampleSizeDir = pathwayDir + "/" + str(sampSize)
-                if not printonly:
-                    checkDir(sampleSizeDir)
-                sampleDir = sampleSizeDir + "/sampled-nodesets/"
-                if not printonly:
-                    checkDir(sampleDir)
+            if(forceRecalc):
+                cmd += " --force-recalc"    
 
-                # Perform the sampling
-                nodeFile = datadir + pathway + "-nodes.txt"
-                cmd = 'python src/create-sample-sets.py %s -o %s -n %s -p %s --ppi %s --all-TFs %s --all-Recs %s'%(nodeFile, sampleDir, nSamples, sampSize, ppifile, masterTFLoc, masterRECLoc)
-
-                if(forceRecalc):
-                    cmd += " --force-recalc"    
-
-                print("\n" + cmd)
-                if(not printonly):
-                    subprocess.check_call(cmd.split())
-                
+            print("\n" + cmd)
+            if(not printonly):
+                subprocess.check_call(cmd.split())
             
-        print 'Done creating sampled nodesets\n'
+        
+    print 'Done creating sampled nodesets\n'
 
-############################################################
-# Run PathLinker on each of the sampled nodesets
+
 def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples):
+    """
+    Run PathLinker on each of the sampled nodesets
+    """
         
         print("\n === Running PathLinker for all sampled sets ===")
 
@@ -2573,12 +2624,10 @@ def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly,
                         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
 
 
-
-
-
-############################################################
-# Compute interpolated precision-recall for each of the sampled runs
 def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, printonly, sampleSizes, nSamples):
+    """
+    Compute interpolated precision-recall for each of the sampled runs
+    """
         
     print("\n === Computing interpolated PR for all sampled sets ===")
 
@@ -2677,9 +2726,10 @@ def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, pri
 
 
 
-############################################################
-# Visualize the results of the robustness study
 def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes, nSamples):
+    """
+    Visualize the results of the robustness study
+    """
         
     # For now this only makes plots of the aggregate results, as
     # these are generally the ones we're interested in.
@@ -2712,7 +2762,5 @@ def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes
             print("Skipping plotting of exclude-%s because file exists: %s"%(negType, testFile))
 
 
-
-############################################################
 if __name__=='__main__':
     main(sys.argv)
