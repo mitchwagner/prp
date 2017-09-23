@@ -80,6 +80,8 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],  # PageRank teleportation probab
               'nmax':[5,10,15, 25, 35, 50, 75, 100, 200, 500], # IPA parameter
           }
 
+PPIFILEDIR = "/data/annaritz/datasets/svn-data/interactomes/human/"
+
 def main(args):
     """
     The main method parses all parameters and runs all experiments.
@@ -100,11 +102,11 @@ def main(args):
     # We also set the result directory prefix, resultprefix, and the
     # directory of pathway-specific interactomes (PPIDIR)
     if opts.weightedppi:
-        ppifile = '/data/annaritz/datasets/svn-data/interactomes/human/%s-weighted.txt' % (PPIVERSION)
+        ppifile = '%s/%s-weighted.txt' % (PPIFILEDIR, PPIVERSION)
         resultprefix = 'results/%s/weighted/' % (PPIVERSION)
         PPIDIR = '%s/%s/weighted/' % (PPIDIR,PPIVERSION)
     else:
-        ppifile = '/data/annaritz/datasets/svn-data/interactomes/human/%s.txt' % (PPIVERSION)
+        ppifile = '%s/%s.txt' % (PPIFILEDIR, PPIVERSION)
         resultprefix = 'results/%s/unweighted/' % (PPIVERSION)
         PPIDIR = '%s/%s/unweighted/' % (PPIDIR,PPIVERSION)
     ORIGINALPPI = ppifile
