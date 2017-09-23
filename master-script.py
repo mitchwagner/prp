@@ -123,13 +123,18 @@ def main(args):
     pathways = set()
     kegg2netpath = {} # will be populated if kegg pathways are specified.
     if opts.netpath or opts.onlynetpathwnt or opts.allnetpath:
-        pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.ignorekeggpositives or opts.netpathkeggunion,opts.allnetpath)
+        pathwaynames = getNetPathPathways(
+            opts.onlynetpathwnt, 
+            opts.ignorekeggpositives or opts.netpathkeggunion,
+            opts.allnetpath)
+
         resultdir = '%s/netpath/' %(resultprefix)
         mkpath(resultdir) 
         datadir = NETPATHDIR
         ppidir = '%s/netpath/' % (PPIDIR)
         pathways.update([(p,resultdir,datadir,ppidir) for p in pathwaynames])
         print 'Running %d NetPath pathways' % (len(pathwaynames))
+
     if opts.wntforexperiments:
         resultdir = '%s/wnt-all-receptors/' % (resultprefix)
         mkpath(resultdir)
@@ -137,8 +142,11 @@ def main(args):
         ppidir = '%s/wnt-all-receptors/' % (PPIDIR)
         pathways.update([('Wnt',resultdir,datadir,ppidir)])
         print 'Running 1 wnt-all-receptors pathway'
+
     if opts.kegg:
-        pathwaynames,kegg2netpath = getKEGGPathways(opts.ignorenetpathpositives or opts.netpathkeggunion) 
+        pathwaynames,kegg2netpath = getKEGGPathways(
+            opts.ignorenetpathpositives or opts.netpathkeggunion) 
+
         resultdir = '%s/kegg/' % (resultprefix)
         mkpath(resultdir) 
         datadir = KEGGDIR
@@ -163,21 +171,33 @@ def main(args):
     if opts.pathlinker:
         print 'Running PathLinker:'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runPathLinker(pathway,resultdir,datadir,ppidir,opts.k,opts.forcealg,opts.printonly)
+
+            runPathLinker(
+                pathway, resultdir, datadir, ppidir, opts.k, 
+                opts.forcealg,opts.printonly)
+
         print 'Done Running PathLinker\n'
 
     # PathLinkerNoDiv #
     if opts.pathlinker_no_div:
         print 'Running PathLinkerNoDiv:'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,opts.k,opts.forcealg,opts.printonly)
+
+            runPathLinkerNoDiv(
+                pathway, resultdir, datadir, ppidir, opts.k,
+                opts.forcealg, opts.printonly)
+
         print 'Done Running PathLinkerNoDiv\n'
 
     # PageRankPathLinker #
     if opts.pagerank_pathlinker:
         print 'Running PageRankPathLinker:'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runPageRankPathLinker(pathway,resultdir,datadir,ppidir,opts.q,opts.k,opts.forcealg,opts.printonly)
+
+            runPageRankPathLinker(
+                pathway, resultdir, datadir, ppidir, opts.q, opts.k, 
+                opts.forcealg,opts.printonly)
+
         print 'Done Running PageRankPathLinker\n'
 
     # CycLinker #
@@ -185,7 +205,11 @@ def main(args):
         print 'Running CycLinker:'
         start = time.time()
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runCycLinker(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
+
+            runCycLinker(
+                pathway, resultdir, datadir, ppidir, 
+                opts.forcealg,opts.printonly)
+
         print 'Done Running CycLinker\n'
         print 'Total time taken: %0.4f'%(time.time() - start)
 
@@ -235,14 +259,22 @@ def main(args):
     if opts.inducedsubgraph:
         print 'Getting induced subgraph from PathLinker'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runInducedSubgraph(pathway,resultdir,datadir,ppidir,opts.forcealg,opts.printonly)
+
+            runInducedSubgraph(
+                pathway, resultdir, datadir, ppidir, 
+                opts.forcealg,opts.printonly)
+
         print 'Done getting induced subgraph from PathLinker.\n'
 
     # Reranking PathLinker #
     if opts.rerank:
         print 'Reranking PathLinker'
         for (pathway,resultdir,datadir) in pathways:
-            rerankPathLinker(pathway,resultdir,datadir,opts.forcealg,opts.printonly)
+
+            rerankPathLinker(
+                pathway, resultdir, datadir, opts.forcealg,
+                opts.printonly)
+
         print 'Done reranking PathLinker.\n'
 
     # PageRank #    
@@ -250,18 +282,30 @@ def main(args):
         print 'Running PageRank'
         if not opts.varyparams: # just run with opts.q value
             for (pathway,resultdir,datadir,ppidir) in pathways:
-                runPageRank(pathway,resultdir,datadir,ppidir,opts.q,opts.forcealg,opts.printonly)
+
+                runPageRank(
+                    pathway, resultdir, datadir, ppidir, opts.q,
+                    opts.forcealg, opts.printonly)
+
         else: # vary opts.q value
             for varyq in VARYPARAMS['q']:
                 for (pathway,resultdir,datadir,ppidir) in pathways:
-                    runPageRank(pathway,resultdir,datadir,ppidir,varyq,opts.forcealg,opts.printonly)
+
+                    runPageRank(
+                        pathway, resultdir, datadir, ppidir, varyq,
+                        opts.forcealg, opts.printonly)
+
         print 'Done running PageRank.\n'
 
     # EQED #
     if opts.eqed:
         print 'Running eQED:'
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            runEQED(pathway,resultdir,datadir,ppidir,opts.inputcurrent,opts.forcealg,opts.printonly)
+
+            runEQED(
+                pathway, resultdir, datadir, ppidir, 
+                opts.inputcurrent, opts.forcealg, opts.printonly)
+
         print 'Done running eQED\n'
 
     # ResponseNet #
@@ -269,11 +313,19 @@ def main(args):
         print 'Running ResponseNet:'
         if not opts.varyparams: # just run with opts.gamma value
             for (pathway,resultdir,datadir,ppidir) in pathways:
-                runResponseNet(pathway,resultdir,datadir,ppidir,opts.gamma,opts.forcealg,opts.printonly)
+
+                runResponseNet(
+                    pathway, resultdir, datadir, ppidir, opts.gamma,
+                    opts.forcealg, opts.printonly)
+
         else: # vary opts.gamma value
             for varygamma in VARYPARAMS['gamma']:
                 for (pathway,resultdir,datadir,ppidir) in pathways:
-                    runResponseNet(pathway,resultdir,datadir,ppidir,varygamma,opts.forcealg,opts.printonly)
+
+                    runResponseNet(
+                        pathway, resultdir, datadir, ppidir, varygamma,
+                        opts.forcealg, opts.printonly)
+
         print 'Done running ResponseNet\n'
 
     # PCSF #
@@ -281,7 +333,11 @@ def main(args):
         print 'Running PCSF'
         if not opts.varyparams: # just run with opts.prize and opts.omega values
             for (pathway,resultdir,datadir,ppidir) in pathways:
-                runPCSF(pathway,resultdir,datadir,ppidir,opts.prize,opts.omega,opts.forcealg,opts.printonly)
+
+                runPCSF(
+                    pathway, resultdir, datadir, ppidir, opts.prize,
+                    opts.omega, opts.forcealg, opts.printonly)
+
         else: # vary prize and omega
             #if len(opts.prize) > 1 or len(opts.omega) > 1:
             #    VARYPARAMS['prize'] = opts.prize
@@ -289,7 +345,12 @@ def main(args):
             for varyprize in VARYPARAMS['prize']:
                 for varyomega in VARYPARAMS['omega']:
                     for (pathway,resultdir,datadir,ppidir) in pathways:
-                        runPCSF(pathway,resultdir,datadir,ppidir,varyprize,varyomega,opts.forcealg,opts.printonly)
+
+                        runPCSF(
+                            pathway, resultdir, datadir, ppidir,
+                            varyprize, varyomega, opts.forcealg,
+                            opts.printonly)
+
         print 'Done running PCSF\n'
 
     # ANAT  #
@@ -297,11 +358,17 @@ def main(args):
         print 'Running ANAT:'
         if not opts.varyparams: # just run with opts.alpha value
             for (pathway,resultdir,datadir,ppidir) in pathways:
-                runANAT(pathway,resultdir,datadir,ppidir,opts.alpha,opts.forcealg,opts.printonly)
+
+                runANAT(pathway, resultdir, datadir, ppidir, opts.alpha,
+                opts.forcealg, opts.printonly)
+
         else: # vary alpha
             for varyalpha in VARYPARAMS['alpha']:
                 for (pathway,resultdir,datadir,ppidir) in pathways:
-                    runANAT(pathway,resultdir,datadir,ppidir,varyalpha,opts.forcealg,opts.printonly)
+
+                    runANAT(pathway, resultdir, datadir, ppidir, varyalpha,
+                    opts.forcealg, opts.printonly)
+
         print 'Done Running ANAT\n'
 
     # DEGREE #
@@ -332,7 +399,11 @@ def main(args):
         #else: # vary nmax
         for varynmax in VARYPARAMS['nmax']:
             for (pathway,resultdir,datadir,ppidir) in pathways:
-                runIPA(pathway,resultdir,datadir,ppidir,varynmax,opts.forcealg,opts.printonly)
+
+                runIPA(
+                    pathway, resultdir, datadir, ppidir, varynmax, 
+                    opts.forcealg, opts.printonly)
+
         print 'Done IPA\n'
 
     # VIZ SCRIPTS #
