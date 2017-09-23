@@ -107,12 +107,13 @@ def main(args):
         resultprefix = 'results/%s/unweighted/' % (PPIVERSION)
         PPIDIR = '%s/%s/unweighted/' % (PPIDIR,PPIVERSION)
     ORIGINALPPI = ppifile
+
     # Make sure the directories exist; if they don't, create them.
     checkDir(resultprefix)
     checkDir(PPIDIR)
 
     # PATHWAY-SPECIFIC INTERACTOMES
-    generatePathwaySpecificInteractomes(ppifile)
+    generatePathwaySpecificInteractomes(ppifile, PPIDIR, KEGGDIR, NETPATHDIR)
 
     # DATASETS
     # pathways is a set() of (pathwayname,resultdir,datadir,ppidir) tuples.
@@ -1500,14 +1501,19 @@ def parseArguments(args):
 
     return opts
 
-def generatePathwaySpecificInteractomes(ppifile):
+def generatePathwaySpecificInteractomes(
+        ppifile, ppidir, keggdir, netpathdir):
     """
     For each pathway in KEGG, NetPath, and the wnt-all-receptors 
     datasets, remove the incoming edges to receptors and outgoing
     edges to TRs and save them in the PPIDIR
 
-    ppifile: original PPI file 
+    :param ppifile: original PPI file 
         (e.g., pathlinker-signaling-children-reg-weighted.txt)
+
+    :param ppidir: Directory containing pathway-specific interactomes
+    :param keggdir: Directory containing KEGG edge files
+    :param netpathdir: Directory containing NETPATH edge files
 
     """
 
@@ -1523,13 +1529,13 @@ def generatePathwaySpecificInteractomes(ppifile):
             edges.append((row[0],row[1],line))
 
     # Make NetPath interactomes, if not already present
-    checkDir(PPIDIR+'/netpath/')
+    checkDir(ppidir+'/netpath/')
     pathways = getAllNetPathPathways()
     for p in pathways:
-        interactomefile = '%s/netpath/%s-interactome.txt' % (PPIDIR,p)
+        interactomefile = '%s/netpath/%s-interactome.txt' % (ppidir,p)
         if not os.path.isfile(interactomefile):
             print 'Making NetPath %s Interactome' % (p)
-            nodefile = '%s/%s-nodes.txt' % (NETPATHDIR,p)
+            nodefile = '%s/%s-nodes.txt' % (netpathdir,p)
             generatePPI(edges,nodefile,interactomefile,header)
     # Get Min Cut values:
     if not os.path.isfile('data/min-cuts/netpath.txt'):
@@ -1538,8 +1544,8 @@ def generatePathwaySpecificInteractomes(ppifile):
         os.system(cmd)
         
     # Make wnt-all-receptors interactome, if not already present.
-    checkDir(PPIDIR+'/wnt-all-receptors/')
-    interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (PPIDIR)
+    checkDir(ppidir+'/wnt-all-receptors/')
+    interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (ppidir)
     if not os.path.isfile(interactomefile):
         print 'Making Wnt All receptors Interactome'
         #nodefile = 'mydata/wnt-all-receptors/Wnt-nodes.txt'
@@ -1547,13 +1553,13 @@ def generatePathwaySpecificInteractomes(ppifile):
         generatePPI(edges,nodefile,interactomefile,header)
 
     # Make KEGG interactomes, if not already present.
-    checkDir(PPIDIR+'/kegg/')
+    checkDir(ppidir +'/kegg/')
     pathways = getAllKEGGPathways()
     for p in pathways:
-        interactomefile = '%s/kegg/%s-interactome.txt' % (PPIDIR,p)
+        interactomefile = '%s/kegg/%s-interactome.txt' % (ppidir, p)
         if not os.path.isfile(interactomefile):
             print 'Making KEGG %s Interactome' % (p)
-            nodefile = '%s/%s-nodes.txt' % (KEGGDIR,p)
+            nodefile = '%s/%s-nodes.txt' % (keggdir,p)
             generatePPI(edges,nodefile,interactomefile,header)
 
     # Get Min Cut values:
