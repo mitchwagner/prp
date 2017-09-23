@@ -2729,53 +2729,55 @@ def sampleNodeSets(
     print 'Done creating sampled nodesets\n'
 
 
-def runPathLinkerSampledSets(pathways, k, sampledSetDir, forceRecalc, printonly, batchrun, sampleSizes, nSamples):
+def runPathLinkerSampledSets(
+    pathways, k, sampledSetDir, forceRecalc, printonly, batchrun, 
+    sampleSizes, nSamples):
     """
     Run PathLinker on each of the sampled nodesets
     """
         
-        print("\n === Running PathLinker for all sampled sets ===")
+    print("\n === Running PathLinker for all sampled sets ===")
 
-        # Run PathLinker for each pathway x percent x sample
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-       
-            # Get the pathway specific interactome
-            ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-            pathwayDir = sampledSetDir + "/" + pathway
+    # Run PathLinker for each pathway x percent x sample
+    for (pathway,resultdir,datadir,ppidir) in pathways:
+   
+        # Get the pathway specific interactome
+        ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
+        pathwayDir = sampledSetDir + "/" + pathway
 
-            for sampSize in sampleSizes:
+        for sampSize in sampleSizes:
 
-                sampleSizeDir = pathwayDir + "/" + str(sampSize)
-                sampleDir = sampleSizeDir + "/sampled-nodesets/"
+            sampleSizeDir = pathwayDir + "/" + str(sampSize)
+            sampleDir = sampleSizeDir + "/sampled-nodesets/"
 
-                outDir = sampleSizeDir + "/pathlinker-results/"
-                if not printonly:
-                    checkDir(outDir)
+            outDir = sampleSizeDir + "/pathlinker-results/"
+            if not printonly:
+                checkDir(outDir)
 
-                for iSamp in range(nSamples):
+            for iSamp in range(nSamples):
 
-                    sampledNodeFile = sampleDir + "sample_%s-%s-nodes.txt"%(sampSize, iSamp)
-                    outprefix = outDir + "sample-%s_%s-%s-"%(pathway, sampSize, iSamp)
+                sampledNodeFile = sampleDir + "sample_%s-%s-nodes.txt"%(sampSize, iSamp)
+                outprefix = outDir + "sample-%s_%s-%s-"%(pathway, sampSize, iSamp)
 
-                    # pathlinker command
-                    testFile = '%sk_%d-ranked-edges.txt' % (outprefix,k)
-                    if forceRecalc or not os.path.isfile(testFile):
+                # pathlinker command
+                testFile = '%sk_%d-ranked-edges.txt' % (outprefix,k)
+                if forceRecalc or not os.path.isfile(testFile):
 
-                        # Mark the file, to stop another instance of this program from overwriting 
-                        # it when run simultaneously. (Note: this is not a good solution to this problem,
-                        # but it works well enough here)
-                        if batchrun and not printonly:
-                            testF = open(testFile, 'w')
-                            testF.write("Working...\n")
-                            testF.close()
+                    # Mark the file, to stop another instance of this program from overwriting 
+                    # it when run simultaneously. (Note: this is not a good solution to this problem,
+                    # but it works well enough here)
+                    if batchrun and not printonly:
+                        testF = open(testFile, 'w')
+                        testF.write("Working...\n")
+                        testF.close()
 
-                        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
-                        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,sampledNodeFile) 
-                        print("\n" + cmd)
-                        if not printonly:
-                            subprocess.check_call(cmd.split())
-                    else:
-                        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
+                    script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
+                    cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,sampledNodeFile) 
+                    print("\n" + cmd)
+                    if not printonly:
+                        subprocess.check_call(cmd.split())
+                else:
+                    print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
 
 
 def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, printonly, sampleSizes, nSamples):
