@@ -11,6 +11,7 @@ import os.path
 import subprocess
 import glob
 import time
+from distutils.dir_util import mkpath
 
 ##############################################################
 # GLOBAL VARIABLES
@@ -109,8 +110,8 @@ def main(args):
     ORIGINALPPI = ppifile
 
     # Make sure the directories exist; if they don't, create them.
-    checkDir(resultprefix)
-    checkDir(PPIDIR)
+    mkpath(resultprefix)
+    mkpath(PPIDIR)
 
     # PATHWAY-SPECIFIC INTERACTOMES
     generatePathwaySpecificInteractomes(ppifile, PPIDIR, KEGGDIR, NETPATHDIR)
@@ -122,14 +123,14 @@ def main(args):
     if opts.netpath or opts.onlynetpathwnt or opts.allnetpath:
         pathwaynames = getNetPathPathways(opts.onlynetpathwnt,opts.ignorekeggpositives or opts.netpathkeggunion,opts.allnetpath)
         resultdir = '%s/netpath/' %(resultprefix)
-        checkDir(resultdir) 
+        mkpath(resultdir) 
         datadir = NETPATHDIR
         ppidir = '%s/netpath/' % (PPIDIR)
         pathways.update([(p,resultdir,datadir,ppidir) for p in pathwaynames])
         print 'Running %d NetPath pathways' % (len(pathwaynames))
     if opts.wntforexperiments:
         resultdir = '%s/wnt-all-receptors/' % (resultprefix)
-        checkDir(resultdir)
+        mkpath(resultdir)
         datadir = 'data/wnt-all-receptors/'
         ppidir = '%s/wnt-all-receptors/' % (PPIDIR)
         pathways.update([('Wnt',resultdir,datadir,ppidir)])
@@ -137,7 +138,7 @@ def main(args):
     if opts.kegg:
         pathwaynames,kegg2netpath = getKEGGPathways(opts.ignorenetpathpositives or opts.netpathkeggunion) 
         resultdir = '%s/kegg/' % (resultprefix)
-        checkDir(resultdir) 
+        mkpath(resultdir) 
         datadir = KEGGDIR
         ppidir = '%s/kegg/'% (PPIDIR)
         pathways.update([(p,resultdir,datadir,ppidir) for p in pathwaynames])
@@ -307,7 +308,7 @@ def main(args):
         # print 'Computing Weighted Degree of PPIFILE:'
         # resultprefix is either "results-weighted" or "results-unweighted"
         # outprefix = '%s/ppidegree/weighted-degree' % (resultprefix)
-        # checkDir(outprefix)
+        # mkpath(outprefix)
 
         # if opts.forcealg or not os.path.isfile('%s-edges.txt' % (outprefix)):
         #     script = '/data/annaritz/signaling/2014-06-linker/src/compute-ppi-degrees.py'
@@ -361,7 +362,7 @@ def main(args):
                 sampledir = '%s/netpathkeggunion-samples-exclude-%s' % (resultprefix,negtype)
             else:
                 sampledir = '%s/samples-exclude-%s' % (resultprefix,negtype)
-            checkDir(sampledir)
+            mkpath(sampledir)
 
             # If --wntforexperimets is specified, then there is one dataset in
             # pathways variable that corresponds to wnt-all-receptors.  Since
@@ -371,7 +372,7 @@ def main(args):
             # "wntforexperiments"
             if opts.wntforexperiments:
                 wntsampledir = '%s/wntforexperiments-samples-exclude-%s' % (resultprefix,negtype)
-                checkDir(wntsampledir)
+                mkpath(wntsampledir)
             else:
                 wntsampledir = ''
             
@@ -1011,7 +1012,7 @@ def main(args):
                 outprefix = 'viz/precision-recall/netpath/%s' % (pathway)
             else:
                 outprefix = 'viz/precision-recall/kegg/%s' % (pathway)
-            checkDir(os.path.dirname(outprefix))
+            mkpath(os.path.dirname(outprefix))
             if opts.wntforexperiments and 'wnt-all-receptors' in resultdir:
                 outprefix += '-all-receptors'
             elif opts.ignorekeggpositives:
@@ -1529,7 +1530,7 @@ def generatePathwaySpecificInteractomes(
             edges.append((row[0],row[1],line))
 
     # Make NetPath interactomes, if not already present
-    checkDir(ppidir+'/netpath/')
+    mkpath(ppidir+'/netpath/')
     pathways = getAllNetPathPathways()
     for p in pathways:
         interactomefile = '%s/netpath/%s-interactome.txt' % (ppidir,p)
@@ -1544,7 +1545,7 @@ def generatePathwaySpecificInteractomes(
         os.system(cmd)
         
     # Make wnt-all-receptors interactome, if not already present.
-    checkDir(ppidir+'/wnt-all-receptors/')
+    mkpath(ppidir+'/wnt-all-receptors/')
     interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (ppidir)
     if not os.path.isfile(interactomefile):
         print 'Making Wnt All receptors Interactome'
@@ -1553,7 +1554,7 @@ def generatePathwaySpecificInteractomes(
         generatePPI(edges,nodefile,interactomefile,header)
 
     # Make KEGG interactomes, if not already present.
-    checkDir(ppidir +'/kegg/')
+    mkpath(ppidir +'/kegg/')
     pathways = getAllKEGGPathways()
     for p in pathways:
         interactomefile = '%s/kegg/%s-interactome.txt' % (ppidir, p)
@@ -1609,23 +1610,6 @@ def generatePPI(edges,nodefile,interactomefile,header):
     #print 'Removed %d edges (%.2e)' % (numskipped,numskipped/float(len(edges)))
     return
 
-def checkDir(dirname):
-    """
-    checkDir checks to see if a directory exists. if it doesn't,
-    then it is created and a warning is written to stdout.
-
-    TODO: Make sure this functionality doesn't already exist in
-          the stdlib
-
-    :param dirname: Directory to check existence of
-
-    :return: None
-    """
-
-    if not os.path.isdir(dirname):
-        print 'WARNING: %s does not exist. Creating...' % (dirname)
-        os.makedirs(dirname)
-    return
 
 def getNetPathPathways(onlynetpathwnt,overlapwithkegg,allnetpath):
     """
@@ -1702,7 +1686,7 @@ def runPathLinker(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output prefix
     outdir = '%s/pathlinker/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-' % (outdir,pathway)
 
     # pathway-specific interactome
@@ -1742,7 +1726,7 @@ def runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output prefix
     outdir = '%s/pathlinker-no-div/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-' % (outdir,pathway)
 
     # pathway-specific interactome
@@ -1784,7 +1768,7 @@ def runPageRankPathLinker(pathway,resultdir,datadir,ppidir,q,k,forcealg,printonl
     # create output directory, make sure it exists, and
     # append pathway name for output prefix
     outdir = '%s/pagerank-pathlinker/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
 
     # pathway-specific interactome
@@ -1823,7 +1807,7 @@ def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output prefix
     outdir = '%s/pagerank-cyclinker/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
 
     # pagerank modified weights
@@ -1868,7 +1852,7 @@ def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output prefix
     outdir = '%s/cyclinker/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s' % (outdir,pathway)
 
     # pathway-specific interactome
@@ -1916,7 +1900,7 @@ def runShortestPaths(pathway,resultdir,datadir,ppidir,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/shortestpaths/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outfile = '%s/%s-shortest-paths.txt' % (outdir,pathway)
                
     # pathway-specific interactome
@@ -1954,7 +1938,7 @@ def runBowTieBuilder(
     # create output directory, make sure it exists, and                                                             
     # append pathway name for output filename                                                                       
     outdir = '%s/bowtiebuilder/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outfile = '%s/%s-bowtiebuilder.txt' % (outdir,pathway)
 
     # pathway-specific interactome                                                                                 
@@ -1997,7 +1981,7 @@ def runInducedSubgraph(
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/inducedsubgraph/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outfile = '%s/%s-induced-subgraph.txt' % (outdir,pathway)
 
     # pathway-specific interactome
@@ -2037,7 +2021,7 @@ def rerankPathLinker(
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/rerankedpathlinker/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-reranked-pathlinker' % (outdir,pathway)
 
     if forcealg or not os.path.isfile('%s-unique-edges_paths.txt' % (outprefix)):
@@ -2072,7 +2056,7 @@ def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/pagerank/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
 
     # pathway-specific interactome
@@ -2116,7 +2100,7 @@ def runEQED(
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/eqed/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s' % (outdir,pathway)
 
     # pathway-specific interactome
@@ -2164,7 +2148,7 @@ def runResponseNet(
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/reponsenet/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-gamma_%d' % (outdir,pathway,gamma)
 
     # pathway-specific interactome
@@ -2209,7 +2193,7 @@ def runPCSF(
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/pcsf/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-prize%d-omega%.2f' % (outdir,pathway,prize,omega)
 
     # pathway-specific interactome
@@ -2256,7 +2240,7 @@ def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/anat/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
     outprefix = '%s/%s-alpha%.2f' % (outdir,pathway,alpha)
 
     # pathway-specific interactome
@@ -2297,7 +2281,7 @@ def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
     # create output directory, make sure it exists, and
     # append pathway name for output filename
     outdir = '%s/ipa/' % (resultdir)
-    checkDir(outdir)
+    mkpath(outdir)
 
     # pathway-specific interactome
     ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
@@ -2519,7 +2503,7 @@ def computePrecisionRecall(
         truenodefile = '%s/%s-nodes.txt' % (datadir,pathway)
         
     # make output directory.
-    checkDir(outdir)
+    mkpath(outdir)
     if param == None:
         outprefix = '%s%s' % (outdir,pathway)
     else: # e.g., 'q_0.50'
@@ -2685,7 +2669,7 @@ def performSubsampling(pathways, k, forceRecalc, forcePRRecalc, printonly, batch
     # be placed (both intermediate files and final results)
     weightedStr = "weighted" if opts.weightedppi else "unweighted"
     subsamplingDir = "/data/nick-sharp/projects/2015-03-pathlinker/results/%s/%s/tf-sampling/"%(opts.ppiversion, weightedStr)
-    checkDir(subsamplingDir)
+    mkpath(subsamplingDir)
 
     # Sample sizes/increments are hardcoded constants for now
     sampleSizes = [50, 70, 90, 100, 110, 130, 150]
@@ -2755,17 +2739,17 @@ def sampleNodeSets(
         # Ensure the output directory exists
         pathwayDir = sampledSetDir + "/" + pathway
         if not printonly:
-            checkDir(pathwayDir)
+            mkpath(pathwayDir)
 
         for sampSize in sampleSizes:
 
             # Ensure the output directory exists
             sampleSizeDir = pathwayDir + "/" + str(sampSize)
             if not printonly:
-                checkDir(sampleSizeDir)
+                mkpath(sampleSizeDir)
             sampleDir = sampleSizeDir + "/sampled-nodesets/"
             if not printonly:
-                checkDir(sampleDir)
+                mkpath(sampleDir)
 
             # Perform the sampling
             nodeFile = datadir + pathway + "-nodes.txt"
@@ -2805,7 +2789,7 @@ def runPathLinkerSampledSets(
 
             outDir = sampleSizeDir + "/pathlinker-results/"
             if not printonly:
-                checkDir(outDir)
+                mkpath(outDir)
 
             for iSamp in range(nSamples):
 
@@ -2896,7 +2880,7 @@ def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, pri
 
                     # The destination for the output file
                     outLocDir = "%s/%s/%d/PR/"%(sampledSetDir, pathway, percent)
-                    checkDir(outLocDir)
+                    mkpath(outLocDir)
                     outLoc = "%s/exclude-%s_trial_%d"%(outLocDir, negType, iTrial)
 
                     # Assemble the command to the subprogram
@@ -2918,7 +2902,7 @@ def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, pri
                 # The destination for the output file
                 # TODO This directory structure isn't great
                 outLocDir = "%s/aggregate-PR-exclude-%s"%(sampledSetDir, negType)
-                checkDir(outLocDir)
+                mkpath(outLocDir)
                 outLoc = "%s/percent_%d-trial_%d"%(outLocDir,percent,iTrial)
 
 
@@ -2952,7 +2936,7 @@ def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes
     negTypes = ['none','adjacent']
     
     outDir = sampledSetDir + "viz/"
-    checkDir(outDir)
+    mkpath(outDir)
 
     for negType in negTypes:
 
