@@ -193,7 +193,6 @@ def main(args):
         print 'Done Running PageRankCycLinker\n'
         print 'Total time taken: %0.4f'%(time.time() - start)
 
-
     # Shortest Paths #
     if opts.shortestpaths:
         print 'Running Shortest Paths'
