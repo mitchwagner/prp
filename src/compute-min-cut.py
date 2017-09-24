@@ -3,7 +3,7 @@
 import glob
 from utilsPoirel import *
 import networkx as nx
-from digraph import DiGraph # NetworkX digraph
+from networkx import DiGraph # NetworkX digraph
 from optparse import OptionParser
 
 # mincut variables
@@ -57,7 +57,7 @@ def getMinCut(nodefile,ppidir,mapper,out):
                 G.add_edge(t,h,capacity=10000000000.0)
             else:
                 G.add_edge(t,h,capacity=1.0)
-        mincut = nx.min_cut(G,SOURCE,SINK)
+        mincut = nx.minimum_cut(G,SOURCE,SINK)
     else:
         mincut = -1       
 

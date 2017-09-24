@@ -1,3 +1,14 @@
+cycler==0.10.0
 decorator==4.1.2
-networkx==2.0
+functools32==3.2.3.post2
+matlabengineforpython===R2016a
+matplotlib==2.0.2
+networkx==1.11
+numpy==1.13.1
 pkg-resources==0.0.0
+pyparsing==2.2.0
+python-dateutil==2.6.1
+pytz==2017.2
+scipy==0.19.1
+six==1.11.0
+subprocess32==3.2.7

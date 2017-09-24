@@ -1,0 +1,9 @@
+#! /bin/bash 
+
+# Algorithm for fetching the appropriate input
+
+svn checkout file:///home/murali/svnrepo/data/interactions inputs/interactions
+
+svn checkout file:///home/murali/svnrepo/data/interactomes inputs/interactomes
+
+svn checkout file:///home/murali/svnrepo/data/pathways inputs/pathways

@@ -12,6 +12,7 @@ import subprocess
 import glob
 import time
 from distutils.dir_util import mkpath
+# ls /data/annaritz/datasets/svn-data/interactions/netpath/pathways/*-nodes.txt | sed 's/.*pathways\///g' | sed 's/-nodes.txt//g'  > data/netpath-all-pathways.txt
 
 ##############################################################
 # GLOBAL VARIABLES
@@ -37,10 +38,16 @@ ALLOWEDVERSIONS = [
 
 # DATADIR is the path to the data/ directory checked into SVN.  
 # The interactomes, KEGG, and NetPath edge files are all checked in.
-DATADIR = '/data/annaritz/datasets/svn-data/'
+
+# TODO: Remove when done should be checked out to svnrepo/data/
+# DATADIR = '/data/annaritz/datasets/svn-data/'
+DATADIR = 'inputs/'
+
+# Directory to write results to
+OUTDIR = 'outputs/'
 
 # ORIGINALPPI is the name of the original interactome, before making the
-# pathway specific interactomes. THis is used when posting to GrpahSpace so the
+# pathway specific interactomes. THis is used when posting to GraphSpace so the
 # directionality of the edges reflects the original interactome.  It is set in
 # the main method.
 ORIGINALPPI = ''
@@ -51,7 +58,7 @@ ORIGINALPPI = ''
 # interactome for each NetPath pathway in the PPIDIR directory.  Note that
 # "pathway-specific" is a bit too strong of a phrase, and shouldn't be used in
 # the paper. 
-PPIDIR = '/data/annaritz/projects/2015-03-pathlinker/data/pathway-specific-interactomes/'
+PPIDIR = 'outputs/pathway-specific-interactomes/'
 
 # MAPPING VARIABLES
 # There is a human-gene-map.txt (originally from Chris) that is checked into
@@ -65,9 +72,17 @@ MAPTOCOL = 1
 
 # PATHWAY DIRECTORIES
 # NetPath and KEGG edge files (*-edges.txt) are checked into SVN.
-NETPATHDIR='%s/interactions/netpath/pathways/' % (DATADIR) 
-KEGGDIR='%s/interactions/kegg/2015-03-23/hsa/edge-files-deadends/' % (DATADIR)
-ORIGKEGGDIR='%s/interactions/kegg/2015-03-23/hsa/edge-files/' % (DATADIR)
+NETPATHDIR = \
+    '%s/interactions/netpath/pathways/' % (DATADIR) 
+
+KEGGDIR = \
+    '%s/interactions/kegg/2015-03-23/hsa/edge-files-deadends/' % (DATADIR)
+
+ORIGKEGGDIR = \
+    '%s/interactions/kegg/2015-03-23/hsa/edge-files/' % (DATADIR)
+
+PPIFILEDIR = \
+    "%s/interactomes/human/" % (DATADIR)
 
 # VARYPARAMS
 # To select parameters for competing methods, we vary each parameter.
@@ -79,8 +94,6 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],  # PageRank teleportation probab
               'alpha':[0, 0.1, 0.25, 0.4, 0.5],  # ANAT parameter
               'nmax':[5,10,15, 25, 35, 50, 75, 100, 200, 500], # IPA parameter
           }
-
-PPIFILEDIR = "/data/annaritz/datasets/svn-data/interactomes/human/"
 
 def main(args):
     """
@@ -103,11 +116,13 @@ def main(args):
     # directory of pathway-specific interactomes (PPIDIR)
     if opts.weightedppi:
         ppifile = '%s/%s-weighted.txt' % (PPIFILEDIR, PPIVERSION)
-        resultprefix = 'results/%s/weighted/' % (PPIVERSION)
+        resultprefix = 'outputs/%s/weighted/' % (PPIVERSION)
         PPIDIR = '%s/%s/weighted/' % (PPIDIR,PPIVERSION)
+
+    # TODO: This might not actually work...
     else:
         ppifile = '%s/%s.txt' % (PPIFILEDIR, PPIVERSION)
-        resultprefix = 'results/%s/unweighted/' % (PPIVERSION)
+        resultprefix = 'outputs/%s/unweighted/' % (PPIVERSION)
         PPIDIR = '%s/%s/unweighted/' % (PPIDIR,PPIVERSION)
     ORIGINALPPI = ppifile
 
@@ -138,9 +153,9 @@ def main(args):
     if opts.wntforexperiments:
         resultdir = '%s/wnt-all-receptors/' % (resultprefix)
         mkpath(resultdir)
-        datadir = 'data/wnt-all-receptors/'
+        datadir = 'inputs/pathways/wnt-all-receptors/'
         ppidir = '%s/wnt-all-receptors/' % (PPIDIR)
-        pathways.update([('Wnt',resultdir,datadir,ppidir)])
+        pathways.update([('Wnt', resultdir, datadir, ppidir)])
         print 'Running 1 wnt-all-receptors pathway'
 
     if opts.kegg:
@@ -1325,7 +1340,7 @@ def main(args):
         
         # compute distances
         for (pathway,resultdir,datadir,ppidir) in pathways:
-            if opts.forceviz or not os.path.isfile('data/shortest-paths-for-false-positives/%s-edge-dists-undirected.txt' % (pathway)):
+            if opts.forceviz or not os.path.isfile('outputs/shortest-paths-for-false-positives/%s-edge-dists-undirected.txt' % (pathway)):
                 cmd = 'python src/shortest-paths-for-false-positives.py --datadir %s --ppidir %s --pathway %s' % \
                       (datadir,ppidir,pathway)
                 print cmd
@@ -1612,8 +1627,9 @@ def generatePathwaySpecificInteractomes(
             nodefile = '%s/%s-nodes.txt' % (netpathdir,p)
             generatePPI(edges,nodefile,interactomefile,header)
     # Get Min Cut values:
-    if not os.path.isfile('data/min-cuts/netpath.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/netpath/ --outfile data/min-cuts/netpath.txt' % (NETPATH,PPIDIR)
+    if not os.path.isfile('outputs/min-cuts/netpath.txt'):
+        mkpath('outputs/min-cuts')
+        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/netpath/ --outfile outputs/min-cuts/netpath.txt' % (NETPATHDIR, PPIDIR)
         print cmd
         os.system(cmd)
         
@@ -1623,8 +1639,8 @@ def generatePathwaySpecificInteractomes(
     if not os.path.isfile(interactomefile):
         print 'Making Wnt All receptors Interactome'
         #nodefile = 'mydata/wnt-all-receptors/Wnt-nodes.txt'
-        nodefile = 'data/wnt-all-receptors/Wnt-nodes.txt'
-        generatePPI(edges,nodefile,interactomefile,header)
+        nodefile = 'inputs/pathways/wnt-all-receptors/Wnt-nodes.txt'
+        generatePPI(edges, nodefile, interactomefile, header)
 
     # Make KEGG interactomes, if not already present.
     mkpath(ppidir +'/kegg/')
@@ -1637,18 +1653,18 @@ def generatePathwaySpecificInteractomes(
             generatePPI(edges,nodefile,interactomefile,header)
 
     # Get Min Cut values:
-    if not os.path.isfile('data/min-cuts/kegg.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile data/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (ORIGKEGGDIR,PPIDIR,DATADIR)
+    if not os.path.isfile('outputs/min-cuts/kegg.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile outputs/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (ORIGKEGGDIR,PPIDIR,DATADIR)
         print cmd
         os.system(cmd)
 
-    if not os.path.isfile('data/min-cuts/kegg-deadends.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile data/min-cuts/kegg-deadends.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (KEGGDIR,PPIDIR,DATADIR)
+    if not os.path.isfile('outputs/min-cuts/kegg-deadends.txt'):
+        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile outputs/min-cuts/kegg-deadends.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (KEGGDIR,PPIDIR,DATADIR)
         print cmd
         os.system(cmd)
     return
 
-def generatePPI(edges,nodefile,interactomefile,header):
+def generatePPI(edges, nodefile, interactomefile, header):
     """
     generatePPI makes the pathway-specific interactome.
 
@@ -1683,8 +1699,9 @@ def generatePPI(edges,nodefile,interactomefile,header):
     #print 'Removed %d edges (%.2e)' % (numskipped,numskipped/float(len(edges)))
     return
 
-
-def getNetPathPathways(onlynetpathwnt,overlapwithkegg,allnetpath):
+# TODO: This and the following function look to have a good
+# deal of overlap
+def getNetPathPathways(onlynetpathwnt, overlapwithkegg, allnetpath):
     """
     Reads the pathways for NetPath and returns them as a list.
 
@@ -1697,11 +1714,11 @@ def getNetPathPathways(onlynetpathwnt,overlapwithkegg,allnetpath):
     if onlynetpathwnt:
         return ['Wnt']
     if overlapwithkegg: # only return the 6 pathways in common with KEGG.
-        analyzedpathwayfile = 'data/netpath-dbcompare-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/netpath-dbcompare-pathways.txt'
     if allnetpath:
-	analyzedpathwayfile = 'data/netpath-all-pathways.txt'
+	analyzedpathwayfile = 'inputs/pathways/netpath-all-pathways.txt'
     else:
-        analyzedpathwayfile = 'data/netpath-analyzed-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/netpath-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
@@ -1710,7 +1727,7 @@ def getAllNetPathPathways():
     Reads the pathways in the NETPATHDIR directory and
     returns them
     """
-    analyzedpathwayfile = 'data/netpath-all-pathways.txt'
+    analyzedpathwayfile = 'inputs/pathways/netpath-all-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
@@ -1720,9 +1737,9 @@ def getKEGGPathways(overlapwithnetpath):
     It also returns a dictionary of {keggid:netpathname}
     """
     if overlapwithnetpath:
-        analyzedpathwayfile = 'data/kegg-dbcompare-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/kegg-dbcompare-pathways.txt'
     else:
-        analyzedpathwayfile = 'data/kegg-analyzed-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/kegg-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,2)]
     # dictionary of keggnames to netpath names.
     kegg2netpath = readDict(analyzedpathwayfile,2,1)
@@ -1736,8 +1753,32 @@ def getAllKEGGPathways():
     pathways = [p.split('/')[-1] for p in pathways]
     pathways = [p.replace('-nodes.txt','') for p in pathways]
     return pathways
+
+def runPathwayReconstruction(
+        cmd, name, pathway, resultdir, datadir, ppidir, k, forcealg, printonly):
+
+    print '-' * 25 + pathway + '-' * 25
+
+    # TODO: PyDoc. name is used in outdir
+
+    # node file contains node(s) annotated with 'tf' or 'receptor'
+    # or 'none'
+    nodefile = '%s/%s-nodes.txt' % (datadir, pathway)
+
+    # Create output directory, make sure it exists, and append 
+    # pathway name for output prefix
+    outdir = '%s/%s/' % (resultdir, name)
+    mkpath(outdir)
+    outprefix = '%s/%s-' % (outdir, pathway)
+
+    # pathway-specific interactome
+    ppifile = '%s/%s-interactome.txt' % (ppidir, pathway)
+
+    # RUN COMMAND
+
    
-def runPathLinker(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
+def runPathLinker(
+        pathway, resultdir, datadir, ppidir, k, forcealg, printonly):
     """
     Run PathLinker.
 
@@ -1904,7 +1945,8 @@ def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
     return
 
-def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
+
+def runCycLinker(pathway, resultdir, datadir, ppidir, forcealg, printonly):
     """
     Run CycLinker algorithm.
 
@@ -1945,7 +1987,6 @@ def runCycLinker(pathway,resultdir,datadir,ppidir,forcealg,printonly):
             curr_dir = os.getcwd()
             os.chdir('/home/jeffl/git-workspace/CycLinker/src')
             subprocess.check_call(cmd.split())
-            #os.system(cmd)
             os.chdir(curr_dir)
     else:
         print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
@@ -2569,8 +2610,8 @@ def computePrecisionRecall(
     # Get true edge file and true node file from the data directory.
     if union:
         # TODO remove hard-coded links
-        trueedgefile = '/data/annaritz/projects/2015-03-pathlinker/data/netpath-kegg-union/%s-edges.txt' % (pathway)
-        truenodefile = '/data/annaritz/projects/2015-03-pathlinker/data/netpath-kegg-union/%s-nodes.txt' % (pathway)
+        trueedgefile = 'inputs/pathways/netpath-kegg-union/%s-edges.txt' % (pathway)
+        truenodefile = 'inputs/pathways/netpath-kegg-union/%s-nodes.txt' % (pathway)
     else:
         trueedgefile = '%s/%s-edges.txt' % (datadir,pathway)
         truenodefile = '%s/%s-nodes.txt' % (datadir,pathway)
@@ -2741,7 +2782,7 @@ def performSubsampling(pathways, k, forceRecalc, forcePRRecalc, printonly, batch
     # This is the directory in which all robustness related files will
     # be placed (both intermediate files and final results)
     weightedStr = "weighted" if opts.weightedppi else "unweighted"
-    subsamplingDir = "/data/nick-sharp/projects/2015-03-pathlinker/results/%s/%s/tf-sampling/"%(opts.ppiversion, weightedStr)
+    subsamplingDir = "outputs/%s/%s/tf-sampling/"%(opts.ppiversion, weightedStr)
     mkpath(subsamplingDir)
 
     # Sample sizes/increments are hardcoded constants for now
@@ -2891,7 +2932,9 @@ def runPathLinkerSampledSets(
                     print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
 
 
-def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, printonly, sampleSizes, nSamples):
+def computeSampledPR(
+        pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, printonly, 
+        sampleSizes, nSamples):
     """
     Compute interpolated precision-recall for each of the sampled runs
     """
@@ -2938,8 +2981,8 @@ def computeSampledPR(pathways, k, sampledSetDir, forceRecalc, forcePRRecalc, pri
                
                     # The paths for the inputs in this PR calculation
                     edgeRankLoc = "%s%s/%d/pathlinker-results/sample-%s_%d-%d-k_%d-ranked-edges.txt"%(sampledSetDir,pathway,percent,pathway,percent,iTrial,k)
-                    negNodeLoc = 'results/pathlinker-signaling-children-reg/weighted/samples-exclude-%s/%s-exclude_%s-50X-negative-nodes.txt'%(negType,pathway,negType)
-                    negEdgeLoc = 'results/pathlinker-signaling-children-reg/weighted/samples-exclude-%s/%s-exclude_%s-50X-negative-edges.txt'%(negType,pathway,negType)
+                    negNodeLoc = 'outputs/pathlinker-signaling-children-reg/weighted/samples-exclude-%s/%s-exclude_%s-50X-negative-nodes.txt'%(negType,pathway,negType)
+                    negEdgeLoc = 'outputs/pathlinker-signaling-children-reg/weighted/samples-exclude-%s/%s-exclude_%s-50X-negative-edges.txt'%(negType,pathway,negType)
                     nodeTypeLoc = datadir + pathway + "-nodes.txt"
                     edgeTypeLoc = datadir + pathway + "-edges.txt"
 

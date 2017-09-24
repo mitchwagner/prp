@@ -4,3 +4,7 @@
 
 venv/
 results/
+inputs/
+outputs/
+viz/
+
