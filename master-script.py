@@ -12,7 +12,6 @@ import subprocess
 import glob
 import time
 from distutils.dir_util import mkpath
-# ls /data/annaritz/datasets/svn-data/interactions/netpath/pathways/*-nodes.txt | sed 's/.*pathways\///g' | sed 's/-nodes.txt//g'  > data/netpath-all-pathways.txt
 
 ##############################################################
 # GLOBAL VARIABLES
@@ -38,9 +37,6 @@ ALLOWEDVERSIONS = [
 
 # DATADIR is the path to the data/ directory checked into SVN.  
 # The interactomes, KEGG, and NetPath edge files are all checked in.
-
-# TODO: Remove when done should be checked out to svnrepo/data/
-# DATADIR = '/data/annaritz/datasets/svn-data/'
 DATADIR = 'inputs/'
 
 # Directory to write results to
@@ -96,15 +92,10 @@ VARYPARAMS = {'q': [0.1, 0.25, 0.5, 0.75, 0.9],  # PageRank teleportation probab
           }
 
 def main(args):
-    """
-    The main method parses all parameters and runs all experiments.
-    """
     global PPIVERSION, PPIDIR, ORIGINALPPI
 
-    # parse arguments
     opts = parseArguments(args)
 
-    # set the PPIVERSION. 
     PPIVERSION = opts.ppiversion
 
     # BACKGROUND INTERACTOME
@@ -1590,6 +1581,7 @@ def parseArguments(args):
 
     return opts
 
+
 def generatePathwaySpecificInteractomes(
         ppifile, ppidir, keggdir, netpathdir):
     """
@@ -1603,6 +1595,8 @@ def generatePathwaySpecificInteractomes(
     :param ppidir: Directory containing pathway-specific interactomes
     :param keggdir: Directory containing KEGG edge files
     :param netpathdir: Directory containing NETPATH edge files
+
+    :return: None
 
     """
 
@@ -1621,24 +1615,20 @@ def generatePathwaySpecificInteractomes(
     mkpath(ppidir+'/netpath/')
     pathways = getAllNetPathPathways()
     for p in pathways:
-        interactomefile = '%s/netpath/%s-interactome.txt' % (ppidir,p)
+        interactomefile = '%s/netpath/%s-interactome.txt' % (ppidir, p)
         if not os.path.isfile(interactomefile):
             print 'Making NetPath %s Interactome' % (p)
             nodefile = '%s/%s-nodes.txt' % (netpathdir,p)
-            generatePPI(edges,nodefile,interactomefile,header)
-    # Get Min Cut values:
-    if not os.path.isfile('outputs/min-cuts/netpath.txt'):
-        mkpath('outputs/min-cuts')
-        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/netpath/ --outfile outputs/min-cuts/netpath.txt' % (NETPATHDIR, PPIDIR)
-        print cmd
-        os.system(cmd)
-        
+            generatePPI(edges, nodefile, interactomefile, header)
+
+    callComputeMinCut(
+        NETPATHDIR, PPIDIR + '/netpath/', 'outputs/min-cuts/netpath.txt')
+
     # Make wnt-all-receptors interactome, if not already present.
     mkpath(ppidir+'/wnt-all-receptors/')
     interactomefile = '%s/wnt-all-receptors/Wnt-interactome.txt' % (ppidir)
     if not os.path.isfile(interactomefile):
         print 'Making Wnt All receptors Interactome'
-        #nodefile = 'mydata/wnt-all-receptors/Wnt-nodes.txt'
         nodefile = 'inputs/pathways/wnt-all-receptors/Wnt-nodes.txt'
         generatePPI(edges, nodefile, interactomefile, header)
 
@@ -1652,17 +1642,31 @@ def generatePathwaySpecificInteractomes(
             nodefile = '%s/%s-nodes.txt' % (keggdir,p)
             generatePPI(edges,nodefile,interactomefile,header)
 
-    # Get Min Cut values:
-    if not os.path.isfile('outputs/min-cuts/kegg.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile outputs/min-cuts/kegg.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (ORIGKEGGDIR,PPIDIR,DATADIR)
-        print cmd
-        os.system(cmd)
+    callComputeMinCut(
+        ORIGKEGGDIR, PPIDIR + 'kegg/', 'outputs/min-cuts/kegg.txt', 
+        DATADIR + '/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt')
+        
+    callComputeMinCut(
+        KEGGDIR, PPIDIR + 'kegg/', 'outputs/min-cuts/kegg-deadends.txt', 
+        DATADIR + '/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt')
 
-    if not os.path.isfile('outputs/min-cuts/kegg-deadends.txt'):
-        cmd = 'python src/compute-min-cut.py --datadir %s --ppidir %s/kegg/ --outfile outputs/min-cuts/kegg-deadends.txt --mapfile %s/interactions/kegg/2015-03-23/hsa/HSA_PATHWAY_LIST_FORMATTED.txt' % (KEGGDIR,PPIDIR,DATADIR)
-        print cmd
-        os.system(cmd)
     return
+
+def callComputeMinCut(datadir, ppidir, outfile, mapfile=None):
+    mkpath(os.path.dirname(outfile))
+    cmd = buildComputeMinCutCommand(datadir, ppidir, outfile, mapfile)
+    print("Running: ", cmd)
+    subprocess.call(cmd)
+    
+def buildComputeMinCutCommand(datadir, ppidir, outfile, mapfile=None): 
+    cmd = ['python', 'src/compute-min-cut.py', 
+           '--datadir', datadir, 
+           '--ppidir', ppidir, 
+           '--outfile', outfile]
+    if mapfile:
+        cmd = cmd + ['--mapfile', mapfile]
+    
+    return cmd
 
 def generatePPI(edges, nodefile, interactomefile, header):
     """
@@ -1695,8 +1699,7 @@ def generatePPI(edges, nodefile, interactomefile, header):
     
     # print receptors, tfs, num edges removed, percent removed for org file.
     print '| %d | %d | %d | %.2e |' % (len(receptors),len(tfs),numskipped,numskipped/float(len(edges)))
-    #print '%d receptors and %d tfs.' % (len(receptors),len(tfs))
-    #print 'Removed %d edges (%.2e)' % (numskipped,numskipped/float(len(edges)))
+
     return
 
 # TODO: This and the following function look to have a good

@@ -1,0 +1,6 @@
+* September 27, 2017
+- I refactored the minimum cut computation in the main PathLinker script. One
+  possibly important change is that before, it was only being run if the
+  directory did not already exist. I decided to eschew this notion, and always
+  recompute it, because we didn't have checks on if the parameters themselves
+  were actually changing.

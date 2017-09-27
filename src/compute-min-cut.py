@@ -1,9 +1,7 @@
-# taken parts from /data/annaritz/signaling/pool-problems/src/parse_netpath_pathways.py
-
 import glob
 from utilsPoirel import *
 import networkx as nx
-from networkx import DiGraph # NetworkX digraph
+from networkx import DiGraph 
 from optparse import OptionParser
 
 # mincut variables
@@ -11,13 +9,10 @@ SOURCE='source'
 SINK='sink'
 MINCUTTHRES = 0
 
-#####################################################
-## From connectivityStats.py in 
-## /data/poirel/research/signaling-pathways/data/NetPath/statistics
 ## Computes the minimum cut, after connecting all the sources to a dummy
 ## node and all the sinks to another dummy node.
 ## Input: list of tuples (edges), set of nodes (sources), set of nodes (sinks)
-def getMinCut(nodefile,ppidir,mapper,out):
+def getMinCut(nodefile, ppidir, mapper, out):
     pathway = nodefile.split('/')[-1]
     pathway = pathway.replace('-nodes.txt','')
     
@@ -39,7 +34,7 @@ def getMinCut(nodefile,ppidir,mapper,out):
     nontfdeadends = deadends.difference(tfs).difference(receptors)
     if len(nontfdeadends)>0:
         print 'WARNING: pathway %s (%s) contains non-TF dead ends' % (pathway,mapper.get(pathway,pathway)) 
-        print ' --> ',edgefile
+        print ' --> ', edgefile
         print ' --> ', nontfdeadends
 
     ## get mincut
@@ -61,14 +56,18 @@ def getMinCut(nodefile,ppidir,mapper,out):
     else:
         mincut = -1       
 
-    print '%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d' % (pathway,mapper.get(pathway,pathway),len(nodes),len(edges),\
-                                                  mincut,len(receptors),len(tfs),\
-                                                  len(receptors.intersection(ppinodes)),\
-                                                      len(tfs.intersection(ppinodes)),len(nontfdeadends))
-    out.write('%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n' % (pathway,mapper.get(pathway,pathway),len(nodes),len(edges),\
-                                                        mincut,len(receptors),len(tfs),\
-                                                        len(receptors.intersection(ppinodes)),\
-                                                        len(tfs.intersection(ppinodes)),len(nontfdeadends)))
+    print '%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d' % \
+        (pathway, mapper.get(pathway,pathway), len(nodes), len(edges),\
+         mincut[0], len(receptors), len(tfs),\
+         len(receptors.intersection(ppinodes)),\
+         len(tfs.intersection(ppinodes)), len(nontfdeadends))
+
+    out.write('%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n' % \
+        (pathway, mapper.get(pathway,pathway), len(nodes), len(edges),\
+        mincut[0], len(receptors), len(tfs),\
+        len(receptors.intersection(ppinodes)),\
+        len(tfs.intersection(ppinodes)), len(nontfdeadends)))
+
     return
 
 #######################################################################
@@ -109,7 +108,7 @@ def main(args):
     out.write('#ID\tName\tnumnodes\tnumedges\tmincut\tnum_receptors\tnum_tfs\tnum_recoverable_receptors\tnum_recoverable_tfs\tnum_nontfs_deadends\n')
     print '#ID\tName\tnumnodes\tnumedges\tmincut\tnum_receptors\tnum_tfs\tnum_recoverable_receptors\tnum_recoverable_tfs\tnum_nontfs_deadends'
     for nodefile in nodefiles:
-        getMinCut(nodefile,opts.ppidir,mapper,out)
+        getMinCut(nodefile, opts.ppidir, mapper, out)
     out.close()
     print 'Wrote to %s' % (opts.outfile)
         

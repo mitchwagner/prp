@@ -1,7 +1,5 @@
 #!/usr/bin/python
 
-## Modified from /data/poirel/research/signaling-pathways/viz/precision-recall-faster/compute-all-precision-recall.py
-
 import os
 import sys
 from optparse import OptionParser, OptionGroup
@@ -11,8 +9,6 @@ import matplotlib.pyplot as plt
 import os.path
 import random
 
-
-############################################################
 def getPredictions(edgefile,edgecol,nodefile,nodecol,descending):
     ## Always read these predictions from the specified files.
 
