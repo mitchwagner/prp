@@ -85,7 +85,8 @@ def getPredictions(edgefile,edgecol,nodefile,nodecol,descending):
     return epreds.items(),npreds.items()
 
 ############################################################
-def getPosNeg(ppifile,edgefile,nodefile,outprefix,negtype,negfactor,force,ignorednodefile,ignorededgefile):
+def getPosNeg(ppifile, edgefile, nodefile, outprefix, negtype, negfactor, 
+        force, ignorednodefile, ignorededgefile):
 
     #print 'Reading positive node set from %s' % (nodefile)
     nodelines = readColumns(nodefile,1,2) # first column name, second column type
@@ -206,7 +207,11 @@ def main(args):
 
     usage = '''compute-precision-recall.py [options]
 
-Computes precision and recall for ranked nodes and ranked edges; outputs these files to a user-specified location.  When sampling positives and negatives, first checks to see if these have already been sampled (unless --force is specified) and will read from those files..
+Computes precision and recall for ranked nodes and ranked edges; 
+outputs these files to a user-specified location. When sampling 
+positives and negatives, first checks to see if these have already 
+been sampled (unless --force is specified) and will read from those 
+files..
 '''
     parser = OptionParser(usage=usage)
 

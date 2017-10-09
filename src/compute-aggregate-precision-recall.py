@@ -14,11 +14,11 @@ import random
 ############################################################
 def getNetPathPathways(onlykeggoverlap,allpathways):
     if onlykeggoverlap:
-        analyzedpathwayfile = 'data/netpath-dbcompare-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/netpath-dbcompare-pathways.txt'
     elif allpathways:
-	analyzedpathwayfile = 'data/netpath-all-pathways.txt'
+	analyzedpathwayfile = 'inputs/pathways/netpath-all-pathways.txt'
     else:
-        analyzedpathwayfile = 'data/netpath-analyzed-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/netpath-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
@@ -30,9 +30,9 @@ def getKEGGPathways(onlynetpathoverlap,allpathways):
     ## TODO: update this with kegg-dbcompare-pathways.txt 
     ## now, the only KEGG pathways are the 6 that overlap with NetPath
     if onlynetpathoverlap:
-        analyzedpathwayfile = 'data/kegg-dbcompare-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/kegg-dbcompare-pathways.txt'
     else:
-        analyzedpathwayfile = 'data/kegg-analyzed-pathways.txt'
+        analyzedpathwayfile = 'inputs/pathways/kegg-analyzed-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,2)]
     # dictionary of keggnames to netpath names.
     kegg2netpath = readDict(analyzedpathwayfile,2,1)

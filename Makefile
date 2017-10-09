@@ -37,7 +37,7 @@ netpath-limited:
 > python master-script.py \
   --ppiversion pathlinker-signaling-children-reg \
   --weightedppi \
-  --onlynetpathwnt \
+  --netpath \
   --pathlinker \
   --shortestpaths \
   --computeprecrec \

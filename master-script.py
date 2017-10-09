@@ -2564,7 +2564,7 @@ def computePrecisionRecall(
     """
     Computes precision and recall and writes values to file.
 
-    :param pathway: Pathway tocompute precision and recall for 
+    :param pathway: Pathway to compute precision and recall for 
         (e.g., Wnt)
 
     :param datadir: Directory for true edge file and true node file
@@ -2654,7 +2654,7 @@ def computePrecisionRecall(
         else:
             sys.exit('ERROR: if "file" is specified, either --ignorenetpathpositives or --ignorekeggpositives must be specified. Exiting.')
 
-    # compute-precision-recally.py simply uses ppifile to get
+    # compute-precision-recall.py simply uses ppifile to get
     # all possible edges.
     cmd = 'python src/compute-precision-recall.py --outprefix %s --edgefile %s --trueedgefile %s --truenodefile %s --sampledoutprefix %s --ppi %s --negtype %s --neg-factor %d' % \
           (outprefix,edgefile,trueedgefile,truenodefile,sampleoutprefix,ppifile,negtype,subsamplefps)

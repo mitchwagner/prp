@@ -467,6 +467,8 @@ def main(args):
     if len(opts.alg) == 0:
         sys.exit('must specify at least one algorithm with --alg')
 
+    print opts.indir
+
     print '\nOPTIONS ARE', opts
     print
 
