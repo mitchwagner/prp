@@ -1,0 +1,3 @@
+[submodule "src/external/pathlinker"]
+	path = src/external/pathlinker
+	url = https://github.com/murali-group/pathlinker
