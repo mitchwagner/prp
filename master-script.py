@@ -345,9 +345,6 @@ def main(args):
                     opts.omega, opts.forcealg, opts.printonly)
 
         else: # vary prize and omega
-            #if len(opts.prize) > 1 or len(opts.omega) > 1:
-            #    VARYPARAMS['prize'] = opts.prize
-            #    VARYPARAMS['omega'] = opts.omega
             for varyprize in VARYPARAMS['prize']:
                 for varyomega in VARYPARAMS['omega']:
                     for (pathway,resultdir,datadir,ppidir) in pathways:
@@ -380,20 +377,6 @@ def main(args):
     # DEGREE #
     if opts.degree:
         print 'NOT UPDATED TO HANDLE PATHWAY-SPECIFIC INTERACTOMES!! skipping.'
-        # print 'Computing Weighted Degree of PPIFILE:'
-        # resultprefix is either "results-weighted" or "results-unweighted"
-        # outprefix = '%s/ppidegree/weighted-degree' % (resultprefix)
-        # mkpath(outprefix)
-
-        # if opts.forcealg or not os.path.isfile('%s-edges.txt' % (outprefix)):
-        #     script = '/data/annaritz/signaling/2014-06-linker/src/compute-ppi-degrees.py'
-        #     cmd = 'python %s %s %s %s' % (script,PPIFILE,outprefix,MAPPINGFILE)
-        #     print cmd
-        #     if not opts.printonly:
-        #         subprocess.check_call(cmd.split())
-        # else:
-        #     print 'Skipping weighting PPI: %s already exists.' % ('%s-edges.txt' % (outprefix))
-        # print 'Done computing Degree of PPIFILE\n'
 
     # IPA #
     if opts.ipa:
@@ -844,7 +827,7 @@ def main(args):
 
             # ResponseNet #
             if opts.responsenet:
-                # ANNA CHANGE: take union of edges/nodes with positive flow as
+                # Take union of edges/nodes with positive flow as
                 # a subgraph.  both sort columns are in decreasing order.
                 edgesortcol = None 
                 if not opts.varyparams: # just run with opts.gamma value
@@ -1356,56 +1339,6 @@ def main(args):
             if not opts.printonly:
                 subprocess.check_call(cmd.split())
 
-    # if opts.falsenegs:
-    #     print 'False Negative Plots'
-        
-    #     if not os.path.isfile('data/shortest-paths-for-false-negatives/Wnt-dist.txt'):
-    #         cmd = 'python src/shortest-paths-for-false-negatives.py'
-    #         print cmd
-    #         if not opts.printonly:
-    #             subprocess.check_call(cmd.split())
-    #     else:
-    #         print 'Shortest Paths from/to nodes are already computed.'
-
-    #     cmd = 'python ../2014-06-linker/src/plot-false-negatives.py -o viz/false-negatives/false-negatives-aggregate- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway aggregate --pdf --edges --alg PRflux+KSP --alg KSP --alg PRflux -r 0.3 -r 0.6'
-    #     print cmd
-    #     if not opts.printonly:
-    #         subprocess.check_call(cmd.split())
-
-    #     cmd = 'python ../2014-06-linker/src/plot-false-negatives.py -o viz/false-negatives/false-negatives-Wnt- --prefix viz/precrecfiles-sample-once-per-pathway/precrec-exclude_none --pathway Wnt --pdf --edges --alg PRflux+KSP --alg KSP --alg PRflux -r 0.3 -r 0.6'
-    #     print cmd
-    #     if not opts.printonly:
-    #         subprocess.check_call(cmd.split())
-    
-    # if opts.weightviz:
-    #     # plot KSP with and without weighted network.
-    #     topk = 200
-    #     for (pathway,resultdir,datadir) in pathways:
-    #         nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-    #         edgefile = '%s/%s-edges.txt' % (datadir,pathway)
-
-    #         unweightedfile = '%s/ksp/%s-q_0.5-none_weighted-ksp_20000_paths.txt' % (resultdir,pathway)
-    #         unweightedgsid = '%s-KSP-unweighted-top%d' % (pathway,topk)
-    #         cmd = 'python ../2014-06-linker/src/post-pathlinker-to-graphspace.py --nodefile %s --edgefile %s --kspfile %s --gsid %s --topk %d' % \
-    #             (nodefile,edgefile,unweightedfile,unweightedgsid,topk)
-    #         print cmd
-    #         if not opts.printonly:
-    #             os.system(cmd)
-
-    #         weightedfile = '%s/ksp/%s-weighted-q_0.5-none_weighted-ksp_20000_paths.txt' % (resultdir,pathway)
-    #         weightedgsid = '%s-KSP-weighted-top%d' % (pathway,topk)
-    #         cmd = 'python ../2014-06-linker/src/post-weighted-linker-to-graphspace.py --nodefile %s --edgefile %s --kspfile %s --gsid %s --topk %d --weighted' % \
-    #             (nodefile,edgefile,weightedfile,weightedgsid,topk)
-    #         print cmd
-    #         if not opts.printonly:
-    #             os.system(cmd)
-          
-
-    #     # compute weighted average of positive/negativesets
-    #     cmd = 'python ../2014-06-linker/src/computeAvgEdgeWeights.py'
-    #     print cmd
-    #     if not opts.printonly:
-    #         os.system(cmd)
 
 
     # make venn diagrams
@@ -2180,8 +2113,6 @@ def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
     ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
 
     if forcealg or not os.path.isfile('%s-node-pagerank.txt' % (outprefix)):
-        # old script
-        #script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/hack-scripts-pre-refactoring/PathLinker-PRonly.py'
     
         script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
         cmd = 'python %s --PageRank -q %s -k %d --output %s %s %s' % (script,q,1,outprefix,ppifile,nodefile)     
