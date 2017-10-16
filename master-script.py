@@ -2929,15 +2929,19 @@ def get_algorithm_object_list_from_opts(opts):
     if opts.pathlinker:
         algs.append(PathLinker(opts.k))
 
-    # TODO: Need to create one for every q value we desire. This is a 
-    # placeholder
-    q = 4
     if opts.pagerank_pathlinker:
-        algs.append(PageRankPathLinker(q, opts.k))
-
-    # TODO: Need to create one for every q value we desire.
+        if not opts.varyparams:
+            algs.append(PageRankPathLinker(opts.q, opts.k))
+        else:
+            for q in VARYPARAMS['q']:
+                algs.append(PageRankPathLinker(q, opts.k))
+            
     if opts.pagerank_cyclinker:
-        algs.append(PageRankCycLinker(q))
+        if not opts.varyparams:
+            algs.append(PageRankCycLinker(opts.q))
+        else:
+            for q in VARYPARAMS['q']:
+                algs.append(PageRankCycLinker(q))
 
     if opts.cyclinker:
         algs.append(CycLinker())
@@ -2949,44 +2953,49 @@ def get_algorithm_object_list_from_opts(opts):
         algs.append(BowTieBuilder)
 
     if opts.inducedsubgraph:
-        algs.append(InducedSubgraph())
+        algs.append(InducedSubgraph(opts.k))
 
     if opts.rerank:
-        algs.append(RerankPathLinker())
+        algs.append(RerankPathLinker(opts.k))
 
-    # TODO: Need to create one for every q value we desire.
-    # TODO: There used to be an option to supply a single q.
-    # There also used to be an option to use varyparams instead.
     if opts.pagerank:
-        algs.append(PageRank())
+        if not opts.varyparams:
+            algs.append(PageRank(opts.q))
+        else:
+            for q in VARYPARAMS['q']:
+                algs.append(PageRank(q))
 
-    # TODO: Need to create one for every q value we desire.
-    input_current = 4
     if opts.eqed:
-        algs.append(EQED(input_current))
+        algs.append(EQED(opts.inputcurrent))
 
-    
-    # takes variable parameters, or an opts.gamma value
-    gamma = 4
     if opts.responsenet:
-        algs.append(ResponseNet(gamma))
+        if not opts.varyparams:
+            algs.append(ResponseNet(opts.gamma))
+        else:
+            for gamma in VARYPARAMS['gamma']:
+                algs.append(ResponseNet(gamma))
 
-    # TODO: Need to create one for every q value we desire.
-    # takes variable parameters, or an opts.prize and omega value
-    prize = 4
-    omega = 4
     if opts.pcsf:
-        algs.append(PCSF(prize, omega))
-
-    # Has variable parameters
-    alpha = 4
+        if not opts.varyparams:
+            algs.append(PCSF(opts.prize, opts.omega))
+        else:
+            for prize in VARYPARAMS['prize']:
+                for omega in VARYPARAMS['omega']:
+                    algs.append(PCSF(prize, omega))
+                    
     if opts.anat:
-        algs.append(ANAT(alpha))
+        if not opts.varyparams:
+            algs.append(ANAT(opts.alpha))
+        else:
+            for alpha in VARYPARAMS['alpha']:
+                algs.append(ANAT(alpha))
 
-    # Has variable parameters, or opts.nmax value
-    nmax = 4
     if opts.ipa:
-        algs.append(IPA(nmax))
+        if not opts.varyparams:
+            algs.append(IPA(opts.nmax))
+        else:
+            for nmax in VARYPARAMS['nmax']:
+                algs.append(IPA(nmax))
 
     return algs
 
