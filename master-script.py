@@ -164,207 +164,36 @@ def main(args):
     else:
         print '%d total pathways considered.' % (len(pathways))
 
+
+    # TODO: Flagging for deletion in the future. We should add proper
+    # parallelization support, which should be trivial if we move to a better
+    # structure
     # reverse the order of the pathways. Useful for running the same algorithm
     # on two different computers.
     if opts.rev_pathways: pathways = list(pathways)[::-1]
 
+    # TODO: This text will need to change, if it is even included after I am
+    # done with this pipeline
     # ALGORITHMS ##
     # For each algorithm, iterate through pathways and call the run() method.
     # If --varyparams is specified, iterate through (pathway,param) combinations
     # and cal the run() method.
 
-    # PathLinker #
-    if opts.pathlinker:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
+    algorithms_to_run = get_algorithm_object_list_from_opts(opts)
 
-            runPathLinker(
-                pathway, resultdir, datadir, ppidir, opts.k, 
-                opts.forcealg,opts.printonly)
+    # Okay, so it looks like the old code was creating tuples that had the
+    # "correct" output directory for each pathway, whether it was in
+    # kegg or it was special wnt or it was in netpath.
+    for (pathway, resultdir, datadir, ppidir) in pathways:
+        file_location_context = FileLocationContext(
+            pathway, datadir, ppidir, resultdir)
 
-
-    # PathLinkerNoDiv #
-    if opts.pathlinker_no_div:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runPathLinkerNoDiv(
-                pathway, resultdir, datadir, ppidir, opts.k,
-                opts.forcealg, opts.printonly)
-
-
-    # PageRankPathLinker #
-    if opts.pagerank_pathlinker:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runPageRankPathLinker(
-                pathway, resultdir, datadir, ppidir, opts.q, opts.k, 
-                opts.forcealg,opts.printonly)
-
-
-    # CycLinker #
-    if opts.cyclinker:
-        start = time.time()
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runCycLinker(
-                pathway, resultdir, datadir, ppidir, 
-                opts.forcealg,opts.printonly)
-
-
-    # PageRank CycLinker #
-    if opts.pagerank_cyclinker:
-        start = time.time()
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            # make sure the pagerank output is available to use as input for
-            # cyclinker 
-
-            runPageRank(
-                pathway, resultdir, datadir, ppidir, opts.q, 
-                opts.forcealg, opts.printonly)
-
-            runPageRankCycLinker(
-                pathway, resultdir, datadir, ppidir, opts.q,
-                opts.forcealg, opts.printonly)
-
-
-    # Shortest Paths #
-    if opts.shortestpaths:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runShortestPaths(
-                pathway, resultdir, datadir, ppidir, opts.forcealg,
-                opts.printonly)
-
-
-    # BowtieBuilder #
-    if opts.bowtiebuilder:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runBowTieBuilder(
-                pathway, resultdir, datadir, ppidir, opts.forcealg,
-                opts.printonly)
-
-
-    # Induced Subgraph #
-    if opts.inducedsubgraph:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runInducedSubgraph(
-                pathway, resultdir, datadir, ppidir, 
-                opts.forcealg,opts.printonly)
-
-
-    # Reranking PathLinker #
-    if opts.rerank:
-        for (pathway,resultdir,datadir) in pathways:
-
-            rerankPathLinker(
-                pathway, resultdir, datadir, opts.forcealg,
-                opts.printonly)
-
-
-    # PageRank #    
-    if opts.pagerank:
-        if not opts.varyparams: # just run with opts.q value
-            for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                runPageRank(
-                    pathway, resultdir, datadir, ppidir, opts.q,
-                    opts.forcealg, opts.printonly)
-
-        else: # vary opts.q value
-            for varyq in VARYPARAMS['q']:
-                for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                    runPageRank(
-                        pathway, resultdir, datadir, ppidir, varyq,
-                        opts.forcealg, opts.printonly)
-
-
-    # EQED #
-    if opts.eqed:
-        for (pathway,resultdir,datadir,ppidir) in pathways:
-
-            runEQED(
-                pathway, resultdir, datadir, ppidir, 
-                opts.inputcurrent, opts.forcealg, opts.printonly)
-
-    # ResponseNet #
-    if opts.responsenet:
-        if not opts.varyparams: # just run with opts.gamma value
-            for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                runResponseNet(
-                    pathway, resultdir, datadir, ppidir, opts.gamma,
-                    opts.forcealg, opts.printonly)
-
-        else: # vary opts.gamma value
-            for varygamma in VARYPARAMS['gamma']:
-                for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                    runResponseNet(
-                        pathway, resultdir, datadir, ppidir, varygamma,
-                        opts.forcealg, opts.printonly)
-
-
-    # PCSF #
-    if opts.pcsf:
-        if not opts.varyparams: # just run with opts.prize and opts.omega values
-            for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                runPCSF(
-                    pathway, resultdir, datadir, ppidir, opts.prize,
-                    opts.omega, opts.forcealg, opts.printonly)
-
-        else: # vary prize and omega
-            for varyprize in VARYPARAMS['prize']:
-                for varyomega in VARYPARAMS['omega']:
-                    for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                        runPCSF(
-                            pathway, resultdir, datadir, ppidir,
-                            varyprize, varyomega, opts.forcealg,
-                            opts.printonly)
-
-
-    # ANAT  #
-    if opts.anat:
-        if not opts.varyparams: # just run with opts.alpha value
-            for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                runANAT(pathway, resultdir, datadir, ppidir, opts.alpha,
-                opts.forcealg, opts.printonly)
-
-        else: # vary alpha
-            for varyalpha in VARYPARAMS['alpha']:
-                for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                    runANAT(pathway, resultdir, datadir, ppidir, varyalpha,
-                    opts.forcealg, opts.printonly)
-
-
-    # DEGREE #
-    if opts.degree:
-        print 'NOT UPDATED TO HANDLE PATHWAY-SPECIFIC INTERACTOMES!! skipping.'
-
-    # IPA #
-    if opts.ipa:
-        # Now, always vary the nmax parameter; all param values are always plotted.
-        #if not opts.varyparams: # just run with opts.nmax value
-        #    for (pathway,resultdir,datadir,ppidir) in pathways:
-        #        runIPA(pathway,resultdir,datadir,ppidir,opts.nmax,opts.forcealg,opts.printonly)
-        #else: # vary nmax
-        for varynmax in VARYPARAMS['nmax']:
-            for (pathway,resultdir,datadir,ppidir) in pathways:
-
-                runIPA(
-                    pathway, resultdir, datadir, ppidir, varynmax, 
-                    opts.forcealg, opts.printonly)
-
+        for algorithm in algorithms_to_run:
+            algorithm.run_if_forced(file_location_context, opts.forcealg)
 
     # VIZ SCRIPTS #
-    # These are a "grab bag" of precision-recall computations, precision-recall
-    # plots, and other types of analyses.
+    # These are a "grab bag" of precision-recall computations, 
+    # precision-recall plots, and other types of analyses.
 
     # write precision/recall
     if opts.computeprecrec:
@@ -1602,6 +1431,7 @@ def generatePPI(edges, nodefile, interactomefile, header):
 
     return
 
+
 # TODO: This and the following function look to have a good
 # deal of overlap
 def getNetPathPathways(onlynetpathwnt, overlapwithkegg, allnetpath):
@@ -1625,6 +1455,7 @@ def getNetPathPathways(onlynetpathwnt, overlapwithkegg, allnetpath):
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
+
 def getAllNetPathPathways():
     """
     Reads the pathways in the NETPATHDIR directory and
@@ -1633,6 +1464,7 @@ def getAllNetPathPathways():
     analyzedpathwayfile = 'inputs/pathways/netpath-all-pathways.txt'
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
+
 
 def getKEGGPathways(overlapwithnetpath):
     """
@@ -1648,6 +1480,7 @@ def getKEGGPathways(overlapwithnetpath):
     kegg2netpath = readDict(analyzedpathwayfile,2,1)
     return pathways,kegg2netpath
 
+
 def getAllKEGGPathways():
     """
     Reads the pathways in the KEGGDIR directory and returns them.
@@ -1656,662 +1489,6 @@ def getAllKEGGPathways():
     pathways = [p.split('/')[-1] for p in pathways]
     pathways = [p.replace('-nodes.txt','') for p in pathways]
     return pathways
-
-def runPathwayReconstruction(
-        cmd, name, pathway, resultdir, datadir, ppidir, k, forcealg, printonly):
-
-    print '-' * 25 + pathway + '-' * 25
-
-    # TODO: PyDoc. name is used in outdir
-
-    # node file contains node(s) annotated with 'tf' or 'receptor'
-    # or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir, pathway)
-
-    # Create output directory, make sure it exists, and append 
-    # pathway name for output prefix
-    outdir = '%s/%s/' % (resultdir, name)
-    mkpath(outdir)
-    outprefix = '%s/%s-' % (outdir, pathway)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir, pathway)
-
-    # RUN COMMAND
-
-   
-def runPathLinker(
-        pathway, resultdir, datadir, ppidir, k, forcealg, printonly):
-    """
-    Run PathLinker.
-
-    :param pathway: PathWay to run (e.g., Wnt)
-    :param resultdir: Directory for results
-    :param datadir: Directory containing positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param k: Number of paths to run
-    :param forcealg: If True, will not skip over pre-written files
-    :param printonly: If True, will never execute command.
-
-    :return: None
-    """
-    print '-'*25 + pathway + '-'*25
-    
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output prefix
-    outdir = '%s/pathlinker/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-' % (outdir,pathway)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    # pathlinker command
-    if forcealg or not os.path.isfile('%sk_%d-paths.txt' % (outprefix,k)):
-        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
-        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,nodefile) 
-        print cmd              
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
-    return
-
-def runPathLinkerNoDiv(pathway,resultdir,datadir,ppidir,k,forcealg,printonly):
-    """
-    Run PathLinker.
-    TODO: Reduce duplication with above method!
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory to write results to.
-    :param datadir: Directory containing positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interacomte.txt)
-    :param k: Number of paths to run
-    :param forcealg: If True, will not skip over pre-written files
-    :param printonly: If True, will never execute command.
-
-    :return: None
-    """
-    print '-'*25 + pathway + '-'*25
-    
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output prefix
-    outdir = '%s/pathlinker-no-div/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-' % (outdir,pathway)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    # pathlinker command
-    if forcealg or not os.path.isfile('%sk_%d-paths.txt' % (outprefix,k)):
-        script = '/home/jeffl/git-workspace/PathLinker/PathLinker.py'
-        cmd = 'python %s -k %d --write-paths --output %s %s %s' % (script,k,outprefix,ppifile,nodefile) 
-        print cmd              
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
-    return
-
-def runPageRankPathLinker(pathway,resultdir,datadir,ppidir,q,k,forcealg,printonly):
-    """
-    Run PathLinker with PageRank.
-    TODO: Potentially reduce duplication with code above
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory to write results to
-    :param datadir: Directory containing positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt) 
-    :param q: Teleporation probability
-    :param k: Number of paths to run
-    :param forcealg: If True will not skip over pre-written files
-    :param printonly: If True, will never execute command
-
-    :return: None
-
-    """
-    print '-'*25 + pathway + '-'*25
-    
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output prefix
-    outdir = '%s/pagerank-pathlinker/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    # pathlinker with pagerank command
-    if forcealg or not os.path.isfile('%sk_%d-paths.txt' % (outprefix,k)):
-        script = '/home/jeffl/git-workspace/PathLinker/PathLinker.py'
-        cmd = 'python %s --PageRank -q %s -k %d --write-paths --output %s %s %s' % (script,q,k,outprefix,ppifile,nodefile) 
-        print cmd              
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%sk_%d-paths.txt' % (outprefix,k))
-    return
-
-def runPageRankCycLinker(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
-    print '-'*25 + pathway + '-'*25
-    """
-    Run CycLinker with PageRank
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param q: Teleportation probability
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    :return: None
-    """
-    
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output prefix
-    outdir = '%s/pagerank-cyclinker/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
-
-    # pagerank modified weights
-    pagerank_weighted_ppifile = '%s/pagerank/%s-q_%.2f-edge-fluxes.txt' % (resultdir,pathway,q)
-
-    # cyclinker command
-    if forcealg or not os.path.isfile('%s-ranked-edges.txt' % (outprefix)):
-        script = 'CycLinker'
-        # k option not yet implemented
-        cmd = 'java %s %s %s %s' % (script,os.path.abspath(pagerank_weighted_ppifile),nodefile,os.path.abspath(outprefix)) 
-        print cmd              
-        if not printonly:
-
-            # for some reason, the java program only works if you're in the
-            # same dir. Change dir there, and then change dir back
-            curr_dir = os.getcwd()
-            os.chdir('/home/jeffl/git-workspace/CycLinker/src')
-            subprocess.check_call(cmd.split())
-            os.chdir(curr_dir)
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
-    return
-
-
-def runCycLinker(pathway, resultdir, datadir, ppidir, forcealg, printonly):
-    """
-    Run CycLinker algorithm.
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param esultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param k: Number of paths to run
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    """
-    print '-'*25 + pathway + '-'*25
-    
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output prefix
-    outdir = '%s/cyclinker/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s' % (outdir,pathway)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    # cyclinker command
-    if forcealg or not os.path.isfile('%s-ranked-edges.txt' % (outprefix)):
-        script = 'CycLinker'
-        # k option not yet implemented
-        cmd = 'java %s %s %s %s' % (script,ppifile,nodefile,os.path.abspath(outprefix)) 
-        print cmd              
-        if not printonly:
-
-            # for some reason, the java program only works if you're in the
-            # same dir. Change dir there, and then change dir back
-
-            curr_dir = os.getcwd()
-            os.chdir('/home/jeffl/git-workspace/CycLinker/src')
-            subprocess.check_call(cmd.split())
-            os.chdir(curr_dir)
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-ranked-edges.txt' % (outprefix))
-    return
-
-def runShortestPaths(pathway,resultdir,datadir,ppidir,forcealg,printonly):
-    """
-    Run ShortestPaths
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    :return: None
-
-    """
-    print '-'*25 + pathway + '-'*25
-
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/shortestpaths/' % (resultdir)
-    mkpath(outdir)
-    outfile = '%s/%s-shortest-paths.txt' % (outdir,pathway)
-               
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    if forcealg or not os.path.isfile(outfile):
-        script = '/home/annaritz/src/python/CellCycle/shortest_paths.py'
-        cmd = 'python %s --network %s --annotations %s --out %s --include-ties --weight --log-transform' % (script,ppifile,nodefile,outfile)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override' % (pathway,outfile)
-    return
-
-def runBowTieBuilder(
-        pathway, resultdir, datadir, ppidir, forcealg, printonly):
-    """
-    Run BowTieBuilder
-
-    :param pathway: Pathway to run (e.g., Wnt)                                                                         
-    :param resultdir: Directory for results.  
-    :param datadir: Directory to find positives for the pathway                                    
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)                                     
-    :param forcealg: If True, will not skip over pre-written files.                                                        
-    :param printonly: If True, will never execute command.                                                                  
-
-    :return: None
-    """
-    print '-'*25 + pathway + '-'*25
-
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'                                           
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and                                                             
-    # append pathway name for output filename                                                                       
-    outdir = '%s/bowtiebuilder/' % (resultdir)
-    mkpath(outdir)
-    outfile = '%s/%s-bowtiebuilder.txt' % (outdir,pathway)
-
-    # pathway-specific interactome                                                                                 
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    if forcealg or not os.path.isfile(outfile):
-        script = '/home/annaritz/src/python/CellCycle/bowtiebuilder.py'
-        cmd = 'python %s --network %s --annotations %s --out %s --weight --log-transform' % (script,\
-ppifile,nodefile,outfile)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override' % (pathway,outfile)
-    return
-
-
-def runInducedSubgraph(
-        pathway, resultdir, datadir, ppidir, forcealg, printonly):
-    """
-    Run Induced Subgraph
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    :return: None
-    """
-
-    print '-'*25 + pathway + '-'*25
-
-    # paths file is pathlinker run for k=20,000.
-    pathsfile = '%s/pathlinker/%s-k_20000-paths.txt' % (resultdir,pathway)
-    if not os.path.isfile(pathsfile):
-        sys.exit('ERROR: %s must exist. Run master-script.py with the --pathlinker option.' % (pathsfile))
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/inducedsubgraph/' % (resultdir)
-    mkpath(outdir)
-    outfile = '%s/%s-induced-subgraph.txt' % (outdir,pathway)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    if forcealg or not os.path.isfile(outfile):
-        script = '/data/annaritz/signaling/2014-06-linker/src/order-by-induced-subgraph.py'
-        cmd = 'python %s --pathsfile %s --outfile %s --ppi %s' % (script,pathsfile,outfile,ppifile)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,outfile)
-    return
-
-def rerankPathLinker(
-    pathway, resultdir, datadir, ppidir, forcealg, printonly):
-    """
-    Re-rank PathLinker predictions by paths with at least one new edge
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    :return: None
-    """
-    print '-'*25 + pathway + '-'*25
-
-    # paths file is pathlinker run for k=20,000.
-    pathsfile = '%s/pathlinker/%s-k_20000-paths.txt' % (resultdir,pathway)
-    if not os.path.isfile(pathsfile):
-        sys.exit('ERROR: %s must exist. Run master-script.py with the --pathlinker option.' % (pathsfile))
-        
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/rerankedpathlinker/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-reranked-pathlinker' % (outdir,pathway)
-
-    if forcealg or not os.path.isfile('%s-unique-edges_paths.txt' % (outprefix)):
-        script = '/data/annaritz/signaling/2014-06-linker/src/recount-ksp.py'
-        cmd = 'python %s --pathsfile %s --outputprefix %s' % (script,pathsfile,outprefix)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,'%s-unique-edges_paths.txt' % (outprefix))
-    return
-
-def runPageRank(pathway,resultdir,datadir,ppidir,q,forcealg,printonly):
-    """
-    Run PageRank
-
-    :param pathway: pathway to run (e.g., Wnt)
-    :param resultdir: directory for results.
-    :param datadir: directory to find positives for the pathway
-    :param ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param q: teleportation probability
-    :param forcealg: if True, will not skip over pre-written files.
-    :param printonly: if True, will never execute command.
-
-    :return: None
-    """
-    print '-'*25 + pathway + '-'*25
-
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-    
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/pagerank/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-q_%.2f' % (outdir,pathway,q)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    if forcealg or not os.path.isfile('%s-node-pagerank.txt' % (outprefix)):
-    
-        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
-        cmd = 'python %s --PageRank -q %s -k %d --output %s %s %s' % (script,q,1,outprefix,ppifile,nodefile)     
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s Exists. Use --forcealg to override.' % (pathway,'%s-pagerank.txt' % (outprefix))
-    return
-
-def runEQED(
-        pathway, resultdir, datadir, ppidir, inputcurrent, forcealg, 
-        printonly):
-    """
-    Runs EQED
-
-    :param pathway: pathway to run (e.g., Wnt)
-    :param resultdir: directory for results.
-    :param datadir: directory to find positives for the pathway
-    :param ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param inputcurrent: amount of current to "inject" into receptors
-    :param forcealg: if True, will not skip over pre-written files.
-    :param printonly: if True, will never execute command.
-
-    :return: None
-    """
-
-    print '-'*25 + pathway + '-'*25
-
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/eqed/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s' % (outdir,pathway)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    if forcealg or not os.path.isfile('%s-eqed-edges.out' % (outprefix)):
-        script = '/data/annaritz/sig-path-other-methods/src/eQED.py'
-        cmd = 'python %s -e %s -n %s -i %d -o %s -l' % (script,ppifile,nodefile,inputcurrent,outprefix)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s Exists. Use --forcealg to override.' % (pathway,'%s-eqed-edges.out' % (outprefix))
-    return
-
-
-def runResponseNet(
-        pathway, resultdir, datadir, ppidir, gamma, forcealg,
-        printonly):
-    """
-    Run ResponseNet
-
-    :param pathway: pathway to run (e.g., Wnt)
-
-    :param resultdir: directory for results.
-
-    :param datadir: directory to find positives for the pathway
-
-    :param ppidir: pathway-specific PPI (e.g., Wnt-interactome.txt)
-
-    :param gamma: parameter that varies the penalty for additional 
-        edges with flow
-
-    :param forcealg: if True, will not skip over pre-written files.
-
-    :param printonly: if True, will never execute command.
-
-    :return: None
-    """
-    print '-'*25 + pathway + '-'*25
-                   
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/reponsenet/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-gamma_%d' % (outdir,pathway,gamma)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    if forcealg or not os.path.isfile('%s_responsenet-edges.out' % (outprefix)):
-        script = '/data/annaritz/sig-path-other-methods/src/ResponseNet.py'
-        cmd = 'python %s -e %s -n %s -o %s -g %d' % (script,ppifile,nodefile,outprefix,gamma)
-        print cmd
-        if not printonly:
-            try:
-                subprocess.check_call(cmd.split())
-            except subprocess.CalledProcessError:
-                'Error with gamma=%d: skipping.' % (gamma)
-    else:
-        print 'Skipping %s w/ gamma %d: %s exists. Use --forcealg to override.' % (pathway,gamma,'%s_responsenet-edges.out' % (outprefix))
-    return
-
-def runPCSF(    
-        pathway, resultdir, datadir, ppidir, prize, omega, 
-        forcealg, printonly):
-    """
-    Run PCSF
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param prize: Prize to place on TFs (terminal nodes)
-    :param omega: Penalty for adding aditional trees to the forest
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    :return: None
-    """
-
-    print '-'*25 + pathway + '-'*25
-                   
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/pcsf/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-prize%d-omega%.2f' % (outdir,pathway,prize,omega)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-    
-    # run PCSF
-    if forcealg or not os.path.isfile('%s_PCSF-edges.out' % (outprefix)):
-        script = '/home/jeffl/svnrepo/src/python/Algorithms/PCSF_weighted.py'
-        cmd = 'python %s -e %s -n %s -o %s -p %d --omega %.2f' % (script,ppifile,nodefile,outprefix,prize,omega)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Not running PCSF.' % (pathway,'%s_PCSF-edges.out' % (outprefix))
-    return
-
-def runANAT(pathway,resultdir,datadir,ppidir,alpha,forcealg,printonly):
-    """
-    Run ANAT
-
-    :param pathway: Pathway to run (e.g., Wnt)
-
-    :param resultdir: Directory for results.
-
-    :param datadir: Directory to find positives for the pathway
-
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-
-    :param alpha: Parameter for the tradeoff between shortest-paths 
-        and Steiner trees
-
-    :param forcealg: If True, will not skip over pre-written files.
-
-    :param printonly: If True, will never execute command.
-
-    :return: None
-
-    """
-    print '-'*25 + pathway + '-'*25
-                   
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/anat/' % (resultdir)
-    mkpath(outdir)
-    outprefix = '%s/%s-alpha%.2f' % (outdir,pathway,alpha)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    script = '/data/annaritz/signaling/2014-06-linker/src/run-anat-weighted.py'
-    if forcealg or not os.path.isfile('%s-edges.out' % (outprefix)):
-        cmd = 'python %s -n %s -a %.2f -o %s --ppi %s'  % (script,nodefile,alpha,outprefix,ppifile)
-        #if forcealg: # this is now handled at this function rather than passing to next.
-        #    cmd+= ' --force'
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Not running ANAT.' % (pathway,'%s-edges.out' % (outprefix))
-    return
-
-def runIPA(pathway,resultdir,datadir,ppidir,nmax,forcealg,printonly):
-    """
-    Run IPA
-
-    :param pathway: Pathway to run (e.g., Wnt)
-    :param resultdir: Directory for results.
-    :param datadir: Directory to find positives for the pathway
-    :param ppidir: Pathway-specific PPI (e.g., Wnt-interactome.txt)
-    :param nmax: Maximum sub-network size
-    :param forcealg: If True, will not skip over pre-written files.
-    :param printonly: If True, will never execute command.
-
-    :return: None
-
-    """
-    print '-'*25 + pathway + '-'*25
-                   
-    # node file contains node annotated with 'tf' or 'receptor' or 'none'
-    nodefile = '%s/%s-nodes.txt' % (datadir,pathway)
-
-    # create output directory, make sure it exists, and
-    # append pathway name for output filename
-    outdir = '%s/ipa/' % (resultdir)
-    mkpath(outdir)
-
-    # pathway-specific interactome
-    ppifile = '%s/%s-interactome.txt' % (ppidir,pathway)
-
-    outfile = '%s/%s-nmax%d.out' % (outdir,pathway,nmax)
-    if forcealg or not os.path.isfile(outfile):
-        script = '/home/jeffl/svnrepo/src/python/Algorithms/ipa-network-generation.py'
-        cmd = 'python %s --ppi %s --nodes %s --nmax %d --outfile %s'  % \
-                (script,ppifile,nodefile,nmax,outfile)
-        print cmd
-        if not printonly:
-            subprocess.check_call(cmd.split())
-    else:
-        print 'Skipping %s: %s exists. Use --forcealg to override.' % (pathway,outfile)
-    return
 
 
 def getPRoutdir(alg, resultdir, netpathkeggunion):
@@ -2971,6 +2148,847 @@ def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes
                 subprocess.check_call(cmd.split())
         else:
             print("Skipping plotting of exclude-%s because file exists: %s"%(negType, testFile))
+
+# Okay, so it looks like some sort wrapper to run any algorithm on multiple
+# pathways would be good. What would be BEST would be able to say:
+# run_multiple_pathways(pathways, algorithms)
+#     for pathway in pathways:
+#         for algorithm in algorithms: 
+#             run algorithm function 
+#
+###############################################################################
+class RankingAlgorithm(object):
+    def run(self, file_location_context):
+        raise NotImplementedError()
+
+
+    def run_if_forced(self, file_location_context, should_force):
+        if (should_force):
+            self.run(file_location_context)
+        else:
+            if not self.output_previously_written(file_location_context): 
+                self.run(file_location_context)
+
+
+    def get_name(self):
+        raise NotImplementedError()
+
+
+    def output_previously_written(self, file_location_context):
+        raise NotImplementedError()
+
+
+class FileLocationContext(object):
+    def __init__(self, pathway_name, pathway_dir, ppi_file_dir, output_dir):
+        self.pathway_name = pathway_name
+        self.pathway_dir = pathway_dir
+        self.ppi_file_dir = ppi_file_dir
+        self.output_dir = output_dir
+
+
+    def get_ppi_file_location(self):
+        return '%s/%s-interactome.txt' % (self.ppi_file_dir, self.pathway_name)
+
+
+    def get_sources_and_targets(self):
+        return '%s/%s-nodes.txt' %(self.pathway_dir, self.pathway_name)
+
+
+class OriginalPathLinker(RankingAlgorithm):
+    # TODO: The intent here is to mimic the functionality of the original 
+    # PathLinker algorithm, which had a heavy weight penalty that amounted to
+    # dividing by the sum of all of the weights in the network. Not sure how
+    # I want to go about handling this. Each pathway specific network would
+    # technically have a different weight, so hardcoding it might be rough.
+    # I could INSTEAD add it to PathLinker.
+    None
+
+# TODO: To mimic the old functionality of printing instead of actually running
+# as well as by default not re-running if the algorithm has already run,
+# we can define more methods here
+class PathLinker(RankingAlgorithm):
+    def __init__(self, k):
+        self.k = k
+
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        subprocess.call([
+            "python",
+            "src/external/pathlinker/PathLinker.py",
+            "-k",
+            str(self.k),
+            "--write-paths",
+            "--output",
+            self.get_output_prefix_from_context(file_location_context),
+            file_location_context.get_ppi_file_location(),
+            file_location_context.get_sources_and_targets()
+            ])
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s-" % file_location_context.pathway_name
+        return out_prefix
+
+
+    def get_output_file_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s-" % file_location_context.pathway_name \
+            + "k_%d-paths.txt" % self.k 
+        return out_prefix
+
+
+    def get_name(self):
+        return "pathlinker"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "k_%d-paths.txt" % self.k 
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+        
+# TODO: For this and other variations of PathLinker, if the only difference is
+# a single option passed in, maybe its constructor should just take more
+# parameters
+class PageRankPathLinker(RankingAlgorithm):
+    def __init__(self, q, k):
+        self.q = q
+        self.k = k
+
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        subprocess.call([
+            "python",
+            "src/external/pathlinker/PathLinker.py",
+            "--PageRank",
+            "-q",
+            str(self.q),
+            "-k",
+            str(self.k),
+            "--write-paths",
+            "--output",
+            self.get_output_prefix_from_context(file_location_context),
+            file_location_context.get_ppi_file_location(),
+            file_location_context.get_sources_and_targets()
+            ])
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s-q_%.2f" % file_location_context.pathway_name, q
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "pagerank-pathlinker"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "k_%d-paths.txt" % self.k 
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+        
+
+class CycLinker(RankingAlgorithm):
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        cmd = 'java %s %s %s %s' % \
+            ('CycLinker', 
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             os.path.abspath(
+                self.get_output_prefix_from_context(file_location_context)))
+        print cmd
+        curr_dir = os.getcwd()
+        # TODO: Add https://github.com/jlaw9/Cyclinker as a submodule instead 
+        os.chdir('/home/jeffl/git-workspace/CycLinker/src')
+        subprocess.check_call(cmd.split())
+        os.chdir(curr_dir)
+
+    
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "cyclinker"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "-ranked-edges-.txt"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class PageRankCycLinker(RankingAlgorithm):
+    def __init__(self, q):
+        self.q = q
+
+
+    def run(self, file_location_context):
+        pagerank = PageRank(self.q)
+        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_pagerank_output_exists(file_location_context)
+
+        cmd = 'java %s %s %s %s' % \
+            ('CycLinker', 
+             pagerank.get_edge_flux_output_name_from_context(
+                file_location_context),
+             file_location_context.get_sources_and_targets(),
+             os.path.abspath(
+                self.get_output_prefix_from_context(file_location_context)))
+        curr_dir = os.getcwd()
+        # TODO: Add https://github.com/jlaw9/Cyclinker as a submodule instead 
+        os.chdir('/home/jeffl/git-workspace/CycLinker/src')
+        subprocess.check_call(cmd.split())
+        os.chdir(curr_dir)
+
+
+    def ensure_pagerank_output_exists(self, file_location_context):
+        pagerank = PageRank(self.q)
+
+        if not pagerank.output_previously_written(file_location_context):
+            raise Exception("Error: This algorithm must be run alongside "
+                "the --pathlinker option, as it utilizes PathLinker output "
+                "as input. At the very least, the --pathlinker option must "
+                "be used in a previous run to generate the output file for " 
+                "the provided -k value (which has a default if no value is "
+                "provided.")
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-q_%.2f" % (self.q)
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "pagerank-cyclinker"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "-ranked-edges-.txt"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+    
+
+class ShortestPaths(RankingAlgorithm):
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        script = '/home/annaritz/src/python/CellCycle/shortest_paths.py'
+        cmd = ('python %s --network %s --annotations %s --out %s --include-ties'
+               ' --weight --log-transform') % \
+            (script,
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             self.get_output_file_from_context(file_location_context))
+
+        subprocess.check_call(cmd.split())   
+    
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_file_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-shortest-paths.txt" 
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "shortestpaths"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_file_from_context(file_location_context)
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class BowTieBuilder(RankingAlgorithm):
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        script = '/home/annaritz/src/python/CellCycle/bowtiebuilder.py'         
+        cmd = ('python %s --network %s --annotations %s --out %s '
+               '--weight --log-transform') % \
+            (script,
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             self.get_output_file_from_context(file_location_context))
+
+        subprocess.check_call(cmd.split())   
+   
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_file_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-bowtiebuilder.txt" 
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "bowtiebuilder"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_file_from_context(file_location_context)
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class InducedSubgraph(RankingAlgorithm):
+    def __init__(self, k):
+        self.k = k
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_pathlinker_output_exists(file_location_context)
+        script = '/data/annaritz/signaling/2014-06-linker/src/order-by-induced-subgraph.py'
+        cmd = 'python %s --pathsfile %s --outfile %s --ppi %s' % \
+            (script,
+             self.get_corresponding_pathlinker_outfile(file_location_context),
+             self.get_output_file_from_context(file_location_context),
+             file_location_context.get_ppi_file_location())
+        subprocess.check_call(cmd.split())   
+
+
+    def ensure_pathlinker_output_exists(self, file_location_context):
+        pathlinker_out = self.get_corresponding_pathlinker_outfile(
+            self, file_location_context)
+
+        if not os.path.exists(pathlinker_out):
+            raise Exception("Error: This algorithm must be run alongside "
+                "the --pathlinker option, as it utilizes PathLinker output "
+                "as input. At the very least, the --pathlinker option must "
+                "be used in a previous run to generate the output file for " 
+                "the provided -k value (which has a default if no value is "
+                "provided.")
+    
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_corresponding_pathlinker_outfile(self, file_location_context):
+        pathlinker = PathLinker(self.k)
+        return pathlinker.get_output_file_from_context(file_location_context)
+
+
+    def get_output_file_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-induced-subgraph.txt" 
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "inducedsubgraph"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_file_from_context(file_location_context)
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class RerankPathLinker(RankingAlgorithm):
+    def __init__(self, k):
+        self.k = k
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_pathlinker_output_exists(file_location_context)
+        script = '/data/annaritz/signaling/2014-06-linker/src/recount-ksp.py'   
+        cmd = 'python %s --pathsfile %s --outputprefix %s' % \
+            (script,
+             self.get_corresponding_pathlinker_outfile(file_location_context),
+             self.get_output_prefix_from_context(file_location_context))
+
+        subprocess.check_call(cmd.split())
+
+
+    def ensure_pathlinker_output_exists(self, file_location_context):
+        pathlinker_out = self.get_corresponding_pathlinker_outfile(
+            self, file_location_context)
+
+        if not os.path.exists(pathlinker_out):
+            raise Exception("Error: This algorithm must be run alongside "
+                "the --pathlinker option, as it utilizes PathLinker output "
+                "as input. At the very least, the --pathlinker option must "
+                "be used in a previous run to generate the output file for " 
+                "the provided -k value (which has a default if no value is "
+                "provided.")
+    
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_corresponding_pathlinker_outfile(self, file_location_context):
+        pathlinker = PathLinker(self.k)
+        return pathlinker.get_output_file_from_context(file_location_context)
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s-reranked-pathlinker" % file_location_context.pathway_name
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "rerankedpathlinker"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "-unique-edges_paths.txt"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class PageRank(RankingAlgorithm):
+    def __init__(self, q):
+        self.q = q
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
+        cmd = 'python %s --PageRank -q %s -k %d --output %s %s %s' % \
+            (script,
+             self.q,
+             1,
+             self.get_output_prefix_from_context(file_location_context),
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets())
+
+        subprocess.check_call(cmd.split())
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-q_%.2f" % self.q 
+
+        return out_prefix
+
+
+    def get_edge_flux_output_name_from_context(self, file_location_context):
+        return self.get_output_prefix_from_context(file_location_context) + \
+            "-edge-fluxes.txt"
+
+
+    def get_name(self):
+        return "pagerank"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "-node-pagerank.txt"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class EQED(RankingAlgorithm):
+    def __init__(self, input_current):
+        self.input_current = input_current 
+
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        script = '/data/annaritz/sig-path-other-methods/src/eQED.py'            
+        cmd = 'python %s -e %s -n %s -i %d -o %s -l' % \
+            (script,
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             self.input_current,
+             self.get_output_prefix_from_context(file_location_context))
+
+        subprocess.check_call(cmd.split())
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name
+
+        return out_prefix
+
+
+    def get_name(self):
+        return "eqed"
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "-eqed-edges.out"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class ResponseNet(RankingAlgorithm):
+    def __init__(self, gamma):
+        self.gamma = gamma
+
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        script = '/data/annaritz/sig-path-other-methods/src/ResponseNet.py'
+        cmd = 'python %s -e %s -n %s -o %s -g %d' % \
+            (script,
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             self.get_output_prefix_from_context(file_location_context),
+             self.gamma)
+
+        subprocess.check_call(cmd.split()) 
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_name(self):
+        return "responsenet"
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-gamma_%d" % self.gamma   
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "_responsenet-edges.out"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+        
+
+class PCSF(RankingAlgorithm):
+    def __init__(self, prize, omega):
+        self.prize = prize
+        self.omega = omega
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+        script = '/home/jeffl/svnrepo/src/python/Algorithms/PCSF_weighted.py'   
+        cmd = 'python %s -e %s -n %s -o %s -p %d --omega %.2f' % \
+            (script,
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             self.get_output_prefix_from_context(file_location_context),
+             self.prize,
+             self.omega)
+
+        subprocess.check_call(cmd.split())
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_name(self):
+        return "pcsf"
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-prize%d-omega%.2f" % (self.prize, self.omega)
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "_PCSF-edges.out"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class ANAT(RankingAlgorithm):
+    def __init__(self, alpha):
+        self.alpha = alpha
+
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+
+        script = '/data/annaritz/signaling/2014-06-linker/src/run-anat-weighted.py'
+        cmd = 'python %s -n %s -a %.2f -o %s --ppi %s' % \
+            (script,
+             file_location_context.get_sources_and_targets(),
+             self.alpha,
+             self.get_output_prefix_from_context(file_location_context),
+             file_location_context.get_ppi_file_location())
+        subprocess.check_call(cmd.split())
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_name(self):
+        return "anat"
+
+
+    def get_output_prefix_from_context(self, file_location_context):
+        out_prefix = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-alpha%.2f" % self.alpha
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_prefix_from_context(file_location_context) \
+            + "-edges.out"
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+class IPA(RankingAlgorithm):
+    def __init__(self, nmax):
+        self.nmax = nmax
+
+
+    def run(self, file_location_context):
+        self.ensure_output_dir_exists(file_location_context)
+
+        outfile = '%s/%s-nmax%d.out' % (outdir,pathway,nmax)                        
+        script = '/home/jeffl/svnrepo/src/python/Algorithms/ipa-network-generation.py'
+        cmd = 'python %s --ppi %s --nodes %s --nmax %d --outfile %s' % \
+            (script,
+             file_location_context.get_ppi_file_location(),
+             file_location_context.get_sources_and_targets(),
+             self.nmax,
+             outfile)                          
+        subprocess.check_call(cmd.split())             
+
+
+    def ensure_output_dir_exists(self, file_location_context):
+        out_dir = file_location_context.output_dir \
+            + "/%s/" % self.get_name()
+
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+
+
+    def get_name(self):
+        return "ipa"
+
+
+    def get_output_file_from_context(self, file_location_context):
+        outfile = file_location_context.output_dir \
+            + "/%s/" % self.get_name() \
+            + "/%s" % file_location_context.pathway_name \
+            + "-nmax%d.out" % self.nmax
+
+
+    def output_previously_written(self, file_location_context):
+        outfile = self.get_output_file_from_context(file_location_context)
+        if os.path.exists(outfile):
+            return True
+        else:
+            return False
+
+
+def get_algorithm_object_list_from_opts(opts):
+    algs = []
+    if opts.pathlinker:
+        algs.append(PathLinker(opts.k))
+
+    # TODO: Need to create one for every q value we desire. This is a 
+    # placeholder
+    q = 4
+    if opts.pagerank_pathlinker:
+        algs.append(PageRankPathLinker(q, opts.k))
+
+    # TODO: Need to create one for every q value we desire.
+    if opts.pagerank_cyclinker:
+        algs.append(PageRankCycLinker(q))
+
+    if opts.cyclinker:
+        algs.append(CycLinker())
+
+    if opts.shortestpaths:
+        algs.append(ShortestPaths())
+
+    if opts.bowtiebuilder:
+        algs.append(BowTieBuilder)
+
+    if opts.inducedsubgraph:
+        algs.append(InducedSubgraph())
+
+    if opts.rerank:
+        algs.append(RerankPathLinker())
+
+    # TODO: Need to create one for every q value we desire.
+    # TODO: There used to be an option to supply a single q.
+    # There also used to be an option to use varyparams instead.
+    if opts.pagerank:
+        algs.append(PageRank())
+
+    # TODO: Need to create one for every q value we desire.
+    input_current = 4
+    if opts.eqed:
+        algs.append(EQED(input_current))
+
+    
+    # takes variable parameters, or an opts.gamma value
+    gamma = 4
+    if opts.responsenet:
+        algs.append(ResponseNet(gamma))
+
+    # TODO: Need to create one for every q value we desire.
+    # takes variable parameters, or an opts.prize and omega value
+    prize = 4
+    omega = 4
+    if opts.pcsf:
+        algs.append(PCSF(prize, omega))
+
+    # Has variable parameters
+    alpha = 4
+    if opts.anat:
+        algs.append(ANAT(alpha))
+
+    # Has variable parameters, or opts.nmax value
+    nmax = 4
+    if opts.ipa:
+        algs.append(IPA(nmax))
+
+    return algs
 
 
 if __name__=='__main__':

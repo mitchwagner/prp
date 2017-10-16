@@ -43,3 +43,13 @@ netpath-limited:
   --computeprecrec \
   --precrecviz\
   --forceviz
+
+pathlinker-test:
+> python master-script.py \
+  --ppiversion pathlinker-signaling-children-reg \
+  --weightedppi \
+  --netpath \
+  --pathlinker \
+  --computeprecrec \
+  --forceviz
+
