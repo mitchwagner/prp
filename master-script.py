@@ -16,10 +16,9 @@ from distutils.dir_util import mkpath
 ##############################################################
 # GLOBAL VARIABLES
 
-# PPIVERION is going to be populated in main() with one of the ALLOWEDVERSIONS.
+# PPIVERSION is going to be populated in main() with one of the ALLOWEDVERSIONS.
 # We have settled on using "pathlinker-signalingg-children-reg", which is the
-# 2015pathlinker interactome weighted using the 8 children of the "signal
-# transduction" GO term as well as "regulation of signal transduction." All
+# 2015pathlinker interactome weighted using the 8 children of the "signal # transduction" GO term as well as "regulation of signal transduction." All
 # other versions are commented out.
 PPIVERSION = ''
 ALLOWEDVERSIONS = [
@@ -172,12 +171,6 @@ def main(args):
     # on two different computers.
     if opts.rev_pathways: pathways = list(pathways)[::-1]
 
-    # TODO: This text will need to change, if it is even included after I am
-    # done with this pipeline
-    # ALGORITHMS ##
-    # For each algorithm, iterate through pathways and call the run() method.
-    # If --varyparams is specified, iterate through (pathway,param) combinations
-    # and cal the run() method.
 
     algorithms_to_run = get_algorithm_object_list_from_opts(opts)
 
@@ -191,9 +184,6 @@ def main(args):
         for algorithm in algorithms_to_run:
             algorithm.run_if_forced(file_location_context, opts.forcealg)
 
-    # VIZ SCRIPTS #
-    # These are a "grab bag" of precision-recall computations, 
-    # precision-recall plots, and other types of analyses.
 
     # write precision/recall
     if opts.computeprecrec:
@@ -222,7 +212,7 @@ def main(args):
                 sampledir = '%s/samples-exclude-%s' % (resultprefix,negtype)
             mkpath(sampledir)
 
-            # If --wntforexperimets is specified, then there is one dataset in
+            # If --wntforexperiments is specified, then there is one dataset in
             # pathways variable that corresponds to wnt-all-receptors.  Since
             # there is a different set of positives than in NetPath Wnt pathway
             # (e.g., FZD4/FZD6 are added), we need to subsample a different set
@@ -262,21 +252,18 @@ def main(args):
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for NetPath
                     inputdir = getPRoutdir('pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('pathlinker',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -295,21 +282,18 @@ def main(args):
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for NetPath
                     inputdir = getPRoutdir('pathlinker-no-div',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('pathlinker-no-div',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('pathlinker-no-div',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -334,7 +318,6 @@ def main(args):
                                                param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('pagerank-pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -342,7 +325,6 @@ def main(args):
                                                         param=param,\
                                                         union=opts.netpathkeggunion)
                     if opts.allnetpath:
-                        # comput aggregate for all of Netpath
                         inputdir = getPRoutdir('pagerank-pathlinker',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -350,7 +332,6 @@ def main(args):
                                                         param=param,\
                                                         union=opts.netpathkeggunion,allpathways=True)
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('pagerank-pathlinker',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -370,21 +351,18 @@ def main(args):
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for NetPath
                     inputdir = getPRoutdir('cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('cyclinker',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -408,7 +386,6 @@ def main(args):
                                                param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('pagerank-cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -416,7 +393,6 @@ def main(args):
                                                         param=param,\
                                                         union=opts.netpathkeggunion)
                     if opts.allnetpath:
-                        # comput aggregate for all of Netpath
                         inputdir = getPRoutdir('pagerank-cyclinker',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -424,7 +400,6 @@ def main(args):
                                                         param=param,\
                                                         union=opts.netpathkeggunion,allpathways=True)
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('pagerank-cyclinker',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -446,21 +421,18 @@ def main(args):
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for NetPath
                     inputdir = getPRoutdir('shortestpaths',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('shortestpaths',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('shortestpaths',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -482,21 +454,18 @@ def main(args):
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for NetPath                                                                                                  
                     inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG                                                                                                  
                     inputdir = getPRoutdir('bowtiebuilder',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -514,21 +483,18 @@ def main(args):
                                            sampleoutprefix,opts.subsamplefps,opts.forceprecrec,opts.printonly,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for NetPath
                     inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion)
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('inducedsubgraph',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -557,7 +523,6 @@ def main(args):
                                                descending=True,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('pagerank',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -566,7 +531,6 @@ def main(args):
                                                     union=opts.netpathkeggunion)
 
                     if opts.allnetpath:
-                        # comput aggregate for all of Netpath
                         inputdir = getPRoutdir('pagerank',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -575,7 +539,6 @@ def main(args):
                                                     union=opts.netpathkeggunion,allpathways=True)
 
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('pagerank',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,\
@@ -599,7 +562,6 @@ def main(args):
                                            opts.printonly,nodefile=nodefile,nodesortcol=nodesortcol,descending=True,\
                                            union=opts.netpathkeggunion)
                 if opts.netpath:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('eqed',resultprefix+'/netpath/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -607,14 +569,12 @@ def main(args):
                                                     union=opts.netpathkeggunion)
 
 		if opts.allnetpath:
-		    # comput aggregate for all of Netpath
 		    inputdir = getPRoutdir('eqed',resultprefix+'/netpath/',opts.netpathkeggunion)
 		    computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
                                                     opts.forceprecrec,opts.printonly,descending=True,\
                                                     union=opts.netpathkeggunion,allpathways=True)
                 if opts.kegg:
-                    # compute aggregate for KEGG
                     inputdir = getPRoutdir('eqed',resultprefix+'/kegg/',opts.netpathkeggunion)
                     computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                     opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -641,7 +601,6 @@ def main(args):
                                                opts.printonly,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('responsenet',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -650,7 +609,6 @@ def main(args):
                                                         union=opts.netpathkeggunion)
 
                     if opts.allnetpath:
-                        # comput aggregate for all of Netpath
                         inputdir = getPRoutdir('responsenet',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -658,7 +616,6 @@ def main(args):
                                                         param=param,\
                                                         union=opts.netpathkeggunion,allpathways=True)
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('responsenet',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -689,7 +646,6 @@ def main(args):
                                                opts.printonly,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('pcsf',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -697,7 +653,6 @@ def main(args):
                                                         param=param,\
                                                     union=opts.netpathkeggunion)
                     if opts.allnetpath:
-                        # comput aggregate for all of Netpath
                         inputdir = getPRoutdir('pcsf',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -706,7 +661,6 @@ def main(args):
                                                         union=opts.netpathkeggunion,allpathways=True)
 
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('pcsf',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -736,7 +690,6 @@ def main(args):
                                                opts.printonly,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('anat',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -744,7 +697,6 @@ def main(args):
                                                         param=param,\
                                                     union=opts.netpathkeggunion)
                     if opts.allnetpath:
-                        # comput aggregate for all of Netpath
                         inputdir = getPRoutdir('anat',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -752,24 +704,16 @@ def main(args):
                                                         param=param,\
                                                         union=opts.netpathkeggunion,allpathways=True)
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('anat',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
                                                         opts.forceprecrec,opts.printonly,\
                                                         param=param,netpath=False,\
                                                     union=opts.netpathkeggunion)
-            # DEGREE #
-            if opts.degree:
-                sys.exit('ERROR: DEGREE is not implemented in this version. Exiting.')
 
             # IPA #
             if opts.ipa:
                 sortcol = None # no sort column; take entire file
-                # always run all params, since these are always plotted.
-                #if not opts.varyparams: # just run with opts.nmax value
-                #    params = ['nmax%d' % (opts.nmax)]
-                #else: # vary opts.nmax value
                 params = ['nmax%d' % p for p in VARYPARAMS['nmax']]
                 for param in params:
                     for (pathway,resultdir,datadir,ppidir) in pathways:
@@ -782,7 +726,6 @@ def main(args):
                                                opts.printonly,descending=True,param=param,\
                                                union=opts.netpathkeggunion)
                     if opts.netpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('ipa',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -791,7 +734,6 @@ def main(args):
                                                     union=opts.netpathkeggunion)
 
                     if opts.allnetpath:
-                        # compute aggregate for NetPath
                         inputdir = getPRoutdir('ipa',resultprefix+'/netpath/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -800,7 +742,6 @@ def main(args):
                                                     union=opts.netpathkeggunion,allpathways=True)
 
                     if opts.kegg:
-                        # compute aggregate for KEGG
                         inputdir = getPRoutdir('ipa',resultprefix+'/kegg/',opts.netpathkeggunion)
                         computeAggregatePrecisionRecall(inputdir,negtype,opts.ignorekeggpositives,\
                                                         opts.ignorenetpathpositives,opts.subsamplefps,\
@@ -809,6 +750,11 @@ def main(args):
                                                     union=opts.netpathkeggunion)
 
     # Plot precision and recall, once the values have been computed.
+    # TODO: Why on Earth are we calling it like this?
+    # Let's invoke it as a MODULE rather than an executable,
+    # pass a list of algorithms or something!!! Something that
+    # is way more ROBUST and EXTENSIBLE than a MANUAL OPTION. 
+    # FOR EVERYTHING.
     if opts.precrecviz:
         print 'Plot Precision Recall'
         # The algcmd variable contains all of the algorithms that have been
@@ -1203,9 +1149,9 @@ def parseArguments(args):
     group.add_option('','--bowtiebuilder',action='store_true',default=False,\
                      help='Run BowTieBuilder (reviewer comment)')
     group.add_option('','--inducedsubgraph',action='store_true',default=False,\
-                     help='Re-rank Linker nodes by taking induced subgraph.')
+                     help='Re-rank PathLinker nodes by taking induced subgraph.')
     group.add_option('','--rerank',action='store_true',default=False,\
-                     help='Re-rank Linker runs by unique nodes and edges.')
+                     help='Re-rank PathLinker runs by unique nodes and edges.')
     group.add_option('','--pagerank',action='store_true',default=False,\
                      help='Run PageRank on input files.')
     group.add_option('','--eqed',action='store_true',default=False,\
@@ -1465,7 +1411,9 @@ def getAllNetPathPathways():
     pathways = [p for p in readItemSet(analyzedpathwayfile,1)]
     return pathways
 
-
+# TODO: Why is this function doing two completely different things? Jesus. The
+# second thing it does it not at all indicated by its name. If I WANT that
+# mapping, it should be a second function.
 def getKEGGPathways(overlapwithnetpath):
     """
     Reads the pathways for KEGG and returns them as a list.
@@ -1743,8 +1691,6 @@ def computePrecisionRecall(
         cmd += ' --descending'
     if negtype == 'file':
         cmd += ' --ignorededgefile %s --ignorednodefile %s' % (ignorededgefile,ignorednodefile)
-    #if opts.forceprecrec: # this will cause a resampling of the negatives.  USed for debugging.
-    #    cmd += ' --force'
     print cmd
     if not printonly:
         subprocess.check_call(cmd.split())
@@ -2158,10 +2104,6 @@ def plotRobustness(pathways, k, sampledSetDir, forcePlot, printonly, sampleSizes
 #
 ###############################################################################
 class RankingAlgorithm(object):
-    def run(self, file_location_context):
-        raise NotImplementedError()
-
-
     def run_if_forced(self, file_location_context, should_force):
         if (should_force):
             self.run(file_location_context)
@@ -2170,14 +2112,65 @@ class RankingAlgorithm(object):
                 self.run(file_location_context)
 
 
+    def run(self, file_location_context):
+        raise NotImplementedError() 
+
+
+    def output_previously_written(self, file_location_context):
+        """
+        Return a boolean inidicating if this algorithm has previously
+        written its output to the location specified by the 
+        file location object passed in.
+
+        Can be overwritten to check more files, if necessary.
+        """
+        return os.path.exists(self.get_output_file_name(file_location_context))
+
+
     def get_name(self):
         raise NotImplementedError()
 
 
-    def output_previously_written(self, file_location_context):
+    def get_output_file_name(self):
+        """
+        Return the name the file written by the algorithm. 
+        """
         raise NotImplementedError()
 
 
+    def get_output_directory_name(self):
+        """
+        Return the name of the folder to store results in. By default, the
+        name of the folder is just the name of the algorithm.
+        """
+        return self.get_name()
+
+
+    def get_pathway_specific_output_file_name(self, file_location_context):
+        return ("%s-" % file_location-context.pathway_name
+            + self.get_output_file_name())
+
+
+    def get_full_output_file_name(self, file_location_context):
+        return os.path.join(
+            self.get_full_output_directory_name(file_location_context),
+            self.get_pathway_specific_output_file_name(file_location_context))
+
+
+    def get_full_output_directory_name(self, file_location_context):
+        return os.path.join(
+            file_location_context.output_dir, 
+            self.get_output_directory_name())
+
+
+    def ensure_output_directory_exists(self, file_location_context):
+        outdir = self.get_full_output_directory_name(file_location_context)
+
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+
+
+# TODO: Change this to FileLocator
 class FileLocationContext(object):
     def __init__(self, pathway_name, pathway_dir, ppi_file_dir, output_dir):
         self.pathway_name = pathway_name
@@ -2194,46 +2187,24 @@ class FileLocationContext(object):
         return '%s/%s-nodes.txt' %(self.pathway_dir, self.pathway_name)
 
 
-class OriginalPathLinker(RankingAlgorithm):
-    # TODO: The intent here is to mimic the functionality of the original 
-    # PathLinker algorithm, which had a heavy weight penalty that amounted to
-    # dividing by the sum of all of the weights in the network. Not sure how
-    # I want to go about handling this. Each pathway specific network would
-    # technically have a different weight, so hardcoding it might be rough.
-    # I could INSTEAD add it to PathLinker.
-    None
-
-# TODO: To mimic the old functionality of printing instead of actually running
-# as well as by default not re-running if the algorithm has already run,
-# we can define more methods here
+# TODO: Maybe add the option to pass edge penalty as well 
 class PathLinker(RankingAlgorithm):
     def __init__(self, k):
         self.k = k
 
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
-        subprocess.call([
-            "python",
-            "src/external/pathlinker/PathLinker.py",
-            "-k",
-            str(self.k),
+        self.ensure_output_directory_exists(file_location_context)
+        subprocess.call([ "python", "src/external/pathlinker/PathLinker.py", 
+            "-k", str(self.k),
             "--write-paths",
             "--output",
             self.get_output_prefix_from_context(file_location_context),
             file_location_context.get_ppi_file_location(),
             file_location_context.get_sources_and_targets()
             ])
-
-
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
+    
+    
     def get_output_prefix_from_context(self, file_location_context):
         out_prefix = file_location_context.output_dir \
             + "/%s/" % self.get_name() \
@@ -2241,26 +2212,14 @@ class PathLinker(RankingAlgorithm):
         return out_prefix
 
 
-    def get_output_file_from_context(self, file_location_context):
-        out_prefix = file_location_context.output_dir \
-            + "/%s/" % self.get_name() \
-            + "/%s-" % file_location_context.pathway_name \
-            + "k_%d-paths.txt" % self.k 
-        return out_prefix
-
-
     def get_name(self):
         return "pathlinker"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "k_%d-paths.txt" % self.k 
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
-        
+    def get_output_file_name(self):
+        return "k_%d-paths.txt" % self.k
+
+
 # TODO: For this and other variations of PathLinker, if the only difference is
 # a single option passed in, maybe its constructor should just take more
 # parameters
@@ -2271,7 +2230,7 @@ class PageRankPathLinker(RankingAlgorithm):
 
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         subprocess.call([
             "python",
             "src/external/pathlinker/PathLinker.py",
@@ -2288,14 +2247,6 @@ class PageRankPathLinker(RankingAlgorithm):
             ])
 
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     def get_output_prefix_from_context(self, file_location_context):
         out_prefix = file_location_context.output_dir \
             + "/%s/" % self.get_name() \
@@ -2308,38 +2259,24 @@ class PageRankPathLinker(RankingAlgorithm):
         return "pagerank-pathlinker"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "k_%d-paths.txt" % self.k 
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
-        
+    def get_output_file_name(self):
+        return "q_%.2fk_%d-paths.txt" % self.q, self,k
+
 
 class CycLinker(RankingAlgorithm):
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         cmd = 'java %s %s %s %s' % \
             ('CycLinker', 
              file_location_context.get_ppi_file_location(),
              file_location_context.get_sources_and_targets(),
              os.path.abspath(
                 self.get_output_prefix_from_context(file_location_context)))
-        print cmd
         curr_dir = os.getcwd()
         # TODO: Add https://github.com/jlaw9/Cyclinker as a submodule instead 
         os.chdir('/home/jeffl/git-workspace/CycLinker/src')
         subprocess.check_call(cmd.split())
         os.chdir(curr_dir)
-
-    
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
 
 
     def get_output_prefix_from_context(self, file_location_context):
@@ -2354,13 +2291,8 @@ class CycLinker(RankingAlgorithm):
         return "cyclinker"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "-ranked-edges-.txt"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    def get_output_file_name(self):
+        return "-ranked-edges.txt"
 
 
 class PageRankCycLinker(RankingAlgorithm):
@@ -2370,7 +2302,7 @@ class PageRankCycLinker(RankingAlgorithm):
 
     def run(self, file_location_context):
         pagerank = PageRank(self.q)
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         self.ensure_pagerank_output_exists(file_location_context)
 
         cmd = 'java %s %s %s %s' % \
@@ -2399,14 +2331,6 @@ class PageRankCycLinker(RankingAlgorithm):
                 "provided.")
 
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     def get_output_prefix_from_context(self, file_location_context):
         out_prefix = file_location_context.output_dir \
             + "/%s/" % self.get_name() \
@@ -2420,98 +2344,52 @@ class PageRankCycLinker(RankingAlgorithm):
         return "pagerank-cyclinker"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "-ranked-edges-.txt"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
-    
+    def get_output_file_name(self):
+        return "q_%.2f-ranked-edges.txt" % self.q
+
 
 class ShortestPaths(RankingAlgorithm):
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         script = '/home/annaritz/src/python/CellCycle/shortest_paths.py'
         cmd = ('python %s --network %s --annotations %s --out %s --include-ties'
                ' --weight --log-transform') % \
             (script,
              file_location_context.get_ppi_file_location(),
              file_location_context.get_sources_and_targets(),
-             self.get_output_file_from_context(file_location_context))
+             self.get_ful_output_file_name(file_location_context))
 
         subprocess.check_call(cmd.split())   
     
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
-    def get_output_file_from_context(self, file_location_context):
-        out_prefix = file_location_context.output_dir \
-            + "/%s/" % self.get_name() \
-            + "/%s" % file_location_context.pathway_name \
-            + "-shortest-paths.txt" 
-
-        return out_prefix
-
 
     def get_name(self):
         return "shortestpaths"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_file_from_context(file_location_context)
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    def get_output_file_name(self):
+        return "-shortest-paths.txt"
 
 
 class BowTieBuilder(RankingAlgorithm):
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         script = '/home/annaritz/src/python/CellCycle/bowtiebuilder.py'         
         cmd = ('python %s --network %s --annotations %s --out %s '
                '--weight --log-transform') % \
             (script,
              file_location_context.get_ppi_file_location(),
              file_location_context.get_sources_and_targets(),
-             self.get_output_file_from_context(file_location_context))
+             self.get_full_output_file_name(file_location_context))
 
         subprocess.check_call(cmd.split())   
-   
-
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
-    def get_output_file_from_context(self, file_location_context):
-        out_prefix = file_location_context.output_dir \
-            + "/%s/" % self.get_name() \
-            + "/%s" % file_location_context.pathway_name \
-            + "-bowtiebuilder.txt" 
-
-        return out_prefix
-
+  
 
     def get_name(self):
         return "bowtiebuilder"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_file_from_context(file_location_context)
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    def get_output_file_name(self):
+        return "-bowtiebuilder.txt"
 
 
 class InducedSubgraph(RankingAlgorithm):
@@ -2519,13 +2397,13 @@ class InducedSubgraph(RankingAlgorithm):
         self.k = k
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         self.ensure_pathlinker_output_exists(file_location_context)
         script = '/data/annaritz/signaling/2014-06-linker/src/order-by-induced-subgraph.py'
         cmd = 'python %s --pathsfile %s --outfile %s --ppi %s' % \
             (script,
              self.get_corresponding_pathlinker_outfile(file_location_context),
-             self.get_output_file_from_context(file_location_context),
+             self.get_full_output_file_name(file_location_context),
              file_location_context.get_ppi_file_location())
         subprocess.check_call(cmd.split())   
 
@@ -2541,48 +2419,28 @@ class InducedSubgraph(RankingAlgorithm):
                 "be used in a previous run to generate the output file for " 
                 "the provided -k value (which has a default if no value is "
                 "provided.")
-    
-
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
 
 
     def get_corresponding_pathlinker_outfile(self, file_location_context):
         pathlinker = PathLinker(self.k)
-        return pathlinker.get_output_file_from_context(file_location_context)
-
-
-    def get_output_file_from_context(self, file_location_context):
-        out_prefix = file_location_context.output_dir \
-            + "/%s/" % self.get_name() \
-            + "/%s" % file_location_context.pathway_name \
-            + "-induced-subgraph.txt" 
-
-        return out_prefix
+        return pathlinker.get_full_output_file_name(
+            file_location_context)
 
 
     def get_name(self):
         return "inducedsubgraph"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_file_from_context(file_location_context)
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    def get_output_file_name(self):
+        return "-induced-subgraph.txt"
 
-
+    
 class RerankPathLinker(RankingAlgorithm):
     def __init__(self, k):
         self.k = k
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         self.ensure_pathlinker_output_exists(file_location_context)
         script = '/data/annaritz/signaling/2014-06-linker/src/recount-ksp.py'   
         cmd = 'python %s --pathsfile %s --outputprefix %s' % \
@@ -2606,17 +2464,10 @@ class RerankPathLinker(RankingAlgorithm):
                 "provided.")
     
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     def get_corresponding_pathlinker_outfile(self, file_location_context):
         pathlinker = PathLinker(self.k)
-        return pathlinker.get_output_file_from_context(file_location_context)
+        return pathlinker.get_full_output_file_name(
+            file_location_context)
 
 
     def get_output_prefix_from_context(self, file_location_context):
@@ -2631,21 +2482,17 @@ class RerankPathLinker(RankingAlgorithm):
         return "rerankedpathlinker"
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "-unique-edges_paths.txt"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    def get_output_file_name(self):
+        return "reranked-pathlinker-unique-edges_paths.txt"
 
-
+    
 class PageRank(RankingAlgorithm):
     def __init__(self, q):
         self.q = q
 
+
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         script = '/home/annaritz/src/python/PathLinker/PathLinker-1.0/PathLinker.py'
         cmd = 'python %s --PageRank -q %s -k %d --output %s %s %s' % \
             (script,
@@ -2658,13 +2505,6 @@ class PageRank(RankingAlgorithm):
         subprocess.check_call(cmd.split())
 
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
     def get_output_prefix_from_context(self, file_location_context):
         out_prefix = file_location_context.output_dir \
             + "/%s/" % self.get_name() \
@@ -2675,6 +2515,10 @@ class PageRank(RankingAlgorithm):
 
 
     def get_edge_flux_output_name_from_context(self, file_location_context):
+        """
+        PageRank outputs a second output file used by other algorithms in
+        this pipeline. This function returns the name of that file.
+        """
         return self.get_output_prefix_from_context(file_location_context) + \
             "-edge-fluxes.txt"
 
@@ -2682,14 +2526,9 @@ class PageRank(RankingAlgorithm):
     def get_name(self):
         return "pagerank"
 
-
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "-node-pagerank.txt"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    
+    def get_output_file_name(self):
+        return "q_%.2f-node-pagerank" % self.q
 
 
 class EQED(RankingAlgorithm):
@@ -2698,7 +2537,7 @@ class EQED(RankingAlgorithm):
 
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         script = '/data/annaritz/sig-path-other-methods/src/eQED.py'            
         cmd = 'python %s -e %s -n %s -i %d -o %s -l' % \
             (script,
@@ -2708,14 +2547,6 @@ class EQED(RankingAlgorithm):
              self.get_output_prefix_from_context(file_location_context))
 
         subprocess.check_call(cmd.split())
-
-
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
 
 
     def get_output_prefix_from_context(self, file_location_context):
@@ -2729,14 +2560,9 @@ class EQED(RankingAlgorithm):
     def get_name(self):
         return "eqed"
 
-
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "-eqed-edges.out"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    
+    def get_output_file_name(self):
+        return "-eqed-edges.out"  
 
 
 class ResponseNet(RankingAlgorithm):
@@ -2745,7 +2571,7 @@ class ResponseNet(RankingAlgorithm):
 
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         script = '/data/annaritz/sig-path-other-methods/src/ResponseNet.py'
         cmd = 'python %s -e %s -n %s -o %s -g %d' % \
             (script,
@@ -2757,16 +2583,18 @@ class ResponseNet(RankingAlgorithm):
         subprocess.check_call(cmd.split()) 
 
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     def get_name(self):
         return "responsenet"
+
+    # TODO: Okay, let's think about this for just a moment.
+    # get_output_file_name really only returns the paramaterized part of the
+    # file name, plus whatever the algorithm will output as a suffix.
+    # HOWEVER, part of the filename (the pathway part) is actually added by the
+    # get_full filename method which takes a context. This method can't
+    # return a similar thing without that context. That makes this a very
+    # good candidate for a PRIVATE METHOD.
+    def get_output_file_name(self):
+        return "gamma_%d_responsenet-edges.out" % self.gamma
 
 
     def get_output_prefix_from_context(self, file_location_context):
@@ -2776,22 +2604,14 @@ class ResponseNet(RankingAlgorithm):
             + "-gamma_%d" % self.gamma   
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "_responsenet-edges.out"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
-        
-
 class PCSF(RankingAlgorithm):
     def __init__(self, prize, omega):
         self.prize = prize
         self.omega = omega
 
+
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
         script = '/home/jeffl/svnrepo/src/python/Algorithms/PCSF_weighted.py'   
         cmd = 'python %s -e %s -n %s -o %s -p %d --omega %.2f' % \
             (script,
@@ -2804,16 +2624,12 @@ class PCSF(RankingAlgorithm):
         subprocess.check_call(cmd.split())
 
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     def get_name(self):
         return "pcsf"
+
+
+    def get_output_file_name(self):
+        return "prize%d-omega%.2f_PCSF-edges.out" % (self.prize, self.omega)
 
 
     def get_output_prefix_from_context(self, file_location_context):
@@ -2823,22 +2639,13 @@ class PCSF(RankingAlgorithm):
             + "-prize%d-omega%.2f" % (self.prize, self.omega)
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "_PCSF-edges.out"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
-
-
 class ANAT(RankingAlgorithm):
     def __init__(self, alpha):
         self.alpha = alpha
 
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
 
         script = '/data/annaritz/signaling/2014-06-linker/src/run-anat-weighted.py'
         cmd = 'python %s -n %s -a %.2f -o %s --ppi %s' % \
@@ -2850,16 +2657,12 @@ class ANAT(RankingAlgorithm):
         subprocess.check_call(cmd.split())
 
 
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
-
-
     def get_name(self):
         return "anat"
+
+
+    def get_output_file_name(self):
+        return "alpha%.2f-edges.out" % self.alpha
 
 
     def get_output_prefix_from_context(self, file_location_context):
@@ -2869,59 +2672,30 @@ class ANAT(RankingAlgorithm):
             + "-alpha%.2f" % self.alpha
 
 
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_prefix_from_context(file_location_context) \
-            + "-edges.out"
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
-
-
 class IPA(RankingAlgorithm):
     def __init__(self, nmax):
         self.nmax = nmax
 
 
     def run(self, file_location_context):
-        self.ensure_output_dir_exists(file_location_context)
+        self.ensure_output_directory_exists(file_location_context)
 
-        outfile = '%s/%s-nmax%d.out' % (outdir,pathway,nmax)                        
         script = '/home/jeffl/svnrepo/src/python/Algorithms/ipa-network-generation.py'
         cmd = 'python %s --ppi %s --nodes %s --nmax %d --outfile %s' % \
             (script,
              file_location_context.get_ppi_file_location(),
              file_location_context.get_sources_and_targets(),
              self.nmax,
-             outfile)                          
-        subprocess.check_call(cmd.split())             
-
-
-    def ensure_output_dir_exists(self, file_location_context):
-        out_dir = file_location_context.output_dir \
-            + "/%s/" % self.get_name()
-
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
+             get_full_output_file_name(file_location_context))
+        subprocess.check_call(cmd.split())
 
 
     def get_name(self):
         return "ipa"
 
 
-    def get_output_file_from_context(self, file_location_context):
-        outfile = file_location_context.output_dir \
-            + "/%s/" % self.get_name() \
-            + "/%s" % file_location_context.pathway_name \
-            + "-nmax%d.out" % self.nmax
-
-
-    def output_previously_written(self, file_location_context):
-        outfile = self.get_output_file_from_context(file_location_context)
-        if os.path.exists(outfile):
-            return True
-        else:
-            return False
+    def get_output_file_name(self):
+        return "nmax%d.out" % self.nmax
 
 
 def get_algorithm_object_list_from_opts(opts):
@@ -2998,6 +2772,43 @@ def get_algorithm_object_list_from_opts(opts):
                 algs.append(IPA(nmax))
 
     return algs
+
+
+def computePrecisionRecallWrapper(alg, file_location_context, opts):
+    # Blah 
+    # Blah 
+    # Blah
+
+    computePrecisionRecall(alg, file_location_context, opts)
+
+    if (shouldComputeAggregatePrecisionRecall(opts):
+        computeAggregatePrecisionRecall() 
+
+
+def shouldComputeAggregatePrecisionRecall(opts):
+    """
+    The user can specify one of several sets of pathways. We should only
+    compute the aggregate precision recall if they use the pathways 
+    specified by the --netpath, --kegg, or --allnetpath options
+
+    """
+    if opts.netpath or opts.allnetpath or opts.kegg:
+        return True
+    return False
+    
+
+def computePrecisionRecall(alg, file_location_context, opts):
+    negtypes = ['none', 'adjacent']
+    if opts.ignorekeggpositives or opts.ignorenetpathpositives:
+        negtypes.append('file')
+
+    # TODO: these should be constants in the computeprecrcec module
+    for negtype in negtypes:
+        # Get proper samples directory
+        # Get 
+
+def computeAggregatePrecisionRecall(inputdir, opts):
+    None
 
 
 if __name__=='__main__':
