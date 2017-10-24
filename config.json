@@ -1,0 +1,49 @@
+{
+    "input_settings" : {
+        "input_dir" : "inputs",
+        "interactome_dir": "interactomes",
+        "pathway_collection_dir": "interactions",
+
+        "interactomes": {
+            "pathlinker-signaling-children-reg-no-netpath-weighted" : {
+                "filename" : 
+                    "pathlinker-signaling-children-reg-no-netpath-weighted.txt",
+                "path" : ["human"]
+            },
+
+            "pathlinker-signaling-children-reg-weighted" : {
+                "filename" : "pathlinker-signaling-children-reg-weighted.txt",
+                "path" : ["human"]
+            }
+        },
+
+        "pathway_collections": {
+            "netpath" : {
+                "path" : ["netpath","pathways"]
+            },
+
+            "kegg" : {
+                "path": ["kegg", "2015-03-23", "hsa", "edge-files-deadends"]
+            }
+        },
+
+        "algorithms" : {
+            "pathlinker": [
+                {"k": [100]}
+            ]
+        }
+    },
+
+    "output_settings" : {
+        "output_dir" : "outputs",
+        "pathway_specific_interactome_dir": "pathway-specific-interactomes",
+        "reconstruction_dir" : "reconstructions",
+        "precision_recall_dir" : "precision-recall",
+        "visualization_dir" : "visualizations"
+
+    },
+
+    "precision_recall_settings": {
+        "subsample_factor": 50
+    }
+}
