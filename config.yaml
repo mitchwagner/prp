@@ -1,0 +1,114 @@
+# Input Settings: initialize base input folder names, and interactomes,
+# pathway collections, and algorithms to run over
+input_settings:
+
+    # Base input directory
+    input_dir : "inputs"
+
+    # Subdirectory of inputs that interactomes should be placed into 
+    interactome_dir: "interactomes"
+
+    # Subdirectory of inputs that pathway collections should be placed into
+    pathway_collection_dir: "interactions"
+
+    # Denotes a list of interactomes, each with the following parameters:
+    #   name: Name of the interactome. May be used in logging or other 
+    #       messages written during execution
+    #
+    #   filename: Filename of the interactome
+    #
+    #   path: Subdirectory of interactome_dir, specified by list of folders
+    #       along the path 
+    interactomes:
+        - name: "pathlinker-signaling-children-reg-no-netpath-weighted"
+          filename: "pathlinker-signaling-children-reg-no-netpath-weighted.txt"
+          path: ["human"]
+
+        - name: "pathlinker-signaling-children-reg-weighted"
+          filename: "pathlinker-signaling-children-reg-weighted.txt"
+          path: ["human"]
+               
+
+    # Denotes a list of pathway collections, each with the following 
+    # parameters:
+    #   name: Name of the interactome. May be used in logging or other 
+    #       messages written during execution
+    #
+    #   path: Subdirectory of pathway_collection_dir, where the node and edge
+    #       files corresponding to a pathway collection's pathways should be
+    #       placed
+    #
+    #   pathways: List of pathways in the collection. The name used here will
+    #       be used by the pipeline to identify corresponding pathway nodes and
+    #       edges files in the subdirectory specified above by the path
+    #       parameter. Specifically, the pipeline expects to find files
+    #       <name>-nodes.txt and <name>-edges.txt in that folder.
+    #
+    pathway_collections:
+        - name: "netpath"
+          path: ["netpath", "pathways"]
+          pathways:
+            - "BDNF"
+            - "EGFR1"
+            - "IL1"
+            - "IL2"
+            - "IL3"
+            - "IL6"
+            - "IL-7"
+            - "KitReceptor"
+            - "Leptin"
+            - "Prolaction"
+            - "RANKL"
+            - "TCR"
+            - "TGF_beta_Receptor"
+            - "TNFalpha"
+            - "Wnt"
+
+
+    # Denotes a list of algorithms to run. Each has the following parameters: 
+    #   name: Name of the algorithm. Must be recognized by the pipeline, see
+    #       code for acceptable values
+    #
+    #   <additional parameters>: any additional, algorithm-specific parameters 
+    #       should be specified in the map for a given algorithm
+    algorithms:
+        - name: "pathlinker"
+          k: [100]
+
+# Output Settings: initialize base output folder names
+output_settings:
+
+    # Base output directory
+    output_dir: "outputs"
+
+    # Subdirectory of output_dir into which computed pathway-specific
+    # interactomes will be placed
+    pathway_specific_interactome_dir: "pathway-specific_interactomes"
+
+    # Subdirectory of output_dir into which computed pathway reconstructions
+    # will be placed
+    reconstruction_dir: "reconstructions"
+
+
+    # Subdirectory of output_dir into which computed precision/recall 
+    # curve data will be placed
+    precision_recall_dir: "precision-recall"
+
+
+    # Subdirectory of output_dir into which computed visualizations will
+    # be placed
+    visualization_dir: "visualizations"
+
+# Precision Recall Settings: initialize parameters for the calculation of
+# precision/recall curves
+precision_recall_settings:
+
+    # Given the size of our interactomes compared to the size of pathways, 
+    # it is generally prudent to subsample the negative set from the set of
+    # edges not in the pathway. This option controls that behavior.
+    # WARNING: Not implemented
+    subsample_negatives: true
+
+    # Should subsampling be turned on, the number of negatives selected
+    # will be sample_factor * <number of positives in a pathway>
+    subsample_factor: 50
