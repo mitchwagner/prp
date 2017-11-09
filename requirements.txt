@@ -1,7 +1,6 @@
 cycler==0.10.0
 decorator==4.1.2
 functools32==3.2.3.post2
-matlabengineforpython===R2016a
 matplotlib==2.0.2
 networkx==1.11
 numpy==1.13.1
