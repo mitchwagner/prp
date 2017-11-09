@@ -57,7 +57,7 @@ input_settings:
             - "IL-7"
             - "KitReceptor"
             - "Leptin"
-            - "Prolaction"
+            - "Prolactin"
             - "RANKL"
             - "TCR"
             - "TGF_beta_Receptor"
@@ -73,7 +73,8 @@ input_settings:
     #       should be specified in the map for a given algorithm
     algorithms:
         - name: "pathlinker"
-          k: [100]
+          params:
+            k: [100]
 
 # Output Settings: initialize base output folder names
 output_settings:
