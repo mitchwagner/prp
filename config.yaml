@@ -84,7 +84,7 @@ output_settings:
 
     # Subdirectory of output_dir into which computed pathway-specific
     # interactomes will be placed
-    pathway_specific_interactome_dir: "pathway-specific_interactomes"
+    pathway_specific_interactome_dir: "pathway-specific-interactomes"
 
     # Subdirectory of output_dir into which computed pathway reconstructions
     # will be placed
