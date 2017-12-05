@@ -1,14 +1,14 @@
 import os
 import csv
 import sys
-import json
+import yaml 
 import itertools
 import subprocess
 from pathlib import Path
 
-
-# TODO: Add an "include" mechanism for interactomes, collections, and
-# algorithms
+# local imports
+import src.external.utils.precision_recall.precision_recall as precrec
+import src.external.pathlinker.parse as pl_pasre
 
 # TODO: Looking EXTREMELY long term, I could create a method that allows you
 # to pass in your own hashmap of RankingAlgorithm objects, and names
@@ -25,11 +25,6 @@ from pathlib import Path
 # pathway_set/pathway2/pathlinker-k_100/file.out
 # ...
 # pathway_set/pathway1/pathlinker-k_200/file.out
-
-# Using THIS pattern COMPLETELY AVOIDS needing to pass the algorithm the
-# pathway name. All the algorithm needs to know is how to create its OWN
-# output name, as well as the parameters for itself (sources and targets)
-
 
 class Pipeline(object):
     def __init__(self, input_settings, output_settings, 
@@ -61,24 +56,26 @@ class Pipeline(object):
                     interactome.create_pathway_specific_interactome(
                         node_file, outpath)
 
-
+    # TODO: Before the data loss, I had created Pathway objects
+    # Then, in the methods below, I would pass pathway.name instead of pathway
     def run_pathway_reconstructions(self):
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
-                for node_file in pathway_collection.get_pathway_node_files():
-                    # TODO: This is a hack. I should ask how Murali wants me
-                    # to handle pathway names. Right now, this hack will not
-                    # work for IL-7 or IL-11, but I can change those names to
-                    # remove the dashes
-                    pathway_name = node_file.name.split("-")[0]
+                for pathway in pathway_collection.pathways:
+                    
+                    node_file = \
+                        pathway_collection.get_pathway_nodes_file(pathway)
 
+                    edge_file = \
+                        pathway_collection.get_pathway_edges_file(pathway)
+                    
                     # <interactome>/<pathway_set>/<pathway>/<algorithm + parameters>/
 
                     specific_interactome = Path(
                         self.output_settings.
                             get_pathway_specific_interactome_dir(),
                         interactome.name,
-                        pathway_name,
+                        pathway,
                         "interactome.txt")
 
                     output_dir = Path(
@@ -86,13 +83,22 @@ class Pipeline(object):
                             get_reconstruction_dir(),
                         interactome.name,
                         pathway_collection.name,
-                        pathway_name)
+                        pathway)
 
                     alg_input = PathwayReconstructionInput(
-                        specific_interactome, node_file, output_dir)
+                        specific_interactome, edge_file, node_file, output_dir)
 
                     for algorithm in self.input_settings.algorithms:
                         algorithm.run(alg_input)
+
+
+    def calculate_precision_recall(self):
+        None
+
+
+    def plot_precision_recall(self):
+        None
+
 
 class InputSettings(object):
     def __init__(self, interactomes, pathway_collections, algorithms):
@@ -138,10 +144,19 @@ class Interactome(object):
 
 class PathwayCollection(object):
     # Path here should be a directory
-    def __init__(self, name, path):
+    def __init__(self, name, path, pathways):
         self.name = name
         self.path = path
+        self.pathways = pathways
 
+
+    def get_pathway_nodes_file(self, pathway):
+        return Path(self.path, pathway + "-nodes.txt")
+
+
+    def get_pathway_edges_file(self, pathway):
+        return Path(self.path, pathway + "-nodes.txt")
+    
 
     def get_pathway_node_files(self):
         return list(self.path.glob("*-nodes.txt"))
@@ -199,15 +214,13 @@ class VisualizationSettings(object):
 class ConfigParser(object):
     @staticmethod 
     def parse(config_file_handle):
-        config_map = json.load(config_file_handle)
+        config_map = yaml.load(config_file_handle)
         return Pipeline(
             ConfigParser.__parse_input_settings(config_map["input_settings"]),
             ConfigParser.__parse_output_settings(config_map["output_settings"]),
             ConfigParser.__parse_precision_recall_settings(
                 config_map["precision_recall_settings"]))
 
-        # TODO: Add visualization settings
-            
     
     @staticmethod 
     def __parse_input_settings(input_settings_map):
@@ -227,51 +240,48 @@ class ConfigParser(object):
 
 
     @staticmethod 
-    def __parse_interactomes(base_path, interactomes_map):
+    def __parse_interactomes(base_path, interactomes_list):
         interactomes = []
-        for key in interactomes_map:
+        for interactome in interactomes_list:
             interactomes.append(
-                Interactome(key, Path(
+                Interactome(interactome["name"], Path(
                     base_path, 
-                    *interactomes_map[key]["path"],
-                    interactomes_map[key]["filename"])))
+                    *interactome["path"],
+                    interactome["filename"])))
 
         return interactomes
             
 
     @staticmethod 
-    def __parse_pathway_collections(base_path, collections_map):
+    def __parse_pathway_collections(base_path, collections_list):
         collections = []
-        for key in collections_map:
+        for collection in collections_list:
             collections.append(
                 PathwayCollection(
-                    key, Path(base_path, *collections_map[key]["path"])))
+                    collection["name"], 
+                    Path(base_path, *collection["path"]),
+                    collection["pathways"]))
 
         return collections
 
 
     @staticmethod 
-    def __parse_algorithms(algorithms_map):
+    def __parse_algorithms(algorithms_list):
         algorithms = []
-        for algorithm in algorithms_map:
-            param_list = []
-    
-            # I used a list of single-element maps instead of just a map
-            # because I simultaneously wanted to specify a proper order for the
-            # parameters in the config file, as well as provide names for them
-            # in the config file
-            for parameter_map in algorithms_map[algorithm]:
-                for parameter in parameter_map:
-                    # List of values for the parameter
-                    parameter_choices = parameter_map[parameter]
+        for algorithm in algorithms_list:
 
-                    param_list.append(parameter_choices)
-             
-            param_combos = list(itertools.product(*param_list))
+            # varNames = sorted(variants)
+            # combinations = [dict(zip(varNames, prod)) for prod in 
+            # it.product(*(variants[varName] for varName in varNames))]
 
-            # Create a new object from the parameter combinations
-            for combo in param_combos:
-                algorithms.append(RANKING_ALGORITHMS[algorithm](*combo))
+            combos = [dict(zip(algorithm["params"], val)) 
+                for val in itertools.product(
+                    *(algorithm["params"][param] 
+                        for param in algorithm["params"]))]
+
+            for combo in combos:
+                algorithms.append(
+                    RANKING_ALGORITHMS[algorithm["name"]](combo))
 
         return algorithms
 
@@ -306,19 +316,31 @@ class ConfigParser(object):
 
 def main():
     # opts = parse_arguments()
-    config_file = "config.json"
+    config_file = "config.yaml"
 
     pipeline = None
 
     with open(config_file, "r") as conf:
         pipeline = ConfigParser.parse(conf) 
-    
-    #pipeline.create_pathway_specific_interactomes()
-    pipeline.run_pathway_reconstructions()
 
-    print("DONE")
+    print("Creating pathway-specific interactomes")
+    pipeline.create_pathway_specific_interactomes()
+    print("Finished creating pathway-specific interactomes")
+
+    print("Running pathway reconstructions") 
+    pipeline.run_pathway_reconstructions()
+    print("Finished running pathway reconstructions")
+
+
+    print("Computing precision/recall for reconstructions")
     # pipeline.calculate_precision_recall()
-    # pipeline.make_visualizations()
+    print("Finished computing precision/recall")
+
+
+    print("Pipeline complete")
+
+    # pipeline.calculate_precision_recall()
+    # pipeline.plot_precision_recall()
 
 
 def parse_arguments():
@@ -333,15 +355,22 @@ def parse_arguments():
     return opts
 
 
-###############################################################################
-# config file initializes pathways and options for pathways and algorithms
-
-
-
 class PathwayReconstructionInput(object):
-    def __init__(self, interactome, source_target_path, output_dir):
+    def __init__(self, interactome, pathway_edges_file, pathway_nodes_file, 
+            output_dir):
         self.interactome = interactome
-        self.source_target_path = source_target_path
+        self.pathway_edges_file = pathway_edges_file
+        self.pathway_nodes_file = pathway_nodes_file
+        self.output_dir = output_dir
+
+
+class PrecisionRecallInput(object):
+    def __init__(self, interactome, pathway_edges_file, pathway_nodes_file, 
+            results_dir, output_dir):
+        self.interactome = interactome
+        self.pathway_edges_file = pathway_edges_file
+        self.pathway_nodes_file = pathway_nodes_file
+        self.results_dir = results_dir
         self.output_dir = output_dir
 
 
@@ -367,6 +396,14 @@ class RankingAlgorithm(object):
         Can be overwritten to check more files, if necessary.
         """
         return os.path.exists(self.get_output_file_name(file_location_context))
+
+
+    def calculate_precision_recall(self, precision_recall_input):
+        raise NotImplementedError()
+
+
+    def plot_precision_recall(self, precision_recall_input):
+        raise NotImplementedError()
 
 
     def get_name(self):
@@ -395,8 +432,8 @@ class RankingAlgorithm(object):
 
 
 class PathLinker(RankingAlgorithm):
-    def __init__(self, k):
-        self.k = k
+    def __init__(self, params):
+        self.k = params["k"]
 
 
     def run(self, reconstruction_input):
@@ -409,12 +446,24 @@ class PathLinker(RankingAlgorithm):
                 reconstruction_input.output_dir, 
                 self.get_output_directory())), ""),
             str(reconstruction_input.interactome),
-            str(reconstruction_input.source_target_path)
+            str(reconstruction_input.pathway_nodes_file)
             ])
-    
+
+
+    def calculate_precision_recall(self, precision_recall_input):
+        raise NotImplementedError()
+
+
+    def plot_precision_recall(self, precision_recall_input):
+        raise NotImplementedError()
+
 
     def get_name(self):
         return "pathlinker"
+
+
+    def get_output_file(self):
+        return "k_%d-ranked-edges.txt" % self.k
 
 
     def get_output_directory(self):
