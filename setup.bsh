@@ -1,3 +1,7 @@
+# Pull submodules
+
+git submodule update --recursive
+
 # Create Python virtual environment
 
 virtualenv venv -p python3
