@@ -13,7 +13,7 @@ SVN repository thereon.
 
 The pipeline should be executed as follows:
 
-```python
+```bash
 source venv/bin/activate
 python pipeline.py
 ```
@@ -33,8 +33,8 @@ file.
 - *Interactomes*: stored as edge lists, as consructed from CSBDB.
 
 - *Pathways*: stored as node and edge lists:
-    - <pathway-name>-nodes.txt
-    - <pathway-name>-edges.txt
+    - \<pathway-name>-nodes.txt
+    - \<pathway-name>-edges.txt
 
 - *Pathway Collections*: pathway collections consist of two things: 
     - A folder, where the pathways in the collection are stored
