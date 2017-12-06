@@ -1,22 +1,30 @@
 import os
 import csv
 import sys
+import time
 import yaml 
+import argparse
 import itertools
 import subprocess
 from pathlib import Path
 
+import matplotlib
+matplotlib.use('Agg')
+
 # local imports
 import src.external.utils.precision_recall.precision_recall as precrec
-import src.external.pathlinker.parse as pl_pasre
+import src.external.pathlinker.PathLinker as pl
+import src.external.pathlinker.parse as pl_parse 
+
+# TODO: Somehow, I have completely neglected to incorporate the name of the 
+# algorithm into the output directories. It will probably be better to give
+# algorithms their names so that we can do that for them, or something...
+# It is probably good just to give them a name...
 
 # TODO: Looking EXTREMELY long term, I could create a method that allows you
 # to pass in your own hashmap of RankingAlgorithm objects, and names
 # associated with those objects. If you didn't provide one yourself, then
 # main would be provided one by default. This would allow TRUE plug-and-play.
-
-# TODO: Maybe a list of pathway names can be added to the config file under
-# each pathway
 
 # <outdir>/<interactome>/<pathway_set>/<pathway>/<algorithm + parameters>/
 # <outdir>/pathway-specific-interactomes/<pathway_set><pathway><interactome>
@@ -34,20 +42,20 @@ class Pipeline(object):
         self.output_settings = output_settings
         self.precision_recall_settings = precision_recall_settings
 
+
     def create_pathway_specific_interactomes(self):
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
-                for node_file in pathway_collection.get_pathway_node_files():
-                    # TODO: This is a hack. I should ask how Murali wants me
-                    # to handle pathway names. Right now, this hack will not
-                    # work for IL-7 or IL-11, but I can change those names to
-                    # remove the dashes
-                    pathway_name = node_file.name.split("-")[0]
+                for pathway in pathway_collection.pathways:
+
+                    node_file = \
+                        pathway_collection.get_pathway_nodes_file(pathway)
+
                     outpath = Path(
                         self.output_settings.
                             get_pathway_specific_interactome_dir(),
                         interactome.name,
-                        pathway_name,
+                        pathway,
                         "interactome.txt")
 
                     if not outpath.exists():
@@ -56,8 +64,7 @@ class Pipeline(object):
                     interactome.create_pathway_specific_interactome(
                         node_file, outpath)
 
-    # TODO: Before the data loss, I had created Pathway objects
-    # Then, in the methods below, I would pass pathway.name instead of pathway
+
     def run_pathway_reconstructions(self):
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
@@ -69,8 +76,6 @@ class Pipeline(object):
                     edge_file = \
                         pathway_collection.get_pathway_edges_file(pathway)
                     
-                    # <interactome>/<pathway_set>/<pathway>/<algorithm + parameters>/
-
                     specific_interactome = Path(
                         self.output_settings.
                             get_pathway_specific_interactome_dir(),
@@ -89,15 +94,111 @@ class Pipeline(object):
                         specific_interactome, edge_file, node_file, output_dir)
 
                     for algorithm in self.input_settings.algorithms:
+                        start = time.time() 
                         algorithm.run(alg_input)
+                        end = time.time()
 
 
     def calculate_precision_recall(self):
-        None
+        for interactome in self.input_settings.interactomes:
+            for pathway_collection in self.input_settings.pathway_collections:
+                for pathway in pathway_collection.pathways:
+                    
+                    node_file = \
+                        pathway_collection.get_pathway_nodes_file(pathway)
+
+                    edge_file = \
+                        pathway_collection.get_pathway_edges_file(pathway)
+                    
+                    specific_interactome = Path(
+                        self.output_settings.
+                            get_pathway_specific_interactome_dir(),
+                        interactome.name,
+                        pathway,
+                        "interactome.txt")
+
+                    results_dir = Path(
+                        self.output_settings.
+                            get_reconstruction_dir(),
+                        interactome.name,
+                        pathway_collection.name,
+                        pathway)
+
+                    output_dir = Path(
+                        self.output_settings.
+                            get_precision_recall_dir(),
+                        interactome.name,
+                        pathway_collection.name,
+                        pathway)
+
+                    precion_recall_input = PrecisionRecallInput(
+                        specific_interactome, edge_file, node_file, 
+                        results_dir, output_dir)
+
+                    for algorithm in self.input_settings.algorithms:
+                        algorithm.calculate_precision_recall(
+                            precision_recall_input)
 
 
     def plot_precision_recall(self):
-        None
+        for interactome in self.input_settings.interactomes:
+            for pathway_collection in self.input_settings.pathway_collections:
+                for pathway in pathway_collection.pathways:
+                    fig, ax = precrec.init_precision_recall_figure()
+                    ax.set_title(
+                        interactome.name + " " +
+                        pathway_collection.name + " " +
+                        pathway)
+                    
+                    node_file = \
+                        pathway_collection.get_pathway_nodes_file(pathway)
+
+                    edge_file = \
+                        pathway_collection.get_pathway_edges_file(pathway)
+                    
+                    specific_interactome = Path(
+                        self.output_settings.
+                            get_pathway_specific_interactome_dir(),
+                        interactome.name,
+                        pathway,
+                        "interactome.txt")
+
+                    results_dir = Path(
+                        self.output_settings.
+                            get_reconstruction_dir(),
+                        interactome.name,
+                        pathway_collection.name,
+                        pathway)
+
+                    output_dir = Path(
+                        self.output_settings.
+                            get_precision_recall_dir(),
+                        interactome.name,
+                        pathway_collection.name,
+                        pathway)
+
+                    vis_file = Path(
+                        self.output_settings.
+                            get_visualization_dir(),
+                        interactome.name,
+                        pathway_collection.name,
+                        pathway,
+                        "precision-recall.pdf")
+
+                    vis_file.parent.mkdir(parents=True, exist_ok=True)
+
+                    precision_recall_input = PrecisionRecallInput(
+                        specific_interactome, edge_file, node_file, 
+                        results_dir, output_dir)
+
+                    for algorithm in self.input_settings.algorithms:
+                        algorithm.plot_precision_recall(
+                            precision_recall_input, ax)
+
+                    fig.savefig(str(vis_file))
+
+        # then the top-level algorithm needs to save the figures to the 
+        # appropriate place
 
 
 class InputSettings(object):
@@ -155,15 +256,7 @@ class PathwayCollection(object):
 
 
     def get_pathway_edges_file(self, pathway):
-        return Path(self.path, pathway + "-nodes.txt")
-    
-
-    def get_pathway_node_files(self):
-        return list(self.path.glob("*-nodes.txt"))
-            
-    
-    def get_pathway_edge_files(self):
-        return list(self.path.glob("*-edges.txt"))
+        return Path(self.path, pathway + "-edges.txt")
 
 
 class OutputSettings(object):
@@ -212,6 +305,10 @@ class VisualizationSettings(object):
 
 
 class ConfigParser(object):
+    """
+    Define static methods for parsing a config file that sets a large number
+    of parameters for the pipeline
+    """
     @staticmethod 
     def parse(config_file_handle):
         config_map = yaml.load(config_file_handle)
@@ -270,10 +367,6 @@ class ConfigParser(object):
         algorithms = []
         for algorithm in algorithms_list:
 
-            # varNames = sorted(variants)
-            # combinations = [dict(zip(varNames, prod)) for prod in 
-            # it.product(*(variants[varName] for varName in varNames))]
-
             combos = [dict(zip(algorithm["params"], val)) 
                 for val in itertools.product(
                     *(algorithm["params"][param] 
@@ -315,13 +408,15 @@ class ConfigParser(object):
 
 
 def main():
-    # opts = parse_arguments()
-    config_file = "config.yaml"
+    opts = parse_arguments()
+    config_file = opts.config 
 
     pipeline = None
 
     with open(config_file, "r") as conf:
         pipeline = ConfigParser.parse(conf) 
+
+    print("Pipeline started")
 
     print("Creating pathway-specific interactomes")
     pipeline.create_pathway_specific_interactomes()
@@ -331,28 +426,36 @@ def main():
     pipeline.run_pathway_reconstructions()
     print("Finished running pathway reconstructions")
 
-
     print("Computing precision/recall for reconstructions")
     # pipeline.calculate_precision_recall()
     print("Finished computing precision/recall")
 
+    print("Plotting precision/recall results")
+    # pipeline.plot_precision_recall()
+    print("Finished plotting")
 
     print("Pipeline complete")
 
-    # pipeline.calculate_precision_recall()
-    # pipeline.plot_precision_recall()
-
 
 def parse_arguments():
-    # opts = parser.parse_args()
-    opts = None
+    parser = get_parser()
+    opts = parser.parse_args()
 
-    # Name of config file
     # Whether or not to overwrite computations
     # Whether or not to compute precision recall
     # Whether or not to visualize
 
     return opts
+
+
+def get_parser():
+    parser = argparse.ArgumentParser(
+        description='Run pathway reconstruction pipeline.')
+
+    parser.add_argument('--config', default='config.yaml', 
+        help='Configuration file')
+
+    return parser
 
 
 class PathwayReconstructionInput(object):
@@ -375,11 +478,13 @@ class PrecisionRecallInput(object):
 
 
 class RankingAlgorithm(object):
-    def run_if_forced(self, file_location_context, should_force):
+    def run_wrapper(self, reconstruction_input, should_force):
+        self.ensure_output_directory_exists(reconstruction_input)
+
         if (should_force):
-            self.run(file_location_context)
+            self.run(reconstruction_input)
         else:
-            if not self.output_previously_written(file_location_context): 
+            if not self.output_previously_written(reconstruction_input): 
                 self.run(file_location_context)
 
 
@@ -399,14 +504,26 @@ class RankingAlgorithm(object):
 
 
     def calculate_precision_recall(self, precision_recall_input):
+        """
+        Providing that the algorithm reconstruction has already been
+        run, calculate precision/recall on the results.
+        """
         raise NotImplementedError()
 
 
     def plot_precision_recall(self, precision_recall_input):
+        """
+        Given a PrecisionRecallInput object, and a matplotlib ax,
+        plot the precision/recall results.
+
+        """
         raise NotImplementedError()
 
 
     def get_name(self):
+        """
+        Return the full name of the algorithm
+        """
         raise NotImplementedError()
 
 
@@ -424,8 +541,22 @@ class RankingAlgorithm(object):
             self.get_output_directory())
 
 
+    def get_full_precision_recall_directory(self, precision_recall_input):
+        return Path(
+            precision_recall_input.output_dir,
+            self.get_output_directory())
+
+
     def ensure_output_directory_exists(self, reconstruction_input):
         outdir = self.get_full_output_directory(reconstruction_input)
+
+        if not outdir.exists():
+            outdir.mkdir(parents=True, exist_ok=True)
+
+
+    def ensure_precision_recall_directory_exists(self, precision_recall_input):
+        outdir = self.get_full_precision_recall_directory(
+            precision_recall_input)
 
         if not outdir.exists():
             outdir.mkdir(parents=True, exist_ok=True)
@@ -451,11 +582,46 @@ class PathLinker(RankingAlgorithm):
 
 
     def calculate_precision_recall(self, precision_recall_input):
-        raise NotImplementedError()
+        self.ensure_precision_recall_directory_exists(precision_recall_input)
+        edges_file = Path(
+            precision_recall_input.results_dir, 
+            self.get_output_directory(),
+            self.get_output_file())
+
+        retrieved = set()
+        with edges_file.open('r') as f:
+            retrieved = pl_parse.parse_ranked_edges(f)
+
+        relevant = set()
+        with precision_recall_input.pathway_edges_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    relevant.add((line.split()[0], line.split()[1]))
+
+        points = precrec.compute_precision_recall_curve_decimals(
+            retrieved, relevant) 
+
+        outfile = Path(
+            precision_recall_input.output_dir, 
+            self.get_output_directory(),
+            "precision-recall.txt") 
+
+        with outfile.open("w") as f: 
+            precrec.write_precision_recall_decimals(f, points)
 
 
-    def plot_precision_recall(self, precision_recall_input):
-        raise NotImplementedError()
+    def plot_precision_recall(self, precision_recall_input, ax):
+        # Get the right file
+        outfile = Path(
+            precision_recall_input.output_dir, 
+            self.get_output_directory(),
+            "precision-recall.txt") 
+
+        # Read the points
+        with outfile.open('r') as f:
+            points = precrec.read_precision_recall_decimals(f)
+        
+        precrec.plot_precision_recall_curve(points, ax)
 
 
     def get_name(self):
@@ -467,11 +633,68 @@ class PathLinker(RankingAlgorithm):
 
 
     def get_output_directory(self):
-        return Path("k_%d-paths" % self.k)
+        return Path(self.get_name(), "k_%d-paths" % self.k)
+
+
+class InducedSubgraph(RankingAlgorithm):
+    def __init__(self, params):
+        None
+
+
+    def run(self, reconstruction_input):
+        # TODO: This method shouldn't be repeated in every run method...
+        self.ensure_output_directory_exists(reconstruction_input)
+
+        net = None
+        with reconstruction_input.interactome.open('r') as f:
+            net = pl.readNetworkFile(f) 
+
+        nodes = set() 
+        with reconstruction_input.pathway_nodes_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    nodes.add(line.split()[0])
+
+        # Compute the induced subgraph
+        induced_subgraph = net.subgraph(nodes)
+        prediction = induced_subgraph.edges()
+
+        with Path(self.get_full_output_directory(reconstruction_input), 
+            self.get_output_file()).open('w') as f:
+            for edge in prediction:
+                f.write(str(edge[0]) + "\t" + str(edge[1]) + "\t" + "1")
+
+
+    def calculate_precision_recall(self, precision_recall_input):
+        '''
+        relevant = set()
+        with reconstruction_input.pathway_edges_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    relevant.add((line.split()[0], line.split()[1]))
+        '''
+        raise NotImplementedError()
+
+
+    def plot_precision_recall(self, precision_recall_input, ax):
+        raise NotImplementedError()
+        
+
+    def get_name(self):
+        return "induced-subgraph"
+
+
+    def get_output_file(self):
+        return "induced-edges.txt"
+
+
+    def get_output_directory(self):
+        return Path(self.get_name())
 
 
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker,
+    "induced-subgraph" : InducedSubgraph,
     }
 
 

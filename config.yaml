@@ -75,6 +75,8 @@ input_settings:
         - name: "pathlinker"
           params:
             k: [100]
+        - name: "induced-subgraph"
+          params: {}
 
 # Output Settings: initialize base output folder names
 output_settings:
