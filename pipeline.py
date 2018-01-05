@@ -46,7 +46,6 @@ import src.external.pathlinker.parse as pl_parse
 # themselves. If I make each algorithm define a descriptive name
 # instead, then I can get around that problem.
 
-
 def run_alg(algorithm, alg_input):
     start = time.time()
     algorithm.run_wrapper(alg_input, should_force=True)
@@ -225,7 +224,6 @@ class RegLinkerPipeline(object):
             #    write to the proper location. This method will have it write 
             #    to:
             output_dir = Path(
-                #self.output_settings.get_reconstruction_dir(),
                 "outputs",
                 "cross-validation-reconstructions",
                 interactome.name,
@@ -234,6 +232,8 @@ class RegLinkerPipeline(object):
                 "s-t-prune-removing-edges",
                 "%d-folds" % folds,
                 "fold-%d" % i)
+
+            output_dir.mkdir(parents=True, exist_ok=True)
 
             alg_input = PathwayReconstructionInput(
                 specific_interactome, modified_edge_file, node_file, 
@@ -817,22 +817,6 @@ class PathwayReconstructionInput(object):
         self.pathway_nodes_file = pathway_nodes_file
         self.output_dir = output_dir
 
-'''
-class PrecisionRecallInput(object):
-    def __init__(self, interactome, pathway_edges_file, pathway_nodes_file, 
-            results_dir, output_dir):
-        self.interactome = interactome
-        self.pathway_edges_file = pathway_edges_file
-        self.pathway_nodes_file = pathway_nodes_file
-        self.results_dir = results_dir
-        self.output_dir = output_dir
-
-
-class AggregatePrecisionRecallInput(object):
-    def __init__(self, pathway_collection, output_dirs):
-        self.pathway_collection = pathway_collection
-        self.output_dirs = output_dirs
-'''
 
 class RankingAlgorithm(object):
 
@@ -906,8 +890,7 @@ class RankingAlgorithm(object):
         outdir = self.get_full_output_directory(
             reconstruction_input.output_dir)
 
-        if not outdir.exists():
-            outdir.mkdir(parents=True, exist_ok=True)
+        outdir.mkdir(parents=True, exist_ok=True)
 
 
 class PathLinker(RankingAlgorithm):
@@ -916,7 +899,6 @@ class PathLinker(RankingAlgorithm):
 
 
     def run(self, reconstruction_input):
-        self.ensure_output_directory_exists(reconstruction_input)
         subprocess.call([ "python", "src/external/pathlinker/run.py", 
             "-k", str(self.k),
             "--write-paths",
@@ -952,6 +934,7 @@ class PathLinker(RankingAlgorithm):
     def get_output_directory(self):
         return Path(self.get_name(), "k-%d-paths" % self.k)
 
+
 class InducedSubgraph(RankingAlgorithm):
 
     def __init__(self, params):
@@ -974,7 +957,9 @@ class InducedSubgraph(RankingAlgorithm):
         induced_subgraph = net.subgraph(nodes)
         prediction = induced_subgraph.edges()
 
-        with Path(self.get_full_output_directory(reconstruction_input), 
+        with Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir), 
             self.get_output_file()).open('w') as f:
             for edge in prediction:
                 f.write(str(edge[0]) + "\t" + str(edge[1]) + "\t" + "1")
@@ -998,7 +983,7 @@ class InducedSubgraph(RankingAlgorithm):
 
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker,
-    #"induced-subgraph" : InducedSubgraph,
+    "induced-subgraph" : InducedSubgraph,
     }
 
 
