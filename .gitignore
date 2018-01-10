@@ -1,11 +1,17 @@
 *.swp
 *.pyc
+graphspace-credentials.yaml
 
+# Organizational folders
+qsub/*
+!qsub/.gitkeep
 
-venv/
+config/*
+!config/.gitkeep
+
 results/
 inputs/
 outputs/
-viz/
 
-graphspace-credentials.yaml
+# Virtual environments
+venv/
