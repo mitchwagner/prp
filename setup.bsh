@@ -2,13 +2,23 @@
 
 git submodule update --recursive
 
-# Create Python virtual environment
+# Create Python virtual environment for the pipeline
 
 virtualenv venv -p python3
 
 source venv/bin/activate
 
 pip install -r requirements.txt
+
+deactivate
+
+# Create Python virtual environemtn for algorithms in the pipeline
+
+virtualenv venv-regpathlinker -p python2
+
+source venv-regpathlinker/bin/activate
+
+pip install -r requirements-regpathlinker.txt
 
 deactivate
 

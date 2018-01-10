@@ -4,6 +4,17 @@ The name of this node was "--" and in the node file, it had no node type.
 I am changing the name of this node to comply with Jeff's GraphSpace posting
 script, which identifies the nodes in an edge by the delimiting character "-".
 
+I also found a file, .tablereg, which seems to have been left by FAdo.
+I did a search on Google, and I found a GitHub repository for FAdo. I'm not
+sure if it is the original repository for FAdo or not (pypi would seem to 
+indicate otherwise). Regardless, I left an issue:
+
+https://github.com/Glavin001/FAdo/issues/3
+
+For now, I am operating under the assumption that this file is not that 
+important and shouldn't pose a threat to parallelization. This could be an
+erroneous assumption.
+
 * October 19, 2017
 The old PathLinker script in Anna's directory, by default, divided all edge
 weights by the sum of the weight of all edges. If you think about it, this
