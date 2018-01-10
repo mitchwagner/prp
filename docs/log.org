@@ -1,34 +1,44 @@
+* January 10, 2018
+- I emailed one of the original authors of FAdo asking their thoughts on the
+  .tablereg file. 
+
+
 * January 9, 2018
-I found an edge in the KitReceptor pathway nodes/edges file that Anna used.
-The name of this node was "--" and in the node file, it had no node type.
-I am changing the name of this node to comply with Jeff's GraphSpace posting
-script, which identifies the nodes in an edge by the delimiting character "-".
+- I found an edge in the KitReceptor pathway nodes/edges file that Anna used.
+  The name of this node was "--" and in the node file, it had no node type.  I
+  am changing the name of this node to comply with Jeff's GraphSpace posting
+  script, which identifies the nodes in an edge by the delimiting character
+  "-".
 
-I also found a file, .tablereg, which seems to have been left by FAdo.
-I did a search on Google, and I found a GitHub repository for FAdo. I'm not
-sure if it is the original repository for FAdo or not (pypi would seem to 
-indicate otherwise). Regardless, I left an issue:
+- I also found a file, .tablereg, which seems to have been left by FAdo.  I did
+  a search on Google, and I found a GitHub repository for FAdo. I'm not sure if
+  it is the original repository for FAdo or not (pypi would seem to indicate
+  otherwise). Regardless, I left an issue:
 
-https://github.com/Glavin001/FAdo/issues/3
+  https://github.com/Glavin001/FAdo/issues/3
 
-For now, I am operating under the assumption that this file is not that 
-important and shouldn't pose a threat to parallelization. This could be an
-erroneous assumption.
+  For now, I am operating under the assumption that this file is not that
+  important and shouldn't pose a threat to parallelization. This could be an
+  erroneous assumption.
+
+- Update: The author of the repo actually got back to me fairly quickly. While
+  he is not the original author, he looked into the code and does believe the
+  code could be problematic if parallelized. 
 
 * October 19, 2017
-The old PathLinker script in Anna's directory, by default, divided all edge
-weights by the sum of the weight of all edges. If you think about it, this
-minimizes the any importance of edge weight at all, given the negative log
-transform of edge weights. By removing the depedence of the master script on 
-the EXACT version Anna was referencing, I've removed the ability to 
-automatically recreate this effect.
+- The old PathLinker script in Anna's directory, by default, divided all edge
+  weights by the sum of the weight of all edges. If you think about it, this
+  minimizes the any importance of edge weight at all, given the negative log
+  transform of edge weights. By removing the depedence of the master script on
+  the EXACT version Anna was referencing, I've removed the ability to
+  automatically recreate this effect.
 
-If you want to recreate this parameter, you can now pass a very large value for
-the edge penalty to PathLinker. However, at the moment, the ability to pass an
-edge penalty is not possible in our master script. It might be worthwhile to
-write some sort of JSON config file parser that reads in parameters for 
-every algorithm. It's getting to the point where the user is absolutely 
-inundated with switches to provide the program.
+  If you want to recreate this parameter, you can now pass a very large value
+  for the edge penalty to PathLinker. However, at the moment, the ability to
+  pass an edge penalty is not possible in our master script. It might be
+  worthwhile to write some sort of JSON config file parser that reads in
+  parameters for every algorithm. It's getting to the point where the user is
+  absolutely inundated with switches to provide the program.
 
 * September 27, 2017
 - I refactored the minimum cut computation in the main PathLinker script. One
