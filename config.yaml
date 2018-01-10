@@ -5,6 +5,17 @@ input_settings:
     # Base input directory
     input_dir : "inputs"
 
+    # Technique used to create a pathway subnetwork. Via cross-validation,
+    # this technique will be applied to pathways, with the goal being
+    # to use the subnetwork to reconstruct the entire curated pathway.
+    #
+    # List of available techniques:
+    #   - "remove-edges-then-prune"
+    #   - "remove-nodes-then-prune"
+    #   - "remove nodes"
+    #   - "remove edges"
+    subnetwork_creation: "remove-edges-then-prune" 
+
     # Subdirectory of inputs that interactomes should be placed into 
     interactome_dir: "interactomes"
 
@@ -72,11 +83,34 @@ input_settings:
     #   <additional parameters>: any additional, algorithm-specific parameters 
     #       should be specified in the map for a given algorithm
     algorithms:
-        - name: "pathlinker"
-          params:
-            k: [100]
+        #- name: "pathlinker"
+        #    params:
+        #    k: [100]
         - name: "induced-subgraph"
           params: {}
+
+        - name: "reglinker"
+          params:
+            k: [10000]
+            rlc:
+                # At least 1 unknown edge, up to length 5 
+                - ["at-least-1-unknown-length-5", "sns|snps|spns|snns|snpps|spnps|sppns|snnps|snpns|spnns|snnns|snppps|spnpps|sppnps|spppns|snnpps|snpnps|snppns|spnnps|spnpns|sppnns|snnnps|snnpns|snpnns|spnnns|snnnns|snpppps|spnppps|sppnpps|spppnps|sppppns|snnppps|snpnpps|snppnps|snpppns|spnnpps|spnpnps|spnppns|sppnnps|sppnpns|spppnns|snnnpps|snnpnps|snnppns|snpnnps|snpnpns|snppnns|spnnnps|spnnpns|spnpnns|sppnnns|snnnnps|snnnpns|snnpnns|snpnnns|spnnnns|snnnnns"]
+
+                # Start with known edge, ues 0 or more known edges, use an
+                # unknown edge, and finish with 0 or more known edges
+                - ["some-known-one-unknown-some-known" ,"spp*np*s"]
+
+                # At least one unknown edge, up to length 4
+                - ["at-least-1-unknown-length-4", "sns|spns|sppns|spppns|sppnps|spnps|spnpps|snps|snpps|snppps"]
+
+                # At most two unknown edges (last OR is redundant?)
+                - ["at-most-two-unknown-v1", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*npp*s"]
+
+                # At most two unknown edges (simpler)
+                - ["at-most-two-unknown-v2", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s"]
+
+                # At most three unknown edges
+                - ["at-most-three-unknown", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*np*np*s|sp*np*np*npp*s"] 
 
 # Output Settings: initialize base output folder names
 output_settings:
