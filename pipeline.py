@@ -633,7 +633,7 @@ class RegLinkerPipeline(object):
             print("Creating fold: %d" % i)
             print("    Nodes Before: %d" % len(net.nodes()))
             print("    Edges Before: %d" % len(net.edges()))
-            print("    Removing %d edges, then pruning" % len(test))
+            print("    Removing %d edges" % len(test))
             edges_to_remove = [edges[x] for x in test]
             for edge in edges_to_remove:
                 net_copy.remove_edge(edge[0], edge[1])
@@ -809,6 +809,11 @@ class RegLinkerPipeline(object):
                 self.get_pathway_specific_interactome_file_path(
                     interactome, pathway)
 
+            interactome_edges = set()
+            with specific_interactome.open('r') as f:
+                net = pl.readNetworkFile(f) 
+                interactome_edges = set(net.edges())
+
             modified_edges_file = Path(
                 self.output_settings.get_cross_validation_folds_dir(),
                 interactome.name,
@@ -874,11 +879,17 @@ class RegLinkerPipeline(object):
                             provided_edges.add(
                                 (line.split()[0], line.split()[1]))
 
+                negatives = interactome_edges.difference(relevant_edges)
+
                 reduced_edges = relevant_edges.difference(provided_edges)
 
+                # Get the negatives, which is everything in the interactome
+                # minus everything in the pathway...
+
                 # Calculate precision/recall
-                points = precrec.compute_precision_recall_curve_fractions(
-                    retrieved_edges, reduced_edges) 
+                points = \
+                    precrec.compute_precision_recall_curve_negatives_fractions(
+                        retrieved_edges, reduced_edges, negatives)
                 '''
                 # This is wrong, just for testing: 
                 points = precrec.compute_precision_recall_curve_fractions(
@@ -1688,7 +1699,7 @@ def main():
     config_file = opts.config 
 
     pipeline = None
-    num_folds = 10 
+    num_folds = 2 
 
     with open(config_file, "r") as conf:
         pipeline = ConfigParser.parse(conf) 
