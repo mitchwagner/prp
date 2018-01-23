@@ -11,6 +11,7 @@ config/*
 
 results/
 inputs/
+outputs
 outputs/
 
 # Virtual environments
