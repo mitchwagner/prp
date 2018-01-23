@@ -7,3 +7,6 @@
 [submodule "src/external/regpathlinker"]
 	path = src/external/regpathlinker
 	url = https://github.com/adyprat/regpathlinker
+[submodule "src/external/shortcuts-ss"]
+	path = src/external/shortcuts-ss
+	url = https://github.com/adyprat/shortcuts-ss
