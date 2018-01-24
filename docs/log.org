@@ -1,3 +1,18 @@
+* January 23
+- In our last meeting, we discussed the possibility that we where maybe 
+  not thinking our precision/recall calculation through. In particular, each
+  fold consists of a list of positives and negatives to train on. However,
+  when we run the algorithm all the negatives (those in the fold and those 
+  not in the fold) are given the label n (as are the test positives), 
+  while the list of training positives are given the label p.
+
+  After discussing for a while, we decided that we would probably not improve
+  precision/recall by labeling training edges with a different label, like "x".
+  This is 1) because you might need to go through an "x" to get to a "p"
+  anyway, and 2) we aren't using the "x"s in the calculation of a particular
+  fold anyway.
+
+
 * January 10, 2018
 - I emailed one of the original authors of FAdo asking their thoughts on the
   .tablereg file. 
