@@ -6,6 +6,10 @@ graphspace-credentials.yaml
 qsub/*
 !qsub/.gitkeep
 
+# Python byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
 config/*
 !config/.gitkeep
 
