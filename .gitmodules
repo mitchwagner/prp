@@ -10,3 +10,6 @@
 [submodule "src/external/shortcuts-ss"]
 	path = src/external/shortcuts-ss
 	url = https://github.com/adyprat/shortcuts-ss
+[submodule "src/external/quicklinker"]
+	path = src/external/quicklinker
+	url = https://github.com/mitchwagner/quicklinker
