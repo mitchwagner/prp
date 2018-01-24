@@ -11,6 +11,10 @@ from multiprocessing import Pool, cpu_count
 from pathlib import Path
 import shutil
 
+# temporary for testing
+import random
+import numpy as np
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -22,6 +26,9 @@ import src.external.utils.graph_algorithms.prune as prune
 
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.parse as pl_parse
+
+# TODO TODO TODO: IGNORE incoming edges to receptors and outgoing edges from
+# transcription factors. There are SO MANY such edges!
 
 # TODO: Remove infrastructure for intra-pipeline prune-then-remove-edges
 #       Create script to prune netpath pathway files and write out nodes, edges
@@ -59,6 +66,10 @@ import src.external.pathlinker.parse as pl_parse
 
 
 def run_fold(fold, fold_input):
+    """
+    Parallelizable, module-level method designed to run an
+    algorithm over a fold.
+    """
     
     directory = fold_input[0]
     subnetwork_creation = fold_input[1]
@@ -119,8 +130,8 @@ def run_alg(algorithm, alg_input):
 class RegLinkerPipeline(object):
 
     subnetwork_creation_techniques = [
-        "remove-edges-then-prune",
-        "remove-nodes-then-prune",
+        "remove-edges-then-prune", # don't use this
+        "remove-nodes-then-prune", # don't use this
         "remove-edges", 
         "remove-nodes"
     ]
@@ -133,8 +144,115 @@ class RegLinkerPipeline(object):
         self.output_settings = output_settings
         self.precision_recall_settings = precision_recall_settings
 
+
+    def pathway_subset_analysis(self):
+        """
+        """
+        for interactome in self.input_settings.interactomes:
+            for pathway_collection in self.input_settings.pathway_collections:
+                results = []
+                for pathway in pathway_collection.pathways:
+
+                    # Get the pathway-specific interactome
+                    specific_interactome = \
+                        interactome.path
+                    '''
+                    self.get_pathway_specific_interactome_file_path(
+                        interactome, pathway)
+                    '''
+                
+                    # Read in the interactome from an edgelist
+                    interactome_net = None
+                    with specific_interactome.open('r') as f:
+                        interactome_net = pl.readNetworkFile(f) 
+
+                    # Pathway node and edge files
+                    node_file = \
+                        pathway_collection.get_pathway_nodes_file(pathway)
+
+                    edge_file = \
+                        pathway_collection.get_pathway_edges_file(pathway)
+
+                    # Read the pathway network from the edge file
+                    net = None
+                    with edge_file.open('r') as f:
+                        net = pl.readNetworkFile(f) 
+                    
+                    # Read the pathway nodes
+                    nodes = pathway_collection.get_nodes_from_pathway_nodes_file(
+                        pathway)
+
+                    # Add nodes to pathway if for whatever reason they are not
+                    # on the edgelist
+                    for node in nodes:
+                        net.add_node(node)
+
+                    sources = None 
+                    with node_file.open('r') as f: 
+                        sources = pl_parse.get_source_set(f)
+
+                    targets = None
+                    with node_file.open('r') as f:
+                        targets = pl_parse.get_target_set(f)
+
+                    interactome_nodes = set(interactome_net.nodes())
+                    interactome_edges = set(interactome_net.edges())
+                    
+                    pathway_nodes = set(net.nodes())
+                    pathway_edges = set(net.edges())
+
+                    results.append((
+                        str(interactome),
+                        pathway_collection.name,
+                        pathway,
+                        len(pathway_nodes),
+                        len(pathway_nodes.intersection(interactome_nodes)),
+                        len(pathway_nodes.intersection(interactome_nodes)) / len(pathway_nodes),
+                        len(sources),
+                        len(sources.intersection(interactome_nodes)),
+                        len(targets), 
+                        len(targets.intersection(interactome_nodes)),
+                        len(pathway_edges),
+                        len(pathway_edges.intersection(interactome_edges)),
+                        len(pathway_edges.intersection(interactome_edges)) / len(pathway_edges)
+                        ))
+
+                table_file = Path(
+                    "outputs",
+                    "other",
+                    "subset-analysis",
+                    pathway_collection.name,
+                    "table.txt")
+
+                table_file.parent.mkdir(parents=True, exist_ok=True)
+
+                with table_file.open('w') as f:
+                    f.write(
+                        "Interactome\t"
+                        "Pathway Collection\t"
+                        "Pathway\t"
+                        "Pathway Node #\t"
+                        "Nodes in Interactome\t"
+                        "Fraction in Interactome\t"
+                        "# Sources\t"
+                        "# Sources in Interactome\t"
+                        "# Targets\t"
+                        "# Targets in Interactome\t"
+                        "Pathway Edge #\t"
+                        "Edges in Interactome\t"
+                        "Fraction in Interactome\n")
+
+                    for result in results:
+                        f.write("\t".join([str(elem) for elem in result]))
+                        f.write("\n")
+
     
     def pruning_analysis_table(self):
+        """
+        Implements logic to see how many nodes and edges of a particular 
+        pathway are pruned if you remove nodes and edges that are not on 
+        source-set-target-set paths
+        """
         for pathway_collection in self.input_settings.pathway_collections:
 
             results = []
@@ -419,15 +537,16 @@ class RegLinkerPipeline(object):
         with edge_file.open('r') as f:
             net = pl.readNetworkFile(f) 
         
-        nodes = list(pathway_collection.get_nodes_from_pathway_nodes_file(
-            pathway))
+        nodes = sorted(
+            list(pathway_collection.get_nodes_from_pathway_nodes_file(
+                pathway)))
 
         for node in nodes:
             net.add_node(node)
 
         edges = None
         with edge_file.open('r') as f:
-            edges = list(pl_parse.get_edge_set(f))
+            edges = sorted(list(pl_parse.get_edge_set(f)))
 
         sources = None 
         with node_file.open('r') as f: 
@@ -511,15 +630,16 @@ class RegLinkerPipeline(object):
         with edge_file.open('r') as f:
             net = pl.readNetworkFile(f) 
         
-        nodes = list(pathway_collection.get_nodes_from_pathway_nodes_file(
-            pathway))
+        nodes = sorted(
+            list(pathway_collection.get_nodes_from_pathway_nodes_file(
+                pathway)))
 
         for node in nodes:
             net.add_node(node)
 
         edges = None
         with edge_file.open('r') as f:
-            edges = list(pl_parse.get_edge_set(f))
+            edges = sorted(list(pl_parse.get_edge_set(f)))
 
         sources = None 
         with node_file.open('r') as f: 
@@ -598,15 +718,16 @@ class RegLinkerPipeline(object):
         with edge_file.open('r') as f:
             net = pl.readNetworkFile(f) 
         
-        nodes = list(pathway_collection.get_nodes_from_pathway_nodes_file(
-            pathway))
+        nodes = sorted(
+            list(pathway_collection.get_nodes_from_pathway_nodes_file(
+                pathway)))
 
         for node in nodes:
             net.add_node(node)
 
         edges = None
         with edge_file.open('r') as f:
-            edges = list(pl_parse.get_edge_set(f))
+            edges = sorted(list(pl_parse.get_edge_set(f)))
 
         sources = None 
         with node_file.open('r') as f: 
@@ -618,7 +739,7 @@ class RegLinkerPipeline(object):
 
         # Split the edges into folds 
         # 1) Randomly choose nodes/edges from each pathway
-        kf = KFold(n_splits = folds)
+        kf = KFold(n_splits=folds, shuffle=True, random_state=12)
 
         split = kf.split(edges)
 
@@ -671,15 +792,16 @@ class RegLinkerPipeline(object):
         with edge_file.open('r') as f:
             net = pl.readNetworkFile(f) 
         
-        nodes = list(pathway_collection.get_nodes_from_pathway_nodes_file(
-            pathway))
+        nodes = sorted(
+            list(pathway_collection.get_nodes_from_pathway_nodes_file(
+                pathway)))
 
         for node in nodes:
             net.add_node(node)
 
         edges = None
         with edge_file.open('r') as f:
-            edges = list(pl_parse.get_edge_set(f))
+            edges = sorted(list(pl_parse.get_edge_set(f)))
 
         sources = None 
         with node_file.open('r') as f: 
@@ -798,21 +920,60 @@ class RegLinkerPipeline(object):
         #    method will need to be run over every fold in the proper
         #    percents folder and will need to output to the right place
 
-        for i in range(folds):
-            node_file = \
-                pathway_collection.get_pathway_nodes_file(pathway)
+        node_file = \
+            pathway_collection.get_pathway_nodes_file(pathway)
 
-            edge_file = \
-                pathway_collection.get_pathway_edges_file(pathway)
+        edge_file = \
+            pathway_collection.get_pathway_edges_file(pathway)
+
+        specific_interactome = \
+            self.get_pathway_specific_interactome_file_path(
+                interactome, pathway)
+
+        interactome_edges = set()
+
+        with specific_interactome.open('r') as f:
+            net = pl.readNetworkFile(f) 
+            interactome_edges = set(net.edges())
+
+        # Get the relevant edges from the original pathway input
+        relevant_edges = set()
+        with edge_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    relevant_edges.add(
+                        (line.split()[0], line.split()[1]))
+        
+        # Get the set of negative edges
+        negatives = sorted(list(interactome_edges.difference(relevant_edges)))
+
+        # Break negative edges up into folds
+
+        # Arbitrary choice, just trying to be consistent
+        random_number = 12
+
+        print("--------------------------------")
+
+
+        '''
+        random.seed(12)
+        random.shuffle(negatives)
+        tests = [x.tolist() for x in np.array_split(negatives, folds)]
+
+        for i, test in enumerate(tests):
+        '''
+
+        kf = KFold(n_splits=folds, shuffle=True, random_state=12)
+
+        split = kf.split(negatives)
+
+        for i, (train, test) in enumerate(split):
+            fold_negatives = [negatives[x] for x in test]
             
-            specific_interactome = \
-                self.get_pathway_specific_interactome_file_path(
-                    interactome, pathway)
+            #test = [(x[0], x[1]) for x in test]
+            #fold_negatives = test
 
-            interactome_edges = set()
-            with specific_interactome.open('r') as f:
-                net = pl.readNetworkFile(f) 
-                interactome_edges = set(net.edges())
+        #for i in range(folds):
 
             modified_edges_file = Path(
                 self.output_settings.get_cross_validation_folds_dir(),
@@ -864,13 +1025,6 @@ class RegLinkerPipeline(object):
                 with output_file.open('r') as f:
                     retrieved_edges = pl_parse.parse_ranked_edges(f)
 
-                # Get the relevant edges from the original pathway input
-                relevant_edges = set()
-                with edge_file.open('r') as f:
-                    for line in f:
-                        if not line.rstrip().startswith("#"):
-                            relevant_edges.add(
-                                (line.split()[0], line.split()[1]))
 
                 provided_edges = set()
                 with modified_edges_file.open('r') as f:
@@ -879,22 +1033,13 @@ class RegLinkerPipeline(object):
                             provided_edges.add(
                                 (line.split()[0], line.split()[1]))
 
-                negatives = interactome_edges.difference(relevant_edges)
 
                 reduced_edges = relevant_edges.difference(provided_edges)
-
-                # Get the negatives, which is everything in the interactome
-                # minus everything in the pathway...
 
                 # Calculate precision/recall
                 points = \
                     precrec.compute_precision_recall_curve_negatives_fractions(
-                        retrieved_edges, reduced_edges, negatives)
-                '''
-                # This is wrong, just for testing: 
-                points = precrec.compute_precision_recall_curve_fractions(
-                    retrieved_edges, relevant_edges) 
-                '''
+                        retrieved_edges, reduced_edges, fold_negatives)
 
                 outfile = Path(
                     output_dir, 
@@ -1201,6 +1346,12 @@ class PrecisionRecallSettings(object):
 
 
 class Interactome(object):
+    '''
+    This is a file-based version of an interactome that is used 
+    exceedingly sparingly in the pipeline. I should look into how to
+    I can refactor this.
+
+    '''
     def __init__(self, name, path):
         self.name = name
         self.path = path
@@ -1687,10 +1838,88 @@ class RegLinker(RankingAlgorithm):
             "rlc-%s-k-%d" % (self.rlc_abbr, self.k))
 
 
+class ShortcutsSS(RankingAlgorithm):
+    def __init__(self, params):
+        self.k = params["k"]
+
+
+    def run(self, reconstruction_input):
+        provided_edges = None
+        with reconstruction_input.pathway_edges_file.open('r') as f:
+            provided_edges = list(pl_parse.get_edge_set(f))
+
+        labeled_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "labeled-interactome.txt")
+
+        with reconstruction_input.interactome.open('r') as in_file,\
+                labeled_interactome.open('w') as out_file:
+             self.label_interactome_file(in_file, out_file, provided_edges)
+
+        subprocess.call([ "python", "src/external/shortcuts-ss/master-script.py", 
+            "-k", str(self.k),
+            "--output",
+            os.path.join(str(Path(
+                reconstruction_input.output_dir, 
+                self.get_output_directory())), ""),
+            str(labeled_interactome),
+            str(reconstruction_input.pathway_nodes_file)
+            ])
+
+
+    def label_interactome_file(self, in_handle, out_handle, positive_set):
+        """
+        Read in one of our interactome files and add a label to every
+        edge, with the label depending on whether or not that edge
+        appears in the positive set.
+        """
+
+        for line in in_handle:
+            if pl_parse.is_comment_line(line):
+                out_handle.write(line)
+            else:
+                tokens = pl_parse.tokenize(line)
+                edge = (tokens[0], tokens[1])
+                if edge in positive_set:
+                    out_handle.write(line.rstrip() + "\tp\n")
+                else:
+                    out_handle.write(line.rstrip() + "\tn\n")
+
+
+    def conform_output(self, output_dir):
+        outfile = Path(output_dir, 
+                       self.get_output_directory(),
+                       self.get_output_file())
+
+        desired = Path(output_dir, 
+                       self.get_output_directory(),
+                       "ranked-edges.txt")
+
+        shutil.copy(str(outfile), str(desired))
+
+
+    def get_name(self):
+        return "shortcuts"
+
+
+    def get_descriptive_name(self):
+        return "shortcuts-ss, k=%d" % self.k
+
+
+    def get_output_file(self):
+        return "k_%d-ranked-edges.txt" % self.k
+
+
+    def get_output_directory(self):
+        return Path(self.get_name(), "k_%d-nodes" % self.k)
+
+
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker,
     "induced-subgraph" : InducedSubgraph,
-    "reglinker" : RegLinker
+    "reglinker" : RegLinker,
+    "shortcuts-ss" : ShortcutsSS
     }
 
 
@@ -1699,16 +1928,18 @@ def main():
     config_file = opts.config 
 
     pipeline = None
-    num_folds = 2 
+    num_folds = 2
 
     with open(config_file, "r") as conf:
         pipeline = ConfigParser.parse(conf) 
 
     print("Pipeline started")
 
+    pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
     #pipeline.pruning_analysis_table()
-
+    
+    '''
     if not opts.pathway_specific_interactomes_off:
         print("Creating pathway-specific interactomes")
         pipeline.create_pathway_specific_interactomes_wrapper()
@@ -1728,7 +1959,6 @@ def main():
         print("Computing precision/recall for reconstructions over folds")
         pipeline.write_precision_recall_with_folds_wrapper(num_folds)
         print("Finished computing precision/recall over folds")
-
 
     if not opts.aggregate_precision_recall_folds_off:
         print("Aggregating precision/recall over folds")
@@ -1750,8 +1980,10 @@ def main():
         pipeline.plot_pathway_collection_aggregate_precision_recall_wrapper(
             num_folds)
         print("Finished plotting")
+    '''
 
     print("Pipeline complete")
+
 
 
 def parse_arguments():
