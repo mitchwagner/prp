@@ -14,7 +14,7 @@ input_settings:
     #   - "remove-nodes-then-prune"
     #   - "remove nodes"
     #   - "remove edges"
-    subnetwork_creation: "remove-edges-then-prune" 
+    subnetwork_creation: "remove-edges" 
 
     # Subdirectory of inputs that interactomes should be placed into 
     interactome_dir: "interactomes"
@@ -31,14 +31,25 @@ input_settings:
     #   path: Subdirectory of interactome_dir, specified by list of folders
     #       along the path 
     interactomes:
-        - name: "pathlinker-signaling-children-reg-no-netpath-weighted"
-          filename: "pathlinker-signaling-children-reg-no-netpath-weighted.txt"
+        #- name: "pathlinker-signaling-children-reg-no-netpath-weighted"
+        #  filename: "pathlinker-signaling-children-reg-no-netpath-weighted.txt"
+        #  path: ["human"]
+
+        - name: "pathlinker-signaling-children-reg-weighted"
+          filename: "pathlinker-signaling-children-reg-weighted.txt"
           path: ["human"]
 
         - name: "pathlinker-signaling-children-reg-weighted"
           filename: "pathlinker-signaling-children-reg-weighted.txt"
           path: ["human"]
-               
+
+        - name: "all-pathway-edges"
+          filename: "additional2.txt"
+          path: ["human"]
+
+        - name: "string"
+          filename: "9606-final.txt"
+          path: ["human"]
 
     # Denotes a list of pathway collections, each with the following 
     # parameters:
@@ -56,6 +67,25 @@ input_settings:
     #       <name>-nodes.txt and <name>-edges.txt in that folder.
     #
     pathway_collections:
+        - name: "netpath-s-t-pruned"
+          path: ["netpath-s-t-pruned", "pathways"]
+          pathways:
+            - "BDNF"
+            - "EGFR1"
+            - "IL1"
+            - "IL2"
+            - "IL3"
+            - "IL6"
+            - "IL-7"
+            - "KitReceptor"
+            - "Leptin"
+            - "Prolactin"
+            - "RANKL"
+            - "TCR"
+            - "TGF_beta_Receptor"
+            - "TNFalpha"
+            - "Wnt"
+
         - name: "netpath"
           path: ["netpath", "pathways"]
           pathways:
@@ -75,7 +105,6 @@ input_settings:
             - "TNFalpha"
             - "Wnt"
 
-
     # Denotes a list of algorithms to run. Each has the following parameters: 
     #   name: Name of the algorithm. Must be recognized by the pipeline, see
     #       code for acceptable values
@@ -86,31 +115,58 @@ input_settings:
         #- name: "pathlinker"
         #    params:
         #    k: [100]
+
         - name: "induced-subgraph"
           params: {}
 
         - name: "reglinker"
           params:
-            k: [10000]
+            k: [1000]
             rlc:
                 # At least 1 unknown edge, up to length 5 
-                - ["at-least-1-unknown-length-5", "sns|snps|spns|snns|snpps|spnps|sppns|snnps|snpns|spnns|snnns|snppps|spnpps|sppnps|spppns|snnpps|snpnps|snppns|spnnps|spnpns|sppnns|snnnps|snnpns|snpnns|spnnns|snnnns|snpppps|spnppps|sppnpps|spppnps|sppppns|snnppps|snpnpps|snppnps|snpppns|spnnpps|spnpnps|spnppns|sppnnps|sppnpns|spppnns|snnnpps|snnpnps|snnppns|snpnnps|snpnpns|snppnns|spnnnps|spnnpns|spnpnns|sppnnns|snnnnps|snnnpns|snnpnns|snpnnns|spnnnns|snnnnns"]
+                - ["at-least-1-unknown-length-5", "n|np|pn|nn|npp|pnp|ppn|nnp|npn|pnn|nnn|nppp|pnpp|ppnp|pppn|nnpp|npnp|nppn|pnnp|pnpn|ppnn|nnnp|nnpn|npnn|pnnn|nnnn|npppp|pnppp|ppnpp|pppnp|ppppn|nnppp|npnpp|nppnp|npppn|pnnpp|pnpnp|pnppn|ppnnp|ppnpn|pppnn|nnnpp|nnpnp|nnppn|npnnp|npnpn|nppnn|pnnnp|pnnpn|pnpnn|ppnnn|nnnnp|nnnpn|nnpnn|npnnn|pnnnn|nnnnn"]
 
                 # Start with known edge, ues 0 or more known edges, use an
                 # unknown edge, and finish with 0 or more known edges
-                - ["some-known-one-unknown-some-known" ,"spp*np*s"]
+                - ["at-least-1-known-one-unknown-some-known" ,"pp*np*"]
 
                 # At least one unknown edge, up to length 4
-                - ["at-least-1-unknown-length-4", "sns|spns|sppns|spppns|sppnps|spnps|spnpps|snps|snpps|snppps"]
+                - ["1-unknown-length-4", "n|pn|ppn|pppn|ppnp|pnp|pnpp|np|npp|nppp"]
 
-                # At most two unknown edges (last OR is redundant?)
-                - ["at-most-two-unknown-v1", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*npp*s"]
+                # At most two unknown edges (simpler), start or end with
+                # a known edge 
+                - ["at-most-2-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*"]
 
-                # At most two unknown edges (simpler)
-                - ["at-most-two-unknown-v2", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s"]
+                - ["at-most-2-unknown", "p*np*|p*np*np*"]
 
-                # At most three unknown edges
-                - ["at-most-three-unknown", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*np*np*s|sp*np*np*npp*s"] 
+                # At most three unknown edges, start or end with a known
+                # edge
+                - ["at-most-3-unknown-with-positive", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*np*np*s|sp*np*np*npp*s"] 
+
+        - name: "quickreglinker"
+          params: 
+            rlc:
+                # At least 1 unknown edge, up to length 5 
+                - ["at-least-1-unknown-length-5", "n|np|pn|nn|npp|pnp|ppn|nnp|npn|pnn|nnn|nppp|pnpp|ppnp|pppn|nnpp|npnp|nppn|pnnp|pnpn|ppnn|nnnp|nnpn|npnn|pnnn|nnnn|npppp|pnppp|ppnpp|pppnp|ppppn|nnppp|npnpp|nppnp|npppn|pnnpp|pnpnp|pnppn|ppnnp|ppnpn|pppnn|nnnpp|nnpnp|nnppn|npnnp|npnpn|nppnn|pnnnp|pnnpn|pnpnn|ppnnn|nnnnp|nnnpn|nnpnn|npnnn|pnnnn|nnnnn"]
+
+                # Start with known edge, ues 0 or more known edges, use an
+                # unknown edge, and finish with 0 or more known edges
+                - ["at-least-1-known-one-unknown-one-known" ,"pp*np*"]
+
+                # At least one unknown edge, up to length 4
+                - ["1-unknown-length-4", "n|pn|ppn|pppn|ppnp|pnp|pnpp|np|npp|nppp"]
+
+                # At most two unknown edges (simpler), start or end with
+                # a known edge 
+                - ["at-most-2-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*"]
+
+                # At most three unknown edges, start or end with a known
+                # edge
+                - ["at-most-3-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*|pp*np*np*np*|p*np*np*npp*"] 
+
+        #- name: "shortcuts-ss"
+        #  params:
+        #    k: [1000]
 
 # Output Settings: initialize base output folder names
 output_settings:
