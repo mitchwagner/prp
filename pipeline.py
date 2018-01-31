@@ -27,6 +27,14 @@ import src.external.utils.graph_algorithms.prune as prune
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.parse as pl_parse
 
+# TODO: InducedSubgraph is cheating and gets all the nodes for EVERY fold.
+
+# TODO: You have to change the venvs in each algorithm based on 
+# the platform you are running on.... -_-
+
+# TODO for now, ignoring incoming pathway edges to sources, outgoing from
+# targets. This might need to change eventually.
+
 # TODO TODO TODO: IGNORE incoming edges to receptors and outgoing edges from
 # transcription factors. There are SO MANY such edges!
 
@@ -38,12 +46,6 @@ import src.external.pathlinker.parse as pl_parse
 
 # TODO: Check to make sure that errors from not creating files don't propogate
 # into the "conform output" function
-
-# TODO: Check and figure out how to properly handle precision/recall with
-#       no curve or precision/recall with only one data point
-
-# TODO: Remove pathway-specific edges from considerations: easier than adding
-# to the interactome (at least, if the interactome is weighted)
 
 # TODO: Test alternate node removals
 
@@ -109,7 +111,8 @@ def run_fold(fold, fold_input):
         specific_interactome, modified_edge_file, node_file, 
         output_dir)
 
-    num_cores = cpu_count()
+    #num_cores = cpu_count()
+    num_cores = 1 
     p = multiprocessing.pool.ThreadPool(num_cores)
 
     p.starmap(run_alg, itertools.product(
@@ -318,8 +321,8 @@ class RegLinkerPipeline(object):
 
             with table_file.open('w') as f:
                 f.write("Pathway\tNodes Before Pruning\tNodes After Pruning\t"
-                "Nodes % Difference\tEdges Before Pruning\t"
-                "Edges After Pruning\tEdges % Difference\n")
+                "Ratio\tEdges Before Pruning\t"
+                "Edges After Pruning\tRatio\n")
 
                 for result in results:
                     f.write("\t".join([str(elem) for elem in result]))
@@ -515,7 +518,7 @@ class RegLinkerPipeline(object):
             raise ValueError("Please supply a valid subnetwork "
                              "creation technique")
 
-
+    '''
     def create_folds_remove_edges_then_prune(
             self, interactome, pathway_collection, pathway, folds):
         """
@@ -555,6 +558,10 @@ class RegLinkerPipeline(object):
         targets = None
         with node_file.open('r') as f:
             targets = pl_parse.get_target_set(f)
+
+
+
+
 
         # Split the edges into folds 
         # 1) Randomly choose nodes/edges from each pathway
@@ -700,6 +707,7 @@ class RegLinkerPipeline(object):
 
             with outfile.open('w') as f:
                 pl_parse.write_network_file(net_copy, f)
+    '''
 
 
     def create_folds_remove_edges(
@@ -737,11 +745,20 @@ class RegLinkerPipeline(object):
         with node_file.open('r') as f:
             targets = pl_parse.get_target_set(f)
 
+        
+        # We removed a lot of edges from the interactome so we have to 
+        # filter those out
+        final_relevant_edges = [] 
+
+        for edge in edges:
+            if not (edge[0] in targets or edge[1] in sources):
+                final_relevant_edges.append(edge)
+
         # Split the edges into folds 
         # 1) Randomly choose nodes/edges from each pathway
         kf = KFold(n_splits=folds, shuffle=True, random_state=12)
 
-        split = kf.split(edges)
+        split = kf.split(final_relevant_edges)
 
         # 2) Removing chosen nodes
 
@@ -755,7 +772,7 @@ class RegLinkerPipeline(object):
             print("    Nodes Before: %d" % len(net.nodes()))
             print("    Edges Before: %d" % len(net.edges()))
             print("    Removing %d edges" % len(test))
-            edges_to_remove = [edges[x] for x in test]
+            edges_to_remove = [final_relevant_edges[x] for x in test]
             for edge in edges_to_remove:
                 net_copy.remove_edge(edge[0], edge[1])
 
@@ -775,7 +792,7 @@ class RegLinkerPipeline(object):
             with outfile.open('w') as f:
                 pl_parse.write_network_file(net_copy, f)
 
-
+    '''
     def create_folds_remove_nodes(
             self, interactome, pathway_collection, pathway, folds):
         # 0) Read in graph, nodes, edges sources, target 
@@ -848,6 +865,7 @@ class RegLinkerPipeline(object):
 
             with outfile.open('w') as f:
                 pl_parse.write_network_file(net_copy, f)
+    '''
 
 
     def run_pathway_reconstructions_with_folds_wrapper(self, folds):
@@ -885,7 +903,8 @@ class RegLinkerPipeline(object):
         specific_interactome = self.get_pathway_specific_interactome_file_path(
             interactome, pathway)
 
-        num_cores = cpu_count()
+        #num_cores = cpu_count()
+        num_cores = 1 
         p = Pool(num_cores)
 
         p.starmap(run_fold, itertools.product(
@@ -915,10 +934,7 @@ class RegLinkerPipeline(object):
     def write_precision_recall_with_folds(
             self, interactome, pathway_collection, pathway, folds):
 
-        # 6) Unfortunately, the precision/recall method will need to 
-        #    be run slightly differently. E.g., the precision/recall
-        #    method will need to be run over every fold in the proper
-        #    percents folder and will need to output to the right place
+        # 6) Run precision/recall method over every fold
 
         node_file = \
             pathway_collection.get_pathway_nodes_file(pathway)
@@ -943,19 +959,36 @@ class RegLinkerPipeline(object):
                 if not line.rstrip().startswith("#"):
                     relevant_edges.add(
                         (line.split()[0], line.split()[1]))
-        
+
+
         # Get the set of negative edges
         negatives = sorted(list(interactome_edges.difference(relevant_edges)))
+
+
+        # Remove edges from relevance that we explicitly removed from the
+        # interactome
+        final_relevant_edges = set()
+
+        sources = None 
+        with node_file.open('r') as f: 
+            sources = pl_parse.get_source_set(f)
+
+        targets = None
+        with node_file.open('r') as f:
+            targets = pl_parse.get_target_set(f)
+
+        for edge in relevant_edges:
+            if not (edge[0] in targets or edge[1] in sources):
+                final_relevant_edges.add(edge)
 
         # Break negative edges up into folds
 
         # Arbitrary choice, just trying to be consistent
         random_number = 12
 
-        print("--------------------------------")
-
 
         '''
+        print("--------------------------------")
         random.seed(12)
         random.shuffle(negatives)
         tests = [x.tolist() for x in np.array_split(negatives, folds)]
@@ -1025,7 +1058,8 @@ class RegLinkerPipeline(object):
                 with output_file.open('r') as f:
                     retrieved_edges = pl_parse.parse_ranked_edges(f)
 
-
+                # I have to make sure I'm not giving positives that cannot
+                # be found because I removed them from the interactome!
                 provided_edges = set()
                 with modified_edges_file.open('r') as f:
                     for line in f:
@@ -1034,7 +1068,7 @@ class RegLinkerPipeline(object):
                                 (line.split()[0], line.split()[1]))
 
 
-                reduced_edges = relevant_edges.difference(provided_edges)
+                reduced_edges = final_relevant_edges.difference(provided_edges)
 
                 # Calculate precision/recall
                 points = \
@@ -1915,11 +1949,145 @@ class ShortcutsSS(RankingAlgorithm):
         return Path(self.get_name(), "k_%d-nodes" % self.k)
 
 
+class QuickRegLinker(RankingAlgorithm):
+    def __init__(self, params):
+        self.rlc_abbr = params["rlc"][0]
+        self.rlc = params["rlc"][1]
+
+
+    def run(self, reconstruction_input):
+        # 1) Label interactome
+        # 2) Cut the unnecessary column out
+        # 3) Source Python2 venv
+        # 4) Call Aditya's code to generate DFA graph
+        # 5) Run the compiled Java binary
+        
+        #######################################################################
+        # 1)
+        provided_edges = None
+        with reconstruction_input.pathway_edges_file.open('r') as f:
+            provided_edges = list(pl_parse.get_edge_set(f))
+
+        labeled_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "labeled-interactome.txt")
+
+        with reconstruction_input.interactome.open('r') as in_file,\
+                labeled_interactome.open('w') as out_file:
+             self.label_interactome_file(in_file, out_file, provided_edges)
+
+        #######################################################################
+        # 2) Keep only the necessary columns
+        cut_labeled_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "cut-labeled-interactome.txt")
+
+        with cut_labeled_interactome.open("w") as outfile:
+            subprocess.call([
+                "cut",
+                "-f", 
+                "1,2,3,5",
+                str(labeled_interactome)],
+                stdout=outfile
+                )
+            
+        #######################################################################
+        # 3) and 4)
+        dfa_prefix = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "dfa")
+
+        subprocess.call([
+            "venv-regpathlinker/bin/python",
+            "src/external/regpathlinker/RegexToGraph.py",
+            str(self.rlc),
+            str(dfa_prefix)]
+            )
+
+        # -n network-rlcsp.txt -nodeTypes node-types-rlcsp.txt 
+        # -dfa dfa.txt -dfaNodeTypes dfa-node-types.txt -o test -rlcsp
+
+        #######################################################################
+        # 5)
+
+        subprocess.call([
+            "java",
+            "-jar",
+            "src/external/quicklinker/build/libs/quicklinker.jar",
+            "-n",
+            str(cut_labeled_interactome),
+            "-nodeTypes",
+            str(reconstruction_input.pathway_nodes_file),
+            "-dfa",
+            str(dfa_prefix) + "-edges.txt",
+            "-dfaNodeTypes",
+            str(dfa_prefix) + "-nodes.txt",
+            "-o",
+            os.path.join(str(Path(
+                reconstruction_input.output_dir, 
+                self.get_output_directory())), "output"),
+            "-rlcsp"
+            ])
+
+
+    def label_interactome_file(self, in_handle, out_handle, positive_set):
+        """
+        Read in one of our interactome files and add a label to every
+        edge, with the label depending on whether or not that edge
+        appears in the positive set.
+        """
+
+        for line in in_handle:
+            if pl_parse.is_comment_line(line):
+                out_handle.write(line)
+            else:
+                tokens = pl_parse.tokenize(line)
+                edge = (tokens[0], tokens[1])
+                if edge in positive_set:
+                    out_handle.write(line.rstrip() + "\tp\n")
+                else:
+                    out_handle.write(line.rstrip() + "\tn\n")
+
+
+    def conform_output(self, output_dir):
+        outfile = Path(output_dir, 
+                       self.get_output_directory(),
+                       self.get_output_file())
+
+        desired = Path(output_dir, 
+                       self.get_output_directory(),
+                       "ranked-edges.txt")
+
+        shutil.copy(str(outfile), str(desired))
+
+
+    def get_name(self):
+        return "quickreglinker"
+
+
+    def get_descriptive_name(self):
+        return "quickreglinker, rlc=%s" % (self.rlc_abbr)
+
+
+    def get_output_file(self):
+        return "output-projection.txt"
+
+
+    def get_output_directory(self):
+        return Path(    
+            self.get_name(), 
+            "rlc-%s" % (self.rlc_abbr))
+
+
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker,
     "induced-subgraph" : InducedSubgraph,
     "reglinker" : RegLinker,
-    "shortcuts-ss" : ShortcutsSS
+    "shortcuts-ss" : ShortcutsSS,
+    "quickreglinker" : QuickRegLinker 
     }
 
 
@@ -1935,11 +2103,10 @@ def main():
 
     print("Pipeline started")
 
-    pipeline.pathway_subset_analysis()
+    #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
     #pipeline.pruning_analysis_table()
     
-    '''
     if not opts.pathway_specific_interactomes_off:
         print("Creating pathway-specific interactomes")
         pipeline.create_pathway_specific_interactomes_wrapper()
@@ -1980,7 +2147,6 @@ def main():
         pipeline.plot_pathway_collection_aggregate_precision_recall_wrapper(
             num_folds)
         print("Finished plotting")
-    '''
 
     print("Pipeline complete")
 
