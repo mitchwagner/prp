@@ -1,3 +1,12 @@
+* January 24, 2018
+- Today, while creating an interactome by adding missing edges from the 
+  Netpath pathways, I noticed that, similar to the Kit pathway (see
+  January 9) TCR and the TGF_beta_receptor pathway have nodes named "-".
+  For now, this is mostly just an annoyance, but it does mean the scripts
+  for posting to GraphSpace might be slightly incorrect. 
+
+  I also don't have a good idea of what these nodes are supposed to be.
+
 * January 23
 - In our last meeting, we discussed the possibility that we where maybe 
   not thinking our precision/recall calculation through. In particular, each
