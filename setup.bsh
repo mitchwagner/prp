@@ -1,7 +1,7 @@
 ###############################################################################
 # Pull submodules
 
-git submodule update --recursive
+git submodule update --init --recursive
 
 ###############################################################################
 # Create Python virtual environment for the pipeline
