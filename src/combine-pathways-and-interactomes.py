@@ -50,7 +50,10 @@ def main():
     with interactome_file.open('r') as f: 
         interactome = inter.parse_csbdb_interactome_file(f)
 
+    num_missing = {}
     for name in pathway_names:
+        counter = 0
+        counter2 = 0
         print(name)
         print("--------------")
         edge_file = Path(pathway_dir, name + "-edges.txt")
@@ -60,9 +63,16 @@ def main():
             pathway = pw.parse_csbdb_pathway_file(f1, f2)
 
             for edge in pathway.get_edges(data=False):
+                counter2 += 1
                 if edge not in interactome.get_edges(data=False):
+                    counter +=1
                     interactome.add_edge(edge[0], edge[1], {"weight":.75})
                     print(edge)
+
+        num_missing[name] = (counter, counter2)
+
+    for key in num_missing:
+        print("pathway: %s num_missing: %d pathway_size: %d" % (key, num_missing[key][0], num_missing[key][1]))
 
     with Path("additional.txt").open('w') as f:
         inter.write_csbdb_interactome_file(interactome, f)
