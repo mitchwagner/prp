@@ -39,12 +39,8 @@ input_settings:
           filename: "pathlinker-signaling-children-reg-weighted.txt"
           path: ["human"]
 
-        - name: "pathlinker-signaling-children-reg-weighted"
-          filename: "pathlinker-signaling-children-reg-weighted.txt"
-          path: ["human"]
-
         - name: "all-pathway-edges"
-          filename: "additional2.txt"
+          filename: "pathlinker-signaling-children-reg-weighted-all-netpath-edges.txt"
           path: ["human"]
 
         - name: "string"
@@ -116,6 +112,10 @@ input_settings:
         #    params:
         #    k: [100]
 
+        - name: "zerolinker"
+          params:
+            k: [1000]
+
         - name: "induced-subgraph"
           params: {}
 
@@ -163,6 +163,27 @@ input_settings:
                 # At most three unknown edges, start or end with a known
                 # edge
                 - ["at-most-3-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*|pp*np*np*np*|p*np*np*npp*"] 
+
+        - name: "quickreglinker-sanity"
+          params: 
+            rlc:
+                # At least 1 unknown edge, up to length 5 
+                - ["at-least-1-unknown-length-5", "f|fp|pf|ff|fpp|pfp|ppf|ffp|fpf|pff|fff|fppp|pfpp|ppfp|pppf|ffpp|fpfp|fppf|pffp|pfpf|ppff|fffp|ffpf|fpff|pfff|ffff|fpppp|pfppp|ppfpp|pppfp|ppppf|ffppp|fpfpp|fppfp|fpppf|pffpp|pfpfp|pfppf|ppffp|ppfpf|pppff|fffpp|ffpfp|ffppf|fpffp|fpfpf|fppff|pfffp|pffpf|pfpff|ppfff|ffffp|fffpf|ffpff|fpfff|pffff|fffff"]
+
+                # Start with known edge, ues 0 or more known edges, use an
+                # unknown edge, and finish with 0 or more known edges
+                - ["at-least-1-known-one-unknown-some-known" ,"pp*fp*"]
+
+                # At least one unknown edge, up to length 4
+                - ["1-unknown-length-4", "f|pf|ppf|pppf|ppfp|pfp|pfpp|fp|fpp|fppp"]
+
+                # At most two unknown edges (simpler), start or end with
+                # a known edge 
+                - ["at-most-2-unknown-with-positive", "p*|pp*fp*|p*fpp*|pp*fp*fp*|p*fp*fpp*"]
+
+                # At most three unknown edges, start or end with a known
+                # edge
+                - ["at-most-3-unknown-with-positive", "p*|pp*fp*|p*fpp*|pp*fp*fp*|p*fp*fpp*|pp*fp*fp*fp*|p*fp*fp*fpp*"] 
 
         #- name: "shortcuts-ss"
         #  params:

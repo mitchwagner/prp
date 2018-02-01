@@ -93,9 +93,15 @@ def run_fold(fold, fold_input):
         "%d-folds" % folds,
         "fold-%d" % fold,
         "edges.txt")
+    
+    # All edges in the pathway. Some algorithms which cheat (as sanity checks)
+    # need this information to cheat effectively
+    original_edge_file = \
+        pathway_collection.get_pathway_edges_file(pathway)
 
     node_file = \
         pathway_collection.get_pathway_nodes_file(pathway)
+
 
     output_dir = Path(
         "outputs",
@@ -109,7 +115,7 @@ def run_fold(fold, fold_input):
 
     alg_input = PathwayReconstructionInput(
         specific_interactome, modified_edge_file, node_file, 
-        output_dir)
+        output_dir, original_edge_file)
 
     #num_cores = cpu_count()
     num_cores = 1 
@@ -128,6 +134,7 @@ def run_alg(algorithm, alg_input):
     start = time.time()
     algorithm.run_wrapper(alg_input, should_force=False)
     end = time.time()
+    print("Time to run: " + str(end - start))
 
 
 class RegLinkerPipeline(object):
@@ -447,7 +454,7 @@ class RegLinkerPipeline(object):
             ,"--username=" + str(credentials["email"])
             ,"--password=" + str(credentials["password"])
             ,"--graph-name=" + graph_name
-            ,"--make-public"
+            ,"--group=" + '"Regular Language Shortest Paths"'
             ])
 
     def run_over_all_pathways(self, func):
@@ -1591,9 +1598,19 @@ class ConfigParser(object):
 
 class PathwayReconstructionInput(object):
     def __init__(self, interactome, pathway_edges_file, pathway_nodes_file, 
-            output_dir):
+            output_dir, all_edges_file):
         self.interactome = interactome
+        
+        # The ENTIRE set of edges in a pathway (not just positives for a given
+        # fold
+        self.all_edges_file = pathway_edges_file
+
+        # A pathway edge with JUST positives for a given fold
+        # TODO: should probably rename, but most if not all algorithms have
+        # hardcoded dependence on this parameter, so it would take a few 
+        # minutes
         self.pathway_edges_file = pathway_edges_file
+
         self.pathway_nodes_file = pathway_nodes_file
         self.output_dir = output_dir
 
@@ -1621,7 +1638,7 @@ class RankingAlgorithm(object):
             if not self.output_previously_written(reconstruction_input): 
                 self.run(reconstruction_input)
             else:
-                print("Skipping: already run", )
+                print("Skipping (already run):", self.get_descriptive_name())
 
         self.conform_output(reconstruction_input.output_dir)
 
@@ -1737,6 +1754,99 @@ class PathLinker(RankingAlgorithm):
         return Path(self.get_name(), "k-%d-paths" % self.k)
 
 
+# Cheat 
+# TODO: Give pathway positive edges weight of 1 in interacomte so that
+# they are essentially free
+class ZeroLinker(RankingAlgorithm):
+    def __init__(self, params):
+        self.k = params["k"]
+
+
+    def run(self, reconstruction_input):
+
+        ######################################################################
+        # Zero out the interactome
+        provided_edges = None
+        with reconstruction_input.pathway_edges_file.open('r') as f:
+            provided_edges = list(pl_parse.get_edge_set(f))
+
+        zero_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "zero-interactome.txt")
+
+        with reconstruction_input.interactome.open('r') as in_file,\
+                zero_interactome.open('w') as out_file:
+
+            self.give_pathway_positives_zero_weight(
+                in_file, out_file, provided_edges)
+
+        ################3######################################################
+        # Run PathLinker
+        subprocess.call([ "python", "src/external/pathlinker/run.py", 
+            "-k", str(self.k),
+            "--write-paths",
+            "--output",
+            os.path.join(str(Path(
+                reconstruction_input.output_dir, 
+                self.get_output_directory())), ""),
+            str(zero_interactome),
+            str(reconstruction_input.pathway_nodes_file)
+            ])
+
+
+    # TODO: Make sure this is working correctly by checking output
+    def give_pathway_positives_zero_weight( 
+        self, in_handle, out_handle, positive_set):
+        """
+        Read in one of our interactomes files and give a weight of 1 (cost of
+        0) to every edge that appears in the positive set, overriding 
+        the edge's original weight in our interactome.
+        """
+
+        for line in in_handle:
+            if pl_parse.is_comment_line(line):
+                out_handle.write(line)
+            else:
+                # Tokens: tail, head, weight, type
+                tokens = pl_parse.tokenize(line)
+                edge = (tokens[0], tokens[1])
+                if edge in positive_set:
+                    out_handle.write(
+                        tokens[0] + "\t" +
+                        tokens[1] + "\t" + 
+                        "1.0" + "\t" +
+                        tokens[3]  + "\n")
+
+
+    def conform_output(self, output_dir):
+        outfile = Path(output_dir, 
+                       self.get_output_directory(),
+                       self.get_output_file())
+
+        desired = Path(output_dir, 
+                       self.get_output_directory(),
+                       "ranked-edges.txt")
+
+        shutil.copy(str(outfile), str(desired))
+
+
+    def get_name(self):
+        return "zerolinker"
+
+
+    def get_descriptive_name(self):
+        return "zerolinker, k=%d" % self.k
+
+
+    def get_output_file(self):
+        return "k-%d-ranked-edges.txt" % self.k
+
+
+    def get_output_directory(self):
+        return Path(self.get_name(), "k-%d-paths" % self.k)
+
+
 class InducedSubgraph(RankingAlgorithm):
 
     def __init__(self, params):
@@ -1749,11 +1859,20 @@ class InducedSubgraph(RankingAlgorithm):
         with reconstruction_input.interactome.open('r') as f:
             net = pl.readNetworkFile(f) 
 
+        
+        nodes = self.get_nodes_from_edge_file(
+            self, reconstruction_input.pathway_edges_file)
+
+        '''
+        # The pathway edges file is coped and modified in the cross-val. fold 
+        # procedure, but the nodes file is not. This uses all the nodes
+        # in the original pathway.
         nodes = set() 
         with reconstruction_input.pathway_nodes_file.open('r') as f:
             for line in f:
                 if not line.rstrip().startswith("#"):
                     nodes.add(line.split()[0])
+        '''
 
         # Compute the induced subgraph
         induced_subgraph = net.subgraph(nodes)
@@ -1765,6 +1884,18 @@ class InducedSubgraph(RankingAlgorithm):
             self.get_output_file()).open('w') as f:
             for edge in prediction:
                 f.write(str(edge[0]) + "\t" + str(edge[1]) + "\t" + "1" + "\n")
+
+
+    def get_nodes_from_edge_file(self, edge_file):
+        nodes = set()
+        with edge_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    nodes.add(line.split()[0])
+                    nodes.add(line.split()[1])
+
+        return nodes
+
 
 
     def conform_output(self, output_dir):
@@ -2015,6 +2146,7 @@ class QuickRegLinker(RankingAlgorithm):
 
         subprocess.call([
             "java",
+            "-Xmx15360m",
             "-jar",
             "src/external/quicklinker/build/libs/quicklinker.jar",
             "-n",
@@ -2082,12 +2214,165 @@ class QuickRegLinker(RankingAlgorithm):
             "rlc-%s" % (self.rlc_abbr))
 
 
+class QuickRegLinkerSanityCheck(RankingAlgorithm):
+    '''
+    Alternative labeling procedure, intended as sanity check.
+    Instead of labeling fold positives with "n", they get "f", and we 
+    ask for paths with "p"s and "f"s instead of "p"s and "n"s. The 
+    precision should thus be 100%
+    '''
+    def __init__(self, params):
+        self.rlc_abbr = params["rlc"][0]
+        self.rlc = params["rlc"][1]
+
+
+    def run(self, reconstruction_input):
+        # 1) Label interactome
+        # 2) Cut the unnecessary column out
+        # 3) Source Python2 venv
+        # 4) Call Aditya's code to generate DFA graph
+        # 5) Run the compiled Java binary
+        
+        #######################################################################
+        # 1)
+        provided_edges = None
+        with reconstruction_input.pathway_edges_file.open('r') as f:
+            provided_edges = list(pl_parse.get_edge_set(f))
+
+        labeled_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "labeled-interactome.txt")
+
+        all_edges = None
+        with reconstruction_input.all_edges_file.open('r') as f:
+            all_edges = list(pl_parse.get_edge_set(f))
+
+        # To get the set of "f"s, take the set of all edges and subtract out
+        # out the positives from the training set
+        fs = list(set(all_edges) - set(provided_edges))
+
+        with reconstruction_input.interactome.open('r') as in_file,\
+                labeled_interactome.open('w') as out_file:
+             self.label_interactome_file(in_file, out_file, fs, provided_edges)
+
+        #######################################################################
+        # 2) Keep only the necessary columns
+        cut_labeled_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "cut-labeled-interactome.txt")
+
+        with cut_labeled_interactome.open("w") as outfile:
+            subprocess.call([
+                "cut",
+                "-f", 
+                "1,2,3,5",
+                str(labeled_interactome)],
+                stdout=outfile
+                )
+            
+        #######################################################################
+        # 3) and 4)
+        dfa_prefix = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "dfa")
+
+        subprocess.call([
+            "venv-regpathlinker/bin/python",
+            "src/external/regpathlinker/RegexToGraph.py",
+            str(self.rlc),
+            str(dfa_prefix)]
+            )
+
+        # -n network-rlcsp.txt -nodeTypes node-types-rlcsp.txt 
+        # -dfa dfa.txt -dfaNodeTypes dfa-node-types.txt -o test -rlcsp
+
+        #######################################################################
+        # 5)
+
+        subprocess.call([
+            "java",
+            "-Xmx15360m",
+            "-jar",
+            "src/external/quicklinker/build/libs/quicklinker.jar",
+            "-n",
+            str(cut_labeled_interactome),
+            "-nodeTypes",
+            str(reconstruction_input.pathway_nodes_file),
+            "-dfa",
+            str(dfa_prefix) + "-edges.txt",
+            "-dfaNodeTypes",
+            str(dfa_prefix) + "-nodes.txt",
+            "-o",
+            os.path.join(str(Path(
+                reconstruction_input.output_dir, 
+                self.get_output_directory())), "output"),
+            "-rlcsp"
+            ])
+
+
+    def label_interactome_file(self, in_handle, out_handle, fs, training):
+        """
+        Read in one of our interactome files and add a label to every
+        edge, with the label depending on whether or not that edge
+        appears in the positive set.
+        """
+
+        for line in in_handle:
+            if pl_parse.is_comment_line(line):
+                out_handle.write(line)
+            else:
+                tokens = pl_parse.tokenize(line)
+                edge = (tokens[0], tokens[1])
+                if edge in training:
+                    out_handle.write(line.rstrip() + "\tp\n")
+                elif edge in fs:
+                    out_handle.write(line.rstrip() + "\tf\n")
+                else:
+                    out_handle.write(line.rstrip() + "\tn\n")
+
+
+    def conform_output(self, output_dir):
+        outfile = Path(output_dir, 
+                       self.get_output_directory(),
+                       self.get_output_file())
+
+        desired = Path(output_dir, 
+                       self.get_output_directory(),
+                       "ranked-edges.txt")
+
+        shutil.copy(str(outfile), str(desired))
+
+
+    def get_name(self):
+        return "quickreglinker-sanity"
+
+
+    def get_descriptive_name(self):
+        return "quickreglinker-sanity, rlc=%s" % (self.rlc_abbr)
+
+
+    def get_output_file(self):
+        return "output-projection.txt"
+
+
+    def get_output_directory(self):
+        return Path(    
+            self.get_name(), 
+            "rlc-%s" % (self.rlc_abbr))
+
+
+
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker,
     "induced-subgraph" : InducedSubgraph,
     "reglinker" : RegLinker,
     "shortcuts-ss" : ShortcutsSS,
-    "quickreglinker" : QuickRegLinker 
+    "quickreglinker" : QuickRegLinker,
+    "zerolinker" : ZeroLinker,
+    "quickreglinker-sanity" : QuickRegLinkerSanityCheck 
     }
 
 
