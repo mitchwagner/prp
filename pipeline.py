@@ -972,8 +972,20 @@ class RegLinkerPipeline(object):
         negatives = sorted(list(interactome_edges.difference(relevant_edges)))
 
 
+        # If a positive is not in the interactome, discard it from
+        # the positive set
+        positives_not_in_interactome = set()
+        for edge in relevant_edges:
+            if edge not in interactome_edges:
+                positives_not_in_interactome.add(edge)
+
+        relevant_edges = relevant_edges.difference(
+            positives_not_in_interactome)
+        
+
+        # TODO: Think through this, but is it really necessary after the above?
         # Remove edges from relevance that we explicitly removed from the
-        # interactome
+        # interactome (incoming edges to sources, outgoing to targets)
         final_relevant_edges = set()
 
         sources = None 
@@ -988,6 +1000,8 @@ class RegLinkerPipeline(object):
             if not (edge[0] in targets or edge[1] in sources):
                 final_relevant_edges.add(edge)
 
+
+        #######################################################################
         # Break negative edges up into folds
 
         # Arbitrary choice, just trying to be consistent
@@ -1078,8 +1092,13 @@ class RegLinkerPipeline(object):
                 reduced_edges = final_relevant_edges.difference(provided_edges)
 
                 # Calculate precision/recall
+
+                #points = \
+                #    precrec.compute_precision_recall_curve_negatives_fractions(
+                #        retrieved_edges, reduced_edges, fold_negatives)
+
                 points = \
-                    precrec.compute_precision_recall_curve_negatives_fractions(
+                    precrec.compute_precrec_negatives_fractions_ignore_direction(
                         retrieved_edges, reduced_edges, fold_negatives)
 
                 outfile = Path(
@@ -1603,7 +1622,7 @@ class PathwayReconstructionInput(object):
         
         # The ENTIRE set of edges in a pathway (not just positives for a given
         # fold
-        self.all_edges_file = pathway_edges_file
+        self.all_edges_file = all_edges_file
 
         # A pathway edge with JUST positives for a given fold
         # TODO: should probably rename, but most if not all algorithms have
@@ -1817,6 +1836,8 @@ class ZeroLinker(RankingAlgorithm):
                         tokens[1] + "\t" + 
                         "1.0" + "\t" +
                         tokens[3]  + "\n")
+                else:
+                    out_handle.write(line)
 
 
     def conform_output(self, output_dir):
