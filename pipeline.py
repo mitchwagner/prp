@@ -11,12 +11,16 @@ from multiprocessing import Pool, cpu_count
 from pathlib import Path
 import shutil
 
-# temporary for testing
 import random
 import numpy as np
 
+from graphspace_python.graphs.classes.gsgraph import GSGraph
+from graphspace_python.api.client import GraphSpace
+
 import matplotlib
 matplotlib.use('Agg')
+
+import networkx as nx
 
 from sklearn.model_selection import KFold
 
@@ -27,7 +31,8 @@ import src.external.utils.graph_algorithms.prune as prune
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.parse as pl_parse
 
-# TODO: InducedSubgraph is cheating and gets all the nodes for EVERY fold.
+from src.external.utils.pathway.pathway import Pathway 
+import src.external.utils.pathway.pathway_parse as pathway_parse
 
 # TODO: You have to change the venvs in each algorithm based on 
 # the platform you are running on.... -_-
@@ -55,9 +60,6 @@ import src.external.pathlinker.parse as pl_parse
 #       precision/recall on nodes, or use the edges set to get the nodes.
 #       BUT WAIT IT'S WORSE. ANY TIME I CREATE A NETWORK FOR THE PATHWAY, 
 #       I HAVE LEFT THESE NODES OUT.
-
-# TODO: Abstract network creation from a pathway out. I can probably place this
-# under the PathwayCollection class 
 
 # Done?
 # 1) Check to make SURE the cross-validation is being done correctly
@@ -88,7 +90,7 @@ def run_fold(fold, fold_input):
     modified_edge_file = Path(
         directory,
         interactome.name,
-        pathway,
+        pathway.name,
         subnetwork_creation,
         "%d-folds" % folds,
         "fold-%d" % fold,
@@ -96,19 +98,16 @@ def run_fold(fold, fold_input):
     
     # All edges in the pathway. Some algorithms which cheat (as sanity checks)
     # need this information to cheat effectively
-    original_edge_file = \
-        pathway_collection.get_pathway_edges_file(pathway)
+    original_edge_file = pathway.get_edges_file()
 
-    node_file = \
-        pathway_collection.get_pathway_nodes_file(pathway)
-
+    node_file = pathway.get_nodes_file()
 
     output_dir = Path(
         "outputs",
         "cross-validation-reconstructions",
         interactome.name,
         pathway_collection.name,
-        pathway,
+        pathway.name,
         subnetwork_creation,
         "%d-folds" % folds,
         "fold-%d" % fold)
@@ -154,7 +153,7 @@ class RegLinkerPipeline(object):
         self.output_settings = output_settings
         self.precision_recall_settings = precision_recall_settings
 
-
+    # TODO: Fix, this is probably broken after refactor
     def pathway_subset_analysis(self):
         """
         """
@@ -257,6 +256,7 @@ class RegLinkerPipeline(object):
                         f.write("\n")
 
     
+    # TODO: Fix, this is probably broken after refactor
     def pruning_analysis_table(self):
         """
         Implements logic to see how many nodes and edges of a particular 
@@ -336,6 +336,7 @@ class RegLinkerPipeline(object):
                     f.write("\n")
 
 
+    # TODO: Fix, this is probably broken after refactor
     def graphspace_pruning_upload_wrapper(self):
         for pathway_collection in self.input_settings.pathway_collections:
             for pathway in pathway_collection.pathways:
@@ -343,6 +344,7 @@ class RegLinkerPipeline(object):
                     pathway_collection, pathway)
 
 
+    # TODO: Fix, this is probably broken after refactor
     def graphspace_pruning_upload(
         self, pathway_collection, pathway):
 
@@ -457,7 +459,13 @@ class RegLinkerPipeline(object):
             ,"--group=" + '"Regular Language Shortest Paths"'
             ])
 
+
     def run_over_all_pathways(self, func):
+        '''
+        Given a function that takes interactomes, pathway collections, and
+        pathways, run the function over all interactomes and the pathways
+        in each pathway collection.
+        '''
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
                 for pathway in pathway_collection.pathways:
@@ -465,14 +473,21 @@ class RegLinkerPipeline(object):
 
 
     def create_pathway_specific_interactomes_wrapper(self):
+        '''
+        For all interactomes and pathways, create pathway-specific
+        interactomes where incoming edges to sources and outgoing edges
+        to targets are removed.
+        '''
         self.run_over_all_pathways(self.create_pathway_specific_interactomes)
 
 
     def create_pathway_specific_interactomes(
             self, interactome, pathway_collection, pathway):
-
-        node_file = \
-            pathway_collection.get_pathway_nodes_file(pathway)
+        '''
+        Create pathway-specific interactomes by removing incoming edges
+        to sources and outgoing edges to targets, placing the resulting
+        interactomes into directories appropriate for the pipeline.
+        '''
 
         outpath = self.get_pathway_specific_interactome_file_path(
             interactome, pathway)
@@ -481,17 +496,37 @@ class RegLinkerPipeline(object):
             outpath.parent.mkdir(parents=True, exist_ok = True)
 
         interactome.create_pathway_specific_interactome(
-            node_file, outpath)
+            pathway.get_pathway_obj(), outpath)
 
 
     def get_pathway_specific_interactome_file_path(
             self, interactome, pathway):
+        '''
+        Return the correct path to a pathway-specific interactome file
+        created by this pipeline.
+        '''
 
         return Path(
             self.output_settings.get_pathway_specific_interactome_dir(),
             interactome.name,
-            pathway,
+            pathway.name,
             "interactome.txt")
+
+
+    def get_pathway_specific_interactome(self, interactome, pathway):
+        '''
+        Return a new Interactome object for pathway-specific interactome
+        formed from interactomes and pathways
+        '''
+        path = self.get_pathway_specific_interactome_file_path(
+            interactome, pathway)
+
+        return Interactome(interactome.name, path)
+
+
+    def get_pathway_specific_interactome_edges(self, interactome, pathway):
+        interactome = get_pathway_specific_interactome(interactome, pathwy)
+        return interactome.get_interactome_edges()
 
 
     def create_folds_wrapper(self, folds):
@@ -501,17 +536,7 @@ class RegLinkerPipeline(object):
                 for pathway_collection in \
                     self.input_settings.pathway_collections:
                     for pathway in pathway_collection.pathways:
-                        if (sc == "remove-edges-then-prune"):
-                            self.create_folds_remove_edges_then_prune(
-                                interactome, pathway_collection, pathway, 
-                                folds)
-
-                        elif (sc == "remove-nodes-then-prune"):
-                            self.create_folds_remove_edges_then_prune(
-                                interactome, pathway_collection, pathway, 
-                                folds)
-
-                        elif (sc == "remove-edges"):
+                        if (sc == "remove-edges"):
                             self.create_folds_remove_edges(
                                 interactome, pathway_collection, pathway, 
                                 folds)
@@ -520,252 +545,46 @@ class RegLinkerPipeline(object):
                             self.create_folds_remove_nodes(
                                 interactome, pathway_collection, pathway, 
                                 folds)
-
         else:
             raise ValueError("Please supply a valid subnetwork "
                              "creation technique")
-
-    '''
-    def create_folds_remove_edges_then_prune(
-            self, interactome, pathway_collection, pathway, folds):
-        """
-        Create folds, first removing some percent of edges, then pruning.
-        This method should probably not be used.
-        """
-        # 0) Read in graph, nodes, edges sources, target 
-
-        node_file = \
-            pathway_collection.get_pathway_nodes_file(pathway)
-
-        edge_file = \
-            pathway_collection.get_pathway_edges_file(pathway)
-        
-        specific_interactome = self.get_pathway_specific_interactome_file_path(
-            interactome, pathway)
-
-        net = None
-        with edge_file.open('r') as f:
-            net = pl.readNetworkFile(f) 
-        
-        nodes = sorted(
-            list(pathway_collection.get_nodes_from_pathway_nodes_file(
-                pathway)))
-
-        for node in nodes:
-            net.add_node(node)
-
-        edges = None
-        with edge_file.open('r') as f:
-            edges = sorted(list(pl_parse.get_edge_set(f)))
-
-        sources = None 
-        with node_file.open('r') as f: 
-            sources = pl_parse.get_source_set(f)
-
-        targets = None
-        with node_file.open('r') as f:
-            targets = pl_parse.get_target_set(f)
-
-
-
-
-
-        # Split the edges into folds 
-        # 1) Randomly choose nodes/edges from each pathway
-        kf = KFold(n_splits = folds)
-
-        split = kf.split(edges)
-
-        # 2) Run Reduction algorithm after removing chosen nodes
-
-        # I want to remove the things in test so I can test for
-        # them. I am giving (AKA not deleting) the things in train)
-        for i, (train, test) in enumerate(split):
-            net_copy = net.copy()
-
-            print("Pathway: %s" % pathway)
-            print("Creating fold: %d" % i)
-            print("    Nodes Before: %d" % len(net.nodes()))
-            print("    Edges Before: %d" % len(net.edges()))
-            print("    Removing %d edges, then pruning" % len(test))
-            edges_to_remove = [edges[x] for x in test]
-            for edge in edges_to_remove:
-                net_copy.remove_edge(edge[0], edge[1])
-
-            # Run reduction
-            prune.remove_nodes_not_on_s_t_path(
-                net_copy, sources, targets, method="reachability")
-            print("    Nodes After: %d" % len(net_copy.nodes()))
-            print("    Edges After: %d" % len(net_copy.edges()))
-
-            net_copy2 = net.copy()
-            prune.remove_nodes_not_on_s_t_path(
-                net_copy2, sources, targets, method="reachability")
-            print("    For comparison, no edge removal, just pruning:")
-            print("    Nodes After: %d" % len(net_copy2.nodes()))
-            print("    Edges After: %d" % len(net_copy2.edges()))
-
-
-            # 3) Write new pathway edges file to proper location
-
-            outfile = Path(
-                self.output_settings.get_cross_validation_folds_dir(),
-                interactome.name,
-                pathway,
-                self.input_settings.subnetwork_creation,
-                "%d-folds" % folds,
-                "fold-%d" % i,
-                "edges.txt")
-
-            outfile.parents[0].mkdir(parents=True, exist_ok=True)
-
-            with outfile.open('w') as f:
-                pl_parse.write_network_file(net_copy, f)
-
-
-    def create_folds_remove_nodes_then_prune(
-            self, interactome, pathway_collection, pathway, folds):
-        # cross-validation-folds/interactome/pathway_collection/pathway/method/percent/folds/edges.txt
-        # cross-validation-folds/interactome/pathway_collection/pathway/s-t-prune-removing-nodes/percent/folds/edges.txt
-        # cross-validation-folds/interactome/pathway_collection/pathway/s-t-prune-removing-edges/percent/folds/edges.txt
-
-        # 0) Read in graph, nodes, edges sources, target 
-
-        node_file = \
-            pathway_collection.get_pathway_nodes_file(pathway)
-
-        edge_file = \
-            pathway_collection.get_pathway_edges_file(pathway)
-        
-        specific_interactome = self.get_pathway_specific_interactome_file_path(
-            interactome, pathway)
-
-        net = None
-        with edge_file.open('r') as f:
-            net = pl.readNetworkFile(f) 
-        
-        nodes = sorted(
-            list(pathway_collection.get_nodes_from_pathway_nodes_file(
-                pathway)))
-
-        for node in nodes:
-            net.add_node(node)
-
-        edges = None
-        with edge_file.open('r') as f:
-            edges = sorted(list(pl_parse.get_edge_set(f)))
-
-        sources = None 
-        with node_file.open('r') as f: 
-            sources = pl_parse.get_source_set(f)
-
-        targets = None
-        with node_file.open('r') as f:
-            targets = pl_parse.get_target_set(f)
-
-        # Split the edges into folds 
-        # 1) Randomly choose nodes/edges from each pathway
-        kf = KFold(n_splits = folds)
-
-        split = kf.split(nodes)
-
-        # 2) Run Reduction algorithm after removing chosen nodes
-
-        # I want to remove the things in test so I can test for
-        # them. I am giving (AKA not deleting) the things in train)
-        for i, (train, test) in enumerate(split):
-            net_copy = net.copy()
-
-            print("Pathway: %s" % pathway)
-            print("Creating fold: %d" % i)
-            print("    Nodes Before: %d" % len(net.nodes()))
-            print("    Edges Before: %d" % len(net.edges()))
-            print("    Removing %d edges, then pruning" % len(test))
-            nodes_to_remove = [nodes[x] for x in test]
-            for node in nodes_to_remove:
-                net_copy.remove_node(node)
-
-            # Run reduction
-            prune.remove_nodes_not_on_s_t_path(
-                net_copy, sources, targets, method="reachability")
-            print("    Nodes After: %d" % len(net_copy.nodes()))
-            print("    Edges After: %d" % len(net_copy.edges()))
-
-            net_copy2 = net.copy()
-            prune.remove_nodes_not_on_s_t_path(
-                net_copy2, sources, targets, method="reachability")
-            print("    For comparison, no edge removal, just pruning:")
-            print("    Nodes After: %d" % len(net_copy.nodes()))
-            print("    Edges After: %d" % len(net_copy.edges()))
-
-
-            # 3) Write new pathway edges file to proper location
-
-            outfile = Path(
-                self.output_settings.get_cross_validation_folds_dir(),
-                interactome.name,
-                pathway,
-                self.input_settings.subnetwork_creation,
-                "%d-folds" % folds,
-                "fold-%d" % i,
-                "edges.txt")
-
-            outfile.parents[0].mkdir(parents=True, exist_ok=True)
-
-            with outfile.open('w') as f:
-                pl_parse.write_network_file(net_copy, f)
-    '''
 
 
     def create_folds_remove_edges(
             self, interactome, pathway_collection, pathway, folds):
         # 0) Read in graph, nodes, edges sources, target 
-
-        node_file = \
-            pathway_collection.get_pathway_nodes_file(pathway)
-
-        edge_file = \
-            pathway_collection.get_pathway_edges_file(pathway)
         
-        specific_interactome = self.get_pathway_specific_interactome_file_path(
-            interactome, pathway)
+        # pathway is a PathwayOnDisk object: get the in-memory version
+        pathway_obj = pathway.get_pathway_obj()
 
-        with edge_file.open('r') as f:
-            net = pl.readNetworkFile(f) 
-        
-        nodes = sorted(
-            list(pathway_collection.get_nodes_from_pathway_nodes_file(
-                pathway)))
+        # Create network from pathway_obj
+        edges = pathway_obj.get_edges(data=True)
+        nodes = pathway_obj.get_nodes(data=True)
+        sources = pathway_obj.get_receptors(data=False)
+        targets = pathway_obj.get_tfs(data=False)
 
-        for node in nodes:
-            net.add_node(node)
+        net = nx.DiGraph()
 
-        edges = None
-        with edge_file.open('r') as f:
-            edges = sorted(list(pl_parse.get_edge_set(f)))
+        net.add_edges_from(edges)
+        net.add_nodes_from(nodes)
 
-        sources = None 
-        with node_file.open('r') as f: 
-            sources = pl_parse.get_source_set(f)
+        # Remove edges that we removed from the interactome from the
+        # pathway
 
-        targets = None
-        with node_file.open('r') as f:
-            targets = pl_parse.get_target_set(f)
-
-        
-        # We removed a lot of edges from the interactome so we have to 
-        # filter those out
-        final_relevant_edges = [] 
-
+        positives = []
         for edge in edges:
             if not (edge[0] in targets or edge[1] in sources):
-                final_relevant_edges.append(edge)
+                positives.append(edge)
+        
+        # Sort for partitioning
+        # 
+        positives.sort(key=lambda edge:(edge[0],edge[1],edge[2]["weight"]))
 
         # Split the edges into folds 
         # 1) Randomly choose nodes/edges from each pathway
-        kf = KFold(n_splits=folds, shuffle=True, random_state=12)
+        kf = KFold(n_splits=folds, shuffle=True, random_state=1800)
 
-        split = kf.split(final_relevant_edges)
+        split = kf.split(positives)
 
         # 2) Removing chosen nodes
 
@@ -774,12 +593,12 @@ class RegLinkerPipeline(object):
         for i, (train, test) in enumerate(split):
             net_copy = net.copy()
 
-            print("Pathway: %s" % pathway)
+            print("Pathway: %s" % pathway.name)
             print("Creating fold: %d" % i)
-            print("    Nodes Before: %d" % len(net.nodes()))
-            print("    Edges Before: %d" % len(net.edges()))
-            print("    Removing %d edges" % len(test))
-            edges_to_remove = [final_relevant_edges[x] for x in test]
+            print("    Nodeset size : %d" % len(net.nodes()))
+            print("    Edgeset size: %d" % len(net.edges()))
+            print("    Removing %d edges for fold" % len(test))
+            edges_to_remove = [positives[x] for x in test]
             for edge in edges_to_remove:
                 net_copy.remove_edge(edge[0], edge[1])
 
@@ -788,7 +607,7 @@ class RegLinkerPipeline(object):
             outfile = Path(
                 self.output_settings.get_cross_validation_folds_dir(),
                 interactome.name,
-                pathway,
+                pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
                 "fold-%d" % i,
@@ -798,81 +617,6 @@ class RegLinkerPipeline(object):
 
             with outfile.open('w') as f:
                 pl_parse.write_network_file(net_copy, f)
-
-    '''
-    def create_folds_remove_nodes(
-            self, interactome, pathway_collection, pathway, folds):
-        # 0) Read in graph, nodes, edges sources, target 
-
-        node_file = \
-            pathway_collection.get_pathway_nodes_file(pathway)
-
-        edge_file = \
-            pathway_collection.get_pathway_edges_file(pathway)
-        
-        specific_interactome = self.get_pathway_specific_interactome_file_path(
-            interactome, pathway)
-
-        with edge_file.open('r') as f:
-            net = pl.readNetworkFile(f) 
-        
-        nodes = sorted(
-            list(pathway_collection.get_nodes_from_pathway_nodes_file(
-                pathway)))
-
-        for node in nodes:
-            net.add_node(node)
-
-        edges = None
-        with edge_file.open('r') as f:
-            edges = sorted(list(pl_parse.get_edge_set(f)))
-
-        sources = None 
-        with node_file.open('r') as f: 
-            sources = pl_parse.get_source_set(f)
-
-        targets = None
-        with node_file.open('r') as f:
-            targets = pl_parse.get_target_set(f)
-
-        # Split the edges into folds 
-        # 1) Randomly choose nodes/edges from each pathway
-        kf = KFold(n_splits = folds)
-
-        split = kf.split(nodes)
-
-        # 2) Removing chosen nodes
-
-        # I want to remove the things in test so I can test for
-        # them. I am giving (AKA not deleting) the things in train)
-        for i, (train, test) in enumerate(split):
-            net_copy = net.copy()
-
-            print("Pathway: %s" % pathway)
-            print("Creating fold: %d" % i)
-            print("    Nodes Before: %d" % len(net.nodes()))
-            print("    Edges Before: %d" % len(net.edges()))
-            print("    Removing %d edges, then pruning" % len(test))
-            nodes_to_remove = [nodes[x] for x in test]
-            for node in nodes_to_remove:
-                net_copy.remove_node(node)
-
-            # 3) Write new pathway edges file to proper location
-
-            outfile = Path(
-                self.output_settings.get_cross_validation_folds_dir(),
-                interactome.name,
-                pathway,
-                self.input_settings.subnetwork_creation,
-                "%d-folds" % folds,
-                "fold-%d" % i,
-                "edges.txt")
-
-            outfile.parents[0].mkdir(parents=True, exist_ok=True)
-
-            with outfile.open('w') as f:
-                pl_parse.write_network_file(net_copy, f)
-    '''
 
 
     def run_pathway_reconstructions_with_folds_wrapper(self, folds):
@@ -893,7 +637,7 @@ class RegLinkerPipeline(object):
                 "cross-validation-reconstructions",
                 interactome.name,
                 pathway_collection.name,
-                pathway,
+                pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
                 "fold-%d" % i)
@@ -929,6 +673,217 @@ class RegLinkerPipeline(object):
         p.close()
         p.join()
 
+    
+    def post_reconstructions_to_graphspace_wrapper(self, folds):
+        for interactome in self.input_settings.interactomes:
+            for pathway_collection in self.input_settings.pathway_collections:
+                for pathway in pathway_collection.pathways:
+                    self.post_reconstructions_to_graphspace(
+                        interactome, pathway_collection, pathway, folds)
+
+
+    def post_reconstructions_to_graphspace(
+            self, interactome, pathway_collection, pathway, folds):
+        
+        node_file = pathway.get_nodes_file()
+
+        edge_file = pathway.get_edges_file()
+
+        specific_interactome = \
+            self.get_pathway_specific_interactome_file_path(
+                interactome, pathway)
+
+        interactome_edges = set()
+
+        with specific_interactome.open('r') as f:
+            net = pl.readNetworkFile(f) 
+            interactome_edges = set(net.edges())
+
+        # Get the relevant edges from the original pathway input
+        relevant_edges = set()
+        with edge_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    relevant_edges.add(
+                        (line.split()[0], line.split()[1]))
+
+        # Get the set of negative edges
+        negatives = list(interactome_edges.difference(relevant_edges))
+        negatives.sort(key=lambda edge:(edge[0],edge[1]))
+
+        # If a positive is not in the interactome, discard it from
+        # the positive set
+        positives_not_in_interactome = set()
+        for edge in relevant_edges:
+            if edge not in interactome_edges:
+                positives_not_in_interactome.add(edge)
+
+        relevant_edges = relevant_edges.difference(
+            positives_not_in_interactome)
+        
+
+        # TODO: Think through this, but is it really necessary after the above?
+        # Remove edges from relevance that we explicitly removed from the
+        # interactome (incoming edges to sources, outgoing to targets)
+        final_relevant_edges = set()
+
+        sources = None 
+        with node_file.open('r') as f: 
+            sources = pl_parse.get_source_set(f)
+
+        targets = None
+        with node_file.open('r') as f:
+            targets = pl_parse.get_target_set(f)
+
+        for edge in relevant_edges:
+            if not (edge[0] in targets or edge[1] in sources):
+                final_relevant_edges.add(edge)
+
+        kf = KFold(n_splits=folds, shuffle=True, random_state=1800)
+
+        split = kf.split(negatives)
+
+        for i, (train, test) in enumerate(split):
+            fold_negatives = [negatives[x] for x in test]
+            
+            modified_edges_file = Path(
+                self.output_settings.get_cross_validation_folds_dir(),
+                interactome.name,
+                pathway.name,
+                self.input_settings.subnetwork_creation,
+                "%d-folds" % folds,
+                "fold-%d" % i,
+                "edges.txt")
+    
+            results_dir = Path(
+                "outputs",
+                "cross-validation-reconstructions",
+                interactome.name,
+                pathway_collection.name,
+                pathway.name,
+                self.input_settings.subnetwork_creation,
+                "%d-folds" % folds,
+                "fold-%d" % i)
+
+            # Calculate precision recall using a common function
+
+            for algorithm in self.input_settings.algorithms:
+
+                # Get the proper output edge file (retrieved edges)
+
+                output_file = Path(
+                    results_dir, 
+                    algorithm.get_output_directory(),
+                    algorithm.get_output_file())
+
+                # Some error prevented the creation of the file.
+                # At the moment, this only happens when the reglinker
+                # fails to find paths. Thus, create an empty file.
+                if not output_file.exists():
+                    output_file.touch()
+                
+                retrieved_edges = set()
+
+                with output_file.open('r') as f:
+                    retrieved_edges = pl_parse.parse_ranked_edges(f)
+
+                # I have to make sure I'm not giving positives that cannot
+                # be found because I removed them from the interactome!
+                provided_edges = set()
+                with modified_edges_file.open('r') as f:
+                    for line in f:
+                        if not line.rstrip().startswith("#"):
+                            provided_edges.add(
+                                (line.split()[0], line.split()[1]))
+
+
+                reduced_edges = final_relevant_edges.difference(provided_edges)
+
+                # Create new GraphSpace objects
+
+                credentials = yaml.load(
+                    Path("graphspace-credentials.yaml").open('r'))
+
+                graphspace = GraphSpace(str(credentials["email"]), 
+                    str(credentials["password"]))
+
+                G = GSGraph()
+
+                # QuickLinker is being run for every edge in the product
+                # graph, regardless of what label that edge gets 
+
+                for k, edgeset in enumerate(retrieved_edges):
+                    # Only post the results for the first 100 ranks...
+                    if k < 15:
+                        for edge in edgeset:
+                            if not G.has_edge(edge[0], edge[1]):
+                                color = None
+                                if edge in reduced_edges:
+                                    # fold positive
+                                    #color="#2ca25f" # dark green
+                                    color="#003300" # dark green
+                                elif edge in fold_negatives:
+                                    # fold negative
+                                    color = "#FF0000"##dd1c77" # dark pink
+                                elif edge in provided_edges:
+                                    # train positive 
+                                    # (test positive caught earlier)
+                                    color = "#00ff00" # light green
+                                else:
+                                    # train negative
+                                    # (test negative caught earlier)
+                                    #color = "#c994c7" # light pink
+                                    color = "#ff00ff" # light pink
+                                
+                                if not G.has_node(edge[0]):
+                                    G.add_node(edge[0], label=edge[0])
+                                    if edge[0] in sources:
+                                        G.add_node_style(
+                                            edge[0],shape="triangle",
+                                            color="#00FF00")
+
+                                    elif edge[0] in targets:
+                                        G.add_node_style(
+                                            edge[0],shape="rectangle",
+                                            color="#0000f")
+
+                                if not G.has_node(edge[1]):
+                                    G.add_node(edge[1], label=edge[1])
+                                    if edge[1] in sources:
+                                        G.add_node_style(
+                                            edge[1],shape="triangle",
+                                            color="#00FF00")
+
+                                    elif edge[1] in targets:
+                                        G.add_node_style(
+                                            edge[1],shape="rectangle",
+                                            color="#0000FF")
+
+                                G.add_edge(edge[0], edge[1], directed=True, k=k, 
+                                    color=color)
+
+                                G.add_edge_style(
+                                    edge[0], edge[1], directed=True,
+                                    color=color)
+                
+                # Post and share graph
+                graph_name = "|".join(["c", interactome.name,
+                    pathway_collection.name, pathway.name,
+                    self.input_settings.subnetwork_creation, "%d-folds" %
+                    folds, "fold-%d" % i, algorithm.get_descriptive_name()])
+
+                G.set_name(graph_name)
+
+                print(len(G.nodes()))
+                print(len(G.edges()))
+
+                # Just to be safe
+                if (len(G.nodes()) < 100 and len(G.edges()) < 250):
+                    graph = graphspace.post_graph(G)
+
+                    response = graphspace.share_graph(
+                        graph_id=graph.id, group_name='PathLinker 2.0 Results')
+
 
     def write_precision_recall_with_folds_wrapper(self, folds):
         for interactome in self.input_settings.interactomes:
@@ -943,11 +898,9 @@ class RegLinkerPipeline(object):
 
         # 6) Run precision/recall method over every fold
 
-        node_file = \
-            pathway_collection.get_pathway_nodes_file(pathway)
+        node_file = pathway.get_nodes_file()
 
-        edge_file = \
-            pathway_collection.get_pathway_edges_file(pathway)
+        edge_file = pathway.get_edges_file()
 
         specific_interactome = \
             self.get_pathway_specific_interactome_file_path(
@@ -969,8 +922,8 @@ class RegLinkerPipeline(object):
 
 
         # Get the set of negative edges
-        negatives = sorted(list(interactome_edges.difference(relevant_edges)))
-
+        negatives = list(interactome_edges.difference(relevant_edges))
+        negatives.sort(key=lambda edge:(edge[0],edge[1]))
 
         # If a positive is not in the interactome, discard it from
         # the positive set
@@ -1017,7 +970,7 @@ class RegLinkerPipeline(object):
         for i, test in enumerate(tests):
         '''
 
-        kf = KFold(n_splits=folds, shuffle=True, random_state=12)
+        kf = KFold(n_splits=folds, shuffle=True, random_state=1800)
 
         split = kf.split(negatives)
 
@@ -1032,7 +985,7 @@ class RegLinkerPipeline(object):
             modified_edges_file = Path(
                 self.output_settings.get_cross_validation_folds_dir(),
                 interactome.name,
-                pathway,
+                pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
                 "fold-%d" % i,
@@ -1043,7 +996,7 @@ class RegLinkerPipeline(object):
                 "cross-validation-reconstructions",
                 interactome.name,
                 pathway_collection.name,
-                pathway,
+                pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
                 "fold-%d" % i)
@@ -1053,7 +1006,7 @@ class RegLinkerPipeline(object):
                 "cross-validation-precision-recall",
                 interactome.name,
                 pathway_collection.name,
-                pathway,
+                pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
                 "fold-%d" % i)
@@ -1097,6 +1050,8 @@ class RegLinkerPipeline(object):
                 #    precrec.compute_precision_recall_curve_negatives_fractions(
                 #        retrieved_edges, reduced_edges, fold_negatives)
 
+                # TODO: Weed out duplicate positive edges
+
                 points = \
                     precrec.compute_precrec_negatives_fractions_ignore_direction(
                         retrieved_edges, reduced_edges, fold_negatives)
@@ -1128,7 +1083,7 @@ class RegLinkerPipeline(object):
             "cross-validation-precision-recall",
             interactome.name,
             pathway_collection.name,
-            pathway,
+            pathway.name,
             self.input_settings.subnetwork_creation,
             "%d-folds" % num_folds,
             "aggregate")
@@ -1142,7 +1097,7 @@ class RegLinkerPipeline(object):
                     "cross-validation-precision-recall",
                     interactome.name,
                     pathway_collection.name,
-                    pathway,
+                    pathway.name,
                     self.input_settings.subnetwork_creation,
                     "%d-folds" % num_folds,
                     "fold-%d" % i)
@@ -1217,29 +1172,39 @@ class RegLinkerPipeline(object):
         ax.set_title(
             interactome.name + " " +
             pathway_collection.name + " " +
-            pathway)
+            pathway.name)
         
         new_output_dir = Path(
             "outputs",
             "cross-validation-precision-recall",
             interactome.name,
             pathway_collection.name,
-            pathway,
+            pathway.name,
             self.input_settings.subnetwork_creation,
             "%d-folds" % num_folds,
             "aggregate")
 
-        vis_file = Path(
+        vis_file_pdf = Path(
             "outputs",
             "cross-validation-visualization",
             interactome.name,
             pathway_collection.name,
-            pathway,
+            pathway.name,
             self.input_settings.subnetwork_creation,
             "%d-folds" % num_folds,
             "precision-recall.pdf")
 
-        vis_file.parent.mkdir(parents=True, exist_ok=True)
+        vis_file_png = Path(
+            "outputs",
+            "cross-validation-visualization",
+            interactome.name,
+            pathway_collection.name,
+            pathway.name,
+            self.input_settings.subnetwork_creation,
+            "%d-folds" % num_folds,
+            "precision-recall.png")
+
+        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
 
         for algorithm in self.input_settings.algorithms:
             
@@ -1271,7 +1236,8 @@ class RegLinkerPipeline(object):
                 points, label=algorithm.get_descriptive_name(), ax=ax)
 
         ax.legend()
-        fig.savefig(str(vis_file))
+        fig.savefig(str(vis_file_pdf))
+        fig.savefig(str(vis_file_png))
 
 
     def aggregate_precision_recall_over_pathways_wrapper(self, num_folds):
@@ -1302,7 +1268,7 @@ class RegLinkerPipeline(object):
                     "cross-validation-precision-recall",
                     interactome.name,
                     pathway_collection.name,
-                    pathway,
+                    pathway.name,
                     self.input_settings.subnetwork_creation,
                     "%d-folds" % num_folds,
                     "aggregate")
@@ -1361,7 +1327,7 @@ class RegLinkerPipeline(object):
             self.input_settings.subnetwork_creation,
             "%d-folds" % num_folds)
 
-        vis_file = Path(
+        vis_file_pdf = Path(
             "outputs",
             "cross-validation-visualization",
             interactome.name,
@@ -1370,7 +1336,16 @@ class RegLinkerPipeline(object):
             "%d-folds" % num_folds,
             "precision-recall.pdf")
 
-        vis_file.parent.mkdir(parents=True, exist_ok=True)
+        vis_file_png = Path(
+            "outputs",
+            "cross-validation-visualization",
+            interactome.name,
+            pathway_collection.name,
+            self.input_settings.subnetwork_creation,
+            "%d-folds" % num_folds,
+            "precision-recall.png")
+
+        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
 
         for algorithm in self.input_settings.algorithms:
             
@@ -1388,7 +1363,8 @@ class RegLinkerPipeline(object):
                 points, label=algorithm.get_descriptive_name(), ax=ax)
 
         ax.legend()
-        fig.savefig(str(vis_file))
+        fig.savefig(str(vis_file_pdf))
+        fig.savefig(str(vis_file_png))
 
 
 class InputSettings(object):
@@ -1430,17 +1406,11 @@ class Interactome(object):
 
 
     def create_pathway_specific_interactome(
-        self, pathway_node_file, outpath):
-
-        nodes = [] 
-        with pathway_node_file.open() as f:
-            reader = csv.reader(f, delimiter='\t')
-            for row in reader:
-                nodes.append((row[0], row[1]))
-                
-        receptors = set([tup[0] for tup in nodes if tup[1] == 'receptor'])
-        tfs = set([tup[0] for tup in nodes if tup[1] == 'tf'])
-
+            self, pathway, outpath):
+        
+        receptors = pathway.get_receptors(data=False)
+        tfs = pathway.get_tfs(data=False)
+        
         # Removing incoming edges to sources, outgoing edges from targets
         with outpath.open('w') as out:
             for u, v, line in self.get_interactome_edges():
@@ -1450,30 +1420,62 @@ class Interactome(object):
 
 
 class PathwayCollection(object):
-    # Path here should be a directory
+
     def __init__(self, name, path, pathways):
+        ''' 
+        A collection of pathways, on disk
+        :param name: name of the pathway collection
+        :param path: directory the pathways are stored in 
+        :param pathways: a list of names of pathways in the pathway collection
+        '''
         self.name = name
         self.path = path
-        self.pathways = pathways
+        self.pathways = [PathwayOnDisk(pathway, path) for pathway in pathways]
 
 
-    def get_pathway_nodes_file(self, pathway):
-        return Path(self.path, pathway + "-nodes.txt")
+    def get_pathway_objs(self):
+        '''
+        Return in-memory representations of each pathway in the pathway
+        collection
+        '''
+        pathway_objs = []
+
+        for p in self.pathways:
+            pathway_objs.append(p.get_pathway_obj())
+
+        return pathway_objs
 
 
-    def get_pathway_edges_file(self, pathway):
-        return Path(self.path, pathway + "-edges.txt")
+class PathwayOnDisk(object):
+
+    def __init__(self, name, path):
+        '''
+        Object representing a pathway on disk. 
+        
+        :param name: name of the pathway
+        :param path: path where the pathway's on-disk files are stored
+        '''
+        self.name = name
+        self.path = path
 
 
-    def get_nodes_from_pathway_nodes_file(self, pathway):
-        nodes = set()
-        with self.get_pathway_nodes_file(pathway).open('r') as f:
-            for line in f: 
-                if not line.lstrip().startswith("#"):
-                    toks = line.split("\t")
-                    nodes.add(toks[0])
+    def get_nodes_file(self):
+        return Path(self.path, self.name + "-nodes.txt")
 
-        return nodes
+
+    def get_edges_file(self):
+        return Path(self.path, self.name + "-edges.txt")
+
+
+    def get_pathway_obj(self): 
+        '''
+        Return an in-memory representation of the pathway
+        '''
+        with self.get_nodes_file().open('r') as nf, \
+                self.get_edges_file().open('r') as ef:
+
+            return pathway_parse.parse_csbdb_pathway_file(ef, nf, 
+                extra_edge_cols=["weight"])
 
 
 class OutputSettings(object):
@@ -1882,7 +1884,7 @@ class InducedSubgraph(RankingAlgorithm):
 
         
         nodes = self.get_nodes_from_edge_file(
-            self, reconstruction_input.pathway_edges_file)
+            reconstruction_input.pathway_edges_file)
 
         '''
         # The pathway edges file is coped and modified in the cross-val. fold 
@@ -1925,6 +1927,85 @@ class InducedSubgraph(RankingAlgorithm):
 
     def get_name(self):
         return "induced-subgraph"
+
+
+    def get_output_file(self):
+        return "ranked-edges.txt"
+
+
+    def get_output_directory(self):
+        return Path(self.get_name())
+
+
+class InducedSubgraphRanked(RankingAlgorithm):
+
+    def __init__(self, params):
+        None
+
+
+    def run(self, reconstruction_input):
+
+        net = None
+        with reconstruction_input.interactome.open('r') as f:
+            net = pl.readNetworkFile(f) 
+
+        
+        nodes = self.get_nodes_from_edge_file(
+            reconstruction_input.pathway_edges_file)
+
+        '''
+        # The pathway edges file is coped and modified in the cross-val. fold 
+        # procedure, but the nodes file is not. This uses all the nodes
+        # in the original pathway.
+        nodes = set() 
+        with reconstruction_input.pathway_nodes_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    nodes.add(line.split()[0])
+        '''
+
+        # Compute the induced subgraph
+        induced_subgraph = net.subgraph(nodes)
+        prediction = induced_subgraph.edges(data=True)
+        #prediction.sort(key=lambda tup:tup[2]["weight"], reverse=True)
+        prediction.sort(key=lambda edge:(edge[0],edge[1],edge[2]["weight"]))
+
+        weights = set([edge[2]["weight"] for edge in prediction])
+
+        ranked_predictions = zip(weights, itertools.count(1))
+        weight_to_rank = {r[0]:r[1] for r in ranked_predictions}
+        print(weights)
+
+        with Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir), 
+            self.get_output_file()).open('w') as f:
+            for i, edge in enumerate(prediction):
+                if (weight_to_rank[edge[2]["weight"]] == 1):
+                #f.write(str(edge[0]) + "\t" + str(edge[1]) + "\t" + 
+                #    str(weight_to_rank[edge[2]["weight"]]) + "\n")
+                    f.write(str(edge[0]) + "\t" + str(edge[1]) + "\t" + 
+                        str(i) + "\n")
+
+
+    def get_nodes_from_edge_file(self, edge_file):
+        nodes = set()
+        with edge_file.open('r') as f:
+            for line in f:
+                if not line.rstrip().startswith("#"):
+                    nodes.add(line.split()[0])
+                    nodes.add(line.split()[1])
+
+        return nodes
+
+
+
+    def conform_output(self, output_dir):
+        None
+
+
+    def get_name(self):
+        return "induced-subgraph-ranked"
 
 
     def get_output_file(self):
@@ -2389,6 +2470,7 @@ class QuickRegLinkerSanityCheck(RankingAlgorithm):
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker,
     "induced-subgraph" : InducedSubgraph,
+    "induced-subgraph-ranked" : InducedSubgraphRanked,
     "reglinker" : RegLinker,
     "shortcuts-ss" : ShortcutsSS,
     "quickreglinker" : QuickRegLinker,
@@ -2432,6 +2514,11 @@ def main():
         print("Computing precision/recall for reconstructions over folds")
         pipeline.write_precision_recall_with_folds_wrapper(num_folds)
         print("Finished computing precision/recall over folds")
+
+    if not opts.upload_reconstructions_off:
+        print("Uploading reconstructions to GraphSpace")
+        pipeline.post_reconstructions_to_graphspace_wrapper(num_folds)
+        print("Finished uploading reconstructions to GraphSpace")
 
     if not opts.aggregate_precision_recall_folds_off:
         print("Aggregating precision/recall over folds")
@@ -2488,6 +2575,9 @@ def get_parser():
         action="store_true", default=False)
 
     parser.add_argument('--run-reconstructions-off', 
+        action="store_true", default=False)
+
+    parser.add_argument('--upload-reconstructions-off', 
         action="store_true", default=False)
 
     parser.add_argument('--compute-precision-recall-off', 
