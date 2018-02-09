@@ -5,9 +5,13 @@ pathway reconstruction.
 
 ## Setup
 
-Setup has been automated in the script `setup`. Currently, the pipeline must
-be setup somewhere on the Murali group computing cluster, for access to the
-SVN repository thereon.
+Setup has been mostly automated in the script `setup`. Currently, the pipeline
+must be setup somewhere on the Murali group computing cluster, for access to
+the SVN repository thereon.
+
+Things that need to be added to the setup script:
+    - One must build the quicklinker jar in the subrepo. For this, one needs
+      to install Gradle and run "gradle build" in the subrepo TLD. 
 
 ## Running
 
