@@ -1,6 +1,7 @@
 *.swp
 *.pyc
 graphspace-credentials.yaml
+test.yaml
 
 # Organizational folders
 qsub/*
