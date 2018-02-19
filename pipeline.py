@@ -41,6 +41,7 @@ import src.algorithms.InducedSubgraph as InducedSubgraph
 import src.algorithms.InducedSubgraphRanked as InducedSubgraphRanked 
 import src.algorithms.PCSF as PCSF 
 import src.algorithms.QuickRegLinker as QuickRegLinker 
+import src.algorithms.QuickRegLinkerConcat as QuickConcat 
 import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck 
 import src.algorithms.RegLinker as RegLinker 
 import src.algorithms.ShortcutsSS as Shortcuts 
@@ -275,6 +276,18 @@ class RegLinkerPipeline(object):
                         f.write("\t".join([str(elem) for elem in result]))
                         f.write("\n")
     '''
+
+    def interactome_stats(self):
+        for interactome in self.input_settings.interactomes:
+            net = None
+
+            with interactome.path.open('r') as f:
+                net = pl.readNetworkFile(f) 
+
+            print("-----------------------")
+            print(interactome.name)
+            print("#nodes: " + str(len(net.nodes())))
+            print("#edges: " + str(len(net.edges())))
 
 
     def pathway_edge_weight_histograms(self):
@@ -1609,9 +1622,25 @@ class RegLinkerPipeline(object):
             precrec.plot_precision_recall_curve_fractions(
                 points, label=algorithm.get_descriptive_name(), ax=ax)
 
-        ax.legend()
-        fig.savefig(str(vis_file_pdf))
-        fig.savefig(str(vis_file_png))
+        #ax.legend()
+        #fig.savefig(str(vis_file_pdf))
+        #fig.savefig(str(vis_file_png))
+
+        handles, labels = ax.get_legend_handles_labels()
+
+        # ax.legend()
+        lgd = ax.legend(handles, labels, loc='upper center', 
+            bbox_to_anchor=(0.5,-0.1))
+
+        #fig.savefig('samplefigure', bbox_extra_artists=(lgd,), 
+        #    bbox_inches='tight')
+
+
+        fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+            bbox_inches='tight')
+
+        fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+            bbox_inches='tight')
 
 
     def aggregate_precision_recall_over_pathways_wrapper(self, num_folds):
@@ -1736,9 +1765,19 @@ class RegLinkerPipeline(object):
             precrec.plot_precision_recall_curve_fractions(
                 points, label=algorithm.get_descriptive_name(), ax=ax)
 
-        ax.legend()
-        fig.savefig(str(vis_file_pdf))
-        fig.savefig(str(vis_file_png))
+        # ax.legend()
+        handles, labels = ax.get_legend_handles_labels()
+
+        lgd = ax.legend(handles, labels, loc='upper center', 
+            bbox_to_anchor=(0.5,-0.1))
+        #fig.savefig('samplefigure', bbox_extra_artists=(lgd,), 
+        #    bbox_inches='tight')
+
+        fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+            bbox_inches='tight')
+
+        fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+            bbox_inches='tight')
 
 
 class InputSettings(object):
@@ -1998,6 +2037,7 @@ RANKING_ALGORITHMS = {
     "reglinker" : RegLinker.RegLinker,
     "shortcuts-ss" : Shortcuts.ShortcutsSS,
     "quickreglinker" : QuickRegLinker.QuickRegLinker,
+    "quickreglinkerconcat" : QuickConcat.QuickRegLinkerConcat,
     "zerolinker" : ZeroLinker.ZeroLinker,
     "zeroquickreglinker" : ZeroQuickRegLinker.ZeroQuickRegLinker,
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
@@ -2017,10 +2057,12 @@ def main():
 
     print("Pipeline started")
 
+    pipeline.interactome_stats()
     #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
     #pipeline.pruning_analysis_table()
-    
+   
+    '''
     if not opts.pathway_specific_interactomes_off:
         print("Creating pathway-specific interactomes")
         pipeline.create_pathway_specific_interactomes_wrapper()
@@ -2046,12 +2088,14 @@ def main():
     pipeline.write_tp_fp_scores_with_folds_wrapper(num_folds)
     pipeline.aggregate_tp_fp_scores_over_folds_wrapper(num_folds)
     print("Finished computing tp/fp score distributions")
+    '''
 
     #if not opts.upload_reconstructions_off:
     #    print("Uploading reconstructions to GraphSpace")
     #    pipeline.post_reconstructions_to_graphspace_wrapper(num_folds)
     #    print("Finished uploading reconstructions to GraphSpace")
-
+    
+    '''
     if not opts.aggregate_precision_recall_folds_off:
         print("Aggregating precision/recall over folds")
         pipeline.aggregate_precision_recall_over_folds_wrapper(num_folds)
@@ -2072,6 +2116,7 @@ def main():
         pipeline.plot_pathway_collection_aggregate_precision_recall_wrapper(
             num_folds)
         print("Finished plotting")
+    '''
 
     print("Pipeline complete")
 
