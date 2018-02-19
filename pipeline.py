@@ -328,8 +328,6 @@ class RegLinkerPipeline(object):
                     fig.savefig(str(out))
 
     
-    # TODO: Fix, this is probably broken after refactor
-    '''
     def pruning_analysis_table(self):
         """
         Implements logic to see how many nodes and edges of a particular 
@@ -337,37 +335,21 @@ class RegLinkerPipeline(object):
         source-set-target-set paths
         """
         for pathway_collection in self.input_settings.pathway_collections:
+        # pathway is a PathwayOnDisk object: get the in-memory version
+        # Create network from pathway_obj
 
             results = []
             for pathway in pathway_collection.pathways:
+                pathway_obj = pathway.get_pathway_obj()
 
-                node_file = \
-                    pathway_collection.get_pathway_nodes_file(pathway)
+                nodes = set(pathway_obj.get_nodes(data=False))
+                edges = set(pathway_obj.get_edges(data=False))
+                sources = pathway_obj.get_receptors(data=False)
+                targets = pathway_obj.get_tfs(data=False)
 
-                edge_file = \
-                    pathway_collection.get_pathway_edges_file(pathway)
-
-                net = None
-                with edge_file.open('r') as f:
-                    net = pl.readNetworkFile(f) 
-                
-                nodes = pathway_collection.get_nodes_from_pathway_nodes_file(
-                    pathway)
-
-                for node in nodes:
-                    net.add_node(node)
-
-                edges = None
-                with edge_file.open('r') as f:
-                    edges = pl_parse.get_edge_set(f)
-
-                sources = None 
-                with node_file.open('r') as f: 
-                    sources = pl_parse.get_source_set(f)
-
-                targets = None
-                with node_file.open('r') as f:
-                    targets = pl_parse.get_target_set(f)
+                net = nx.DiGraph()
+                net.add_edges_from(edges)
+                net.add_nodes_from(nodes)
 
                 prune.remove_nodes_not_on_s_t_path(
                     net, sources, targets, method="reachability")
@@ -380,8 +362,11 @@ class RegLinkerPipeline(object):
                 pruned_edges = edges.difference(edges_after_pruning)
                 pruned_nodes = nodes.difference(nodes_after_pruning)
 
+                print(pruned_edges)
+                print(pruned_nodes)
+
                 results.append((
-                    pathway,
+                    pathway.name,
                     len(nodes), 
                     len(nodes_after_pruning),
                     len(nodes_after_pruning) / len(nodes),
@@ -407,7 +392,6 @@ class RegLinkerPipeline(object):
                 for result in results:
                     f.write("\t".join([str(elem) for elem in result]))
                     f.write("\n")
-    '''
 
 
     # TODO: Fix, this is probably broken after refactor
@@ -2057,10 +2041,10 @@ def main():
 
     print("Pipeline started")
 
-    pipeline.interactome_stats()
+    #pipeline.interactome_stats()
     #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
-    #pipeline.pruning_analysis_table()
+    pipeline.pruning_analysis_table()
    
     '''
     if not opts.pathway_specific_interactomes_off:
