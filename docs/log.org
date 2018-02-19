@@ -1,3 +1,11 @@
+* February 19, 2018
+- I learned today that the node file for EGFR has the same protein
+  listed TWICE: that protein is P19838. One row has it as a TF, and
+  one has it as none. I am not sure what to do here, and need to ask
+  Murali about this. If it is meant to be a TF, it is getting messed 
+  up in my pipeline currently, which assumes that each node is listed
+  only ONCE in the node file.
+
 * January 24, 2018
 - Today, while creating an interactome by adding missing edges from the 
   Netpath pathways, I noticed that, similar to the Kit pathway (see
@@ -25,7 +33,6 @@
 * January 10, 2018
 - I emailed one of the original authors of FAdo asking their thoughts on the
   .tablereg file. 
-
 
 * January 9, 2018
 - I found an edge in the KitReceptor pathway nodes/edges file that Anna used.
