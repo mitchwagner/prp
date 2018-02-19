@@ -587,11 +587,6 @@ class RegLinkerPipeline(object):
         return Interactome(interactome.name, path)
 
 
-    def get_pathway_specific_interactome_edges(self, interactome, pathway):
-        interactome = get_pathway_specific_interactome(interactome, pathwy)
-        return interactome.get_interactome_edges()
-
-
     def create_folds_wrapper(self, folds):
         sc = self.input_settings.subnetwork_creation
         if (sc in RegLinkerPipeline.subnetwork_creation_techniques):
