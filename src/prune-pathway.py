@@ -29,9 +29,18 @@ def write_pruned_pathway(
 
     old_nodes_file_handle.seek(0)
     targets = pl_parse.get_target_set(old_nodes_file_handle)
+
+    edges = set(net.edges())
+    nodes = set(net.nodes())
     
     prune.remove_nodes_not_on_s_t_path(
         net, sources, targets, method="reachability")
+
+    new_edges = net.edges()
+    new_nodes = net.nodes()
+
+    print(edges.difference(new_edges))
+    print(nodes.difference(new_nodes))
 
     write_pruned_nodes_file(net, old_nodes_file_handle, new_nodes_file_handle)
 
@@ -126,6 +135,7 @@ def main():
     new_pathway_dir.mkdir(parents=True, exist_ok=True)
 
     for name in pathway_names:
+        print(name)
         old_node_file = Path(pathway_dir, name + "-nodes.txt")
         old_edge_file = Path(pathway_dir, name + "-edges.txt")
         new_node_file = Path(new_pathway_dir, name + "-nodes.txt")
@@ -135,6 +145,7 @@ def main():
              new_node_file.open('w') as nnf, new_edge_file.open('w') as nef:
             
             write_pruned_pathway(onf, oef, nnf, nef)
+        print("-----------")
 
 if __name__ == "__main__":
     main()
