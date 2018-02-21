@@ -170,11 +170,9 @@ class RegLinkerPipeline(object):
         self.output_settings = output_settings
         self.precision_recall_settings = precision_recall_settings
 
-    # TODO: Fix, this is probably broken after refactor
+    # TODO: needs refactoring
     '''
     def pathway_subset_analysis(self):
-        """
-        """
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
                 results = []
@@ -195,7 +193,7 @@ class RegLinkerPipeline(object):
                     interactome_net = None
                     with specific_interactome.open('r') as f:
                         interactome_net = pl.readNetworkFile(f) 
-
+                    
                     # Pathway node and edge files
                     node_file = \
                         pathway_collection.get_pathway_nodes_file(pathway)
@@ -1807,13 +1805,23 @@ class Interactome(object):
         
         receptors = pathway.get_receptors(data=False)
         tfs = pathway.get_tfs(data=False)
-        
+
+        count_total = 0
+        count_removed = 0
+        for edge in pathway.get_edges(data=False):
+            count_total += 1
+            if edge[1] in receptors or edge[0] in tfs:
+                count_removed += 1
+       
+        print(count_total, count_removed)
+
         # Removing incoming edges to sources, outgoing edges from targets
         with outpath.open('w') as out:
             for u, v, line in self.get_interactome_edges():
                 if u in tfs or v in receptors:
                     continue
                 out.write(line)
+
 
 
 class PathwayCollection(object):
@@ -2044,14 +2052,13 @@ def main():
     #pipeline.interactome_stats()
     #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
-    pipeline.pruning_analysis_table()
+    #pipeline.pruning_analysis_table()
    
-    '''
     if not opts.pathway_specific_interactomes_off:
         print("Creating pathway-specific interactomes")
         pipeline.create_pathway_specific_interactomes_wrapper()
         print("Finished creating pathway-specific interactomes")
-
+    '''
     if not opts.create_folds_off:
         print("Creating cross-validation folds") 
         pipeline.create_folds_wrapper(num_folds)
@@ -2072,14 +2079,12 @@ def main():
     pipeline.write_tp_fp_scores_with_folds_wrapper(num_folds)
     pipeline.aggregate_tp_fp_scores_over_folds_wrapper(num_folds)
     print("Finished computing tp/fp score distributions")
-    '''
 
     #if not opts.upload_reconstructions_off:
     #    print("Uploading reconstructions to GraphSpace")
     #    pipeline.post_reconstructions_to_graphspace_wrapper(num_folds)
     #    print("Finished uploading reconstructions to GraphSpace")
     
-    '''
     if not opts.aggregate_precision_recall_folds_off:
         print("Aggregating precision/recall over folds")
         pipeline.aggregate_precision_recall_over_folds_wrapper(num_folds)
@@ -2100,9 +2105,9 @@ def main():
         pipeline.plot_pathway_collection_aggregate_precision_recall_wrapper(
             num_folds)
         print("Finished plotting")
-    '''
 
     print("Pipeline complete")
+    '''
 
 
 def parse_arguments():
