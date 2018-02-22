@@ -1,3 +1,17 @@
+* February 22, 2018
+- QuickLinkerConcat has some subtle errors due to floating point.
+  In this algorithm, we combine the results for multiple regular expressions,
+  concatenating one set after another. When we aggregate over folds, we
+  use the cost/score associated with each row to re-rank the rows, and then
+  use the resulting ranked rows to calculate precision/recall. To prioritize
+  one regex's results before all the others (even across folds), we add 
+  a number to this score for each row before aggregation (for 3 regexes, the
+  first gets + 2, the second gets + 1, the third gets + 0).
+
+  By adding to the floating point numbers, due to rounding error, floating
+  points numbers that were only very slightly different before the addition
+  might get the same rank after the addition. In other words, 1 + x = 1 + y
+
 * February 19, 2018
 - I learned today that the node file for EGFR has the same protein
   listed TWICE: that protein is P19838. One row has it as a TF, and

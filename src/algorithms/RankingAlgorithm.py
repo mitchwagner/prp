@@ -1,13 +1,14 @@
 from pathlib import Path
 import os
 
+
 class PathwayReconstructionInput(object):
     """
     Input necessary for a RankingAlgorithm to create a reconstruction.
     """
 
-    def __init__(self, interactome, pathway_edges_file, pathway_nodes_file, 
-            output_dir, all_edges_file):
+    def __init__(self, interactome, training_edges, pathway_nodes_file, 
+            output_dir, all_edges_file, training_negatives):
         self.interactome = interactome
         
         # The ENTIRE set of edges in a pathway (not just positives for a given
@@ -18,7 +19,8 @@ class PathwayReconstructionInput(object):
         # TODO: should probably rename, but most if not all algorithms have
         # hardcoded dependence on this parameter, so it would take a few 
         # minutes
-        self.pathway_edges_file = pathway_edges_file
+        self.training_edges = training_edges 
+        self.training_negatives = training_negatives
 
         self.pathway_nodes_file = pathway_nodes_file
         self.output_dir = output_dir

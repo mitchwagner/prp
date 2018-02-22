@@ -16,9 +16,14 @@ class InducedSubgraph(RankingAlgorithm):
         with reconstruction_input.interactome.open('r') as f:
             net = pl.readNetworkFile(f) 
 
+        nodes = set()
+        for edge in reconstruction_input.training_edges:
+            nodes.add(edge[0])
+            nodes.add(edge[1])
+
         
-        nodes = self.get_nodes_from_edge_file(
-            reconstruction_input.pathway_edges_file)
+        #nodes = self.get_nodes_from_edge_file(
+        #    reconstruction_input.pathway_edges_file)
 
         '''
         # The pathway edges file is coped and modified in the cross-val. fold 
@@ -40,18 +45,19 @@ class InducedSubgraph(RankingAlgorithm):
                 reconstruction_input.output_dir), 
             self.get_output_file()).open('w') as f:
             for edge in prediction:
-                f.write(str(edge[0]) + "\t" + str(edge[1]) + "\t" + "1" + "\n")
+                f.write(str(edge[0]) + "\t" + str(edge[1]) 
+                    + "\t" + "1" + "\t" + "1" + "\n")
 
 
-    def get_nodes_from_edge_file(self, edge_file):
-        nodes = set()
-        with edge_file.open('r') as f:
-            for line in f:
-                if not line.rstrip().startswith("#"):
-                    nodes.add(line.split()[0])
-                    nodes.add(line.split()[1])
+    #def get_nodes_from_edge_file(self, edge_file):
+    #    nodes = set()
+    #    with edge_file.open('r') as f:
+    #        for line in f:
+    #            if not line.rstrip().startswith("#"):
+    #                nodes.add(line.split()[0])
+    #                nodes.add(line.split()[1])
 
-        return nodes
+    #    return nodes
 
 
 

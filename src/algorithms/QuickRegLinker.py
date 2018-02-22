@@ -21,9 +21,7 @@ class QuickRegLinker(RankingAlgorithm):
         
         #######################################################################
         # 1)
-        provided_edges = None
-        with reconstruction_input.pathway_edges_file.open('r') as f:
-            provided_edges = list(pl_parse.get_edge_set(f))
+        provided_edges = reconstruction_input.training_edges
 
         labeled_interactome = Path(
             self.get_full_output_directory(
