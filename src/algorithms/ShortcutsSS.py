@@ -9,12 +9,11 @@ import src.external.pathlinker.parse as pl_parse
 class ShortcutsSS(RankingAlgorithm):
     def __init__(self, params):
         self.k = params["k"]
+        self.alpha = params["alpha"]
 
 
     def run(self, reconstruction_input):
-        provided_edges = None
-        with reconstruction_input.pathway_edges_file.open('r') as f:
-            provided_edges = list(pl_parse.get_edge_set(f))
+        provided_edges = reconstruction_input.training_edges
 
         labeled_interactome = Path(
             self.get_full_output_directory(
@@ -27,6 +26,7 @@ class ShortcutsSS(RankingAlgorithm):
 
         subprocess.call([ "python", "src/external/shortcuts-ss/master-script.py", 
             "-k", str(self.k),
+            "--alpha", str(self.alpha),
             "--output",
             os.path.join(str(Path(
                 reconstruction_input.output_dir, 
