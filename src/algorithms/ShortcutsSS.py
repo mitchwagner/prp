@@ -72,7 +72,7 @@ class ShortcutsSS(RankingAlgorithm):
 
 
     def get_descriptive_name(self):
-        return "shortcuts-ss, k=%d" % self.k
+        return "shortcuts-ss, k=%d, alpha=%f" % (self.k, self.alpha)
 
 
     def get_output_file(self):
@@ -80,4 +80,5 @@ class ShortcutsSS(RankingAlgorithm):
 
 
     def get_output_directory(self):
-        return Path(self.get_name(), "k_%d-nodes" % self.k)
+        return Path(self.get_name(), "k_%d_alpha_%f-nodes" % 
+            (self.k, self.alpha))
