@@ -42,6 +42,7 @@ import src.algorithms.InducedSubgraphRanked as InducedSubgraphRanked
 import src.algorithms.PCSF as PCSF 
 import src.algorithms.QuickRegLinker as QuickRegLinker 
 import src.algorithms.QuickRegLinkerNegatives as QuickNegatives
+import src.algorithms.QuickRegLinkerPositives as QuickPositives
 import src.algorithms.QuickRegLinkerConcat as QuickConcat 
 import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck 
 import src.algorithms.RegLinker as RegLinker 
@@ -863,105 +864,29 @@ class RegLinkerPipeline(object):
                         graph_id=graph.id, group_name='PathLinker 2.0 Results')
 
 
-    def write_tp_fp_scores_with_folds_wrapper(self, folds):
-        '''
-         Given: a path labeled with p's and n's
-         Yield: 
-            For each n, classify as tp or fp
-        
-            Get the weight of that tp or fp and throw the weight in a bin for
-                its respective designation
-            
-            For each fold, write the results
-        '''
-   
+    def write_tp_fp_with_folds_wrapper(self, folds):
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
                 for pathway in pathway_collection.pathways:
-                    self.write_tp_fp_scores_with_folds(
+                    self.write_tp_fp_with_folds(
                         interactome, pathway_collection, pathway, folds)
 
 
-    def write_tp_fp_scores_with_folds(
+    def write_tp_fp_with_folds(
             self, interactome, pathway_collection, pathway, folds):
+         
+        positive_folds = self.get_positive_folds_remove_edges(
+            interactome, pathway, folds) 
 
-        node_file = pathway.get_nodes_file()
+        negative_folds = self.get_negative_folds(
+            interactome, pathway, folds)
 
-        edge_file = pathway.get_edges_file()
+        interactome_edges = interactome.get_interactome_edges()
 
-        specific_interactome = \
-            self.get_pathway_specific_interactome_file_path(
-                interactome, pathway)
+        info_map = {(x[0], x[1]): x[2] for x in interactome_edges}
 
-        interactome_edges = set()
+        for fold in range(folds):
 
-        net = None 
-        with specific_interactome.open('r') as f:
-            net = pl.readNetworkFile(f) 
-            interactome_edges = set(net.edges())
-
-        # Get the relevant edges from the original pathway input
-        relevant_edges = set()
-        with edge_file.open('r') as f:
-            for line in f:
-                if not line.rstrip().startswith("#"):
-                    relevant_edges.add(
-                        (line.split()[0], line.split()[1]))
-
-
-        # Get the set of negative edges
-        negatives = list(interactome_edges.difference(relevant_edges))
-        negatives.sort(key=lambda edge:(edge[0],edge[1]))
-
-        # If a positive is not in the interactome, discard it from
-        # the positive set
-        positives_not_in_interactome = set()
-        for edge in relevant_edges:
-            if edge not in interactome_edges:
-                positives_not_in_interactome.add(edge)
-
-        relevant_edges = relevant_edges.difference(
-            positives_not_in_interactome)
-        
-
-        # TODO: Think through this, but is it really necessary after the above?
-        # Remove edges from relevance that we explicitly removed from the
-        # interactome (incoming edges to sources, outgoing to targets)
-        final_relevant_edges = set()
-
-        sources = None 
-        with node_file.open('r') as f: 
-            sources = pl_parse.get_source_set(f)
-
-        targets = None
-        with node_file.open('r') as f:
-            targets = pl_parse.get_target_set(f)
-
-        for edge in relevant_edges:
-            if not (edge[0] in targets or edge[1] in sources):
-                final_relevant_edges.add(edge)
-
-
-        #######################################################################
-        # Break negative edges up into folds
-
-        kf = KFold(n_splits=folds, shuffle=True, random_state=1800)
-
-        split = kf.split(negatives)
-
-        for i, (train, test) in enumerate(split):
-            fold_negatives = [negatives[x] for x in test]
-            
-
-            modified_edges_file = Path(
-                self.output_settings.get_cross_validation_folds_dir(),
-                interactome.name,
-                pathway.name,
-                self.input_settings.subnetwork_creation,
-                "%d-folds" % folds,
-                "fold-%d" % i,
-                "edges.txt")
-    
             results_dir = Path(
                 "outputs",
                 "cross-validation-reconstructions",
@@ -970,7 +895,7 @@ class RegLinkerPipeline(object):
                 pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
-                "fold-%d" % i)
+                "fold-%d" % fold)
 
             output_dir = Path(
                 "outputs",
@@ -980,13 +905,9 @@ class RegLinkerPipeline(object):
                 pathway.name,
                 self.input_settings.subnetwork_creation,
                 "%d-folds" % folds,
-                "fold-%d" % i)
-
-            # Calculate precision recall using a common function
+                "fold-%d" % fold)
 
             for algorithm in self.input_settings.algorithms:
-                # Get the proper output edge file (retrieved edges)
-
                 output_file = Path(
                     results_dir, 
                     algorithm.get_output_directory(),
@@ -1003,70 +924,29 @@ class RegLinkerPipeline(object):
                 with output_file.open('r') as f:
                     retrieved_edges = pl_parse.parse_ranked_edges(f)
 
-                # I have to make sure I'm not giving positives that cannot
-                # be found because I removed them from the interactome!
-                provided_edges = set()
-                with modified_edges_file.open('r') as f:
-                    for line in f:
-                        if not line.rstrip().startswith("#"):
-                            provided_edges.add(
-                                (line.split()[0], line.split()[1]))
+                universe = set(positive_folds[fold][1]).union(
+                    set(negative_folds[fold][1]))
 
+                outfile = Path(
+                    output_dir, 
+                    algorithm.get_output_directory(),
+                    "tp-fps.txt") 
 
-                reduced_edges = final_relevant_edges.difference(provided_edges)
+                outfile.parent.mkdir(parents=True, exist_ok=True)
 
-                # Calculate tp/fp lists of weights
-
-                tp_weights = []
-                fp_weights = []
-
-                # Eliminate negatives
-                universe = reduced_edges.union(fold_negatives)
-                pruned = []
-                for itemset in retrieved_edges:
-                    pruned_set = itemset.copy()
-                    for item in itemset:
-                        if item not in universe:
-                            pruned_set.remove(item)
-                    pruned.append(pruned_set)
-
-                # For relevant items, get weights 
-                retrieved = set()
-
-                for itemset in pruned:
-                    for item in itemset:
-                        if item not in retrieved:
-                            # True positive
-                            if item in reduced_edges:
-                                tp_weights.append(
-                                    net[item[0]][item[1]]["weight"])
-
-                            # False positive
+                with outfile.open('w') as f:
+                    for rank in retrieved_edges:
+                        for edge, weight in rank:
+                            f.write(str(edge) + '\t' + str(weight) + '\t')
+                            if edge not in universe:
+                                f.write('none\t')
+                            elif edge in positive_folds[fold][1]:
+                                f.write('tp\t')
+                            elif edge in negative_folds[fold][1]:
+                                f.write('fp\t')
                             else:
-                                fp_weights.append(
-                                    net[item[0]][item[1]]["weight"])
-
-                    retrieved = retrieved.union(itemset)
-
-                tp_file = Path(
-                    output_dir, 
-                    algorithm.get_output_directory(),
-                    "tp-weights.txt") 
-
-                fp_file = Path(
-                    output_dir, 
-                    algorithm.get_output_directory(),
-                    "fp-weights.txt") 
-
-                tp_file.parent.mkdir(parents=True, exist_ok=True)
-
-                with tp_file.open('w') as f:
-                    f.write(",".join([str(w) for w in tp_weights]))
-                    f.write("\n")
-
-                with fp_file.open('w') as f:
-                    f.write(",".join([str(w) for w in fp_weights]))
-                    f.write("\n")
+                                f.write("critical error\n")
+                            f.write(info_map[edge])
 
 
     def aggregate_tp_fp_scores_over_folds_wrapper(self, folds):
@@ -1449,9 +1329,15 @@ class RegLinkerPipeline(object):
 
 
     def get_negative_folds(self, interactome, pathway, num_folds):
-        interactome_edges = set((x, y) 
-            for x, y, line in interactome.get_interactome_edges())
+        specific_interactome = \
+            self.get_pathway_specific_interactome(interactome, pathway)
 
+        #interactome_edges = set((x, y) 
+        #    for x, y, line in interactome.get_interactome_edges())
+
+        interactome_edges = set((x, y) 
+            for x, y, line in specific_interactome.get_interactome_edges())
+        
         pathway_edges = set(pathway.get_pathway_obj().get_edges(data=False))
 
         negatives = list(interactome_edges.difference(pathway_edges)) 
@@ -1658,25 +1544,11 @@ class RegLinkerPipeline(object):
                 algorithm.get_output_directory(),
                 "precision-recall.txt")
 
-            '''
-            std_dev_file = Path(
-                new_output_dir,
-                algorithm.get_output_directory(),
-                "standard-deviation.txt")
-            '''
-
             points = []
 
             with pr_file.open('r') as f:
                 points = precrec.read_precision_recall_fractions(f)
 
-            '''
-            std_devs = []
-            with std_dev_file.open('r') as f:
-                for line in f:
-                    std_devs.append(float(line))
-            '''
-            
             precrec.plot_precision_recall_curve_fractions(
                 points, label=algorithm.get_descriptive_name(), ax=ax)
 
@@ -2094,6 +1966,7 @@ RANKING_ALGORITHMS = {
     "shortcuts-ss" : Shortcuts.ShortcutsSS,
     "quickreglinker" : QuickRegLinker.QuickRegLinker,
     "quickreglinkernegatives" : QuickNegatives.QuickRegLinkerNegatives,
+    "quickreglinkerpositives" : QuickPositives.QuickRegLinkerPositives,
     "quickreglinkerconcat" : QuickConcat.QuickRegLinkerConcat,
     "zerolinker" : ZeroLinker.ZeroLinker,
     "zeroquickreglinker" : ZeroQuickRegLinker.ZeroQuickRegLinker,
@@ -2136,18 +2009,17 @@ def main():
         print("Finished computing precision/recall over folds")
     '''
 
-    '''
-    print("Computing tp/fp score distributions")
-    pipeline.pathway_edge_weight_histograms()
-    pipeline.write_tp_fp_scores_with_folds_wrapper(num_folds)
-    pipeline.aggregate_tp_fp_scores_over_folds_wrapper(num_folds)
-    print("Finished computing tp/fp score distributions")
+    #print("Computing tp/fp score distributions")
+    print("Labeling output edges as tp/fp/none")
+    #pipeline.pathway_edge_weight_histograms()
+    pipeline.write_tp_fp_with_folds_wrapper(num_folds)
+    #pipeline.aggregate_tp_fp_over_folds_wrapper(num_folds)
+    print("Finished labeling")
 
     #if not opts.upload_reconstructions_off:
     #    print("Uploading reconstructions to GraphSpace")
     #    pipeline.post_reconstructions_to_graphspace_wrapper(num_folds)
     #    print("Finished uploading reconstructions to GraphSpace")
-    '''
     
     if not opts.aggregate_precision_recall_folds_off:
         print("Aggregating precision/recall over folds")
