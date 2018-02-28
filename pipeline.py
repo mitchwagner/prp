@@ -49,6 +49,7 @@ import src.algorithms.RegLinker as RegLinker
 import src.algorithms.ShortcutsSS as Shortcuts 
 import src.algorithms.ZeroLinker as ZeroLinker 
 import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker 
+import src.algorithms.Affinity as Affinity 
 
 # TODO: You have to change the venvs in each algorithm based on 
 # the platform you are running on.... -_-
@@ -1971,7 +1972,8 @@ RANKING_ALGORITHMS = {
     "zerolinker" : ZeroLinker.ZeroLinker,
     "zeroquickreglinker" : ZeroQuickRegLinker.ZeroQuickRegLinker,
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
-    "pcsf" : PCSF.PCSF
+    "pcsf" : PCSF.PCSF,
+    "affinity" : Affinity.Affinity,
     }
 
 
