@@ -13,6 +13,9 @@ Things that need to be added to the setup script:
     - One must build the quicklinker jar in the subrepo. For this, one needs
       to install Gradle and run "gradle build" in the subrepo TLD. 
 
+    - The subrepositories seem to detach themselves (e.g., are not tracking
+      any particular remote branch). It would be good to fix this.
+
 ## Running
 
 The pipeline should be executed as follows:
