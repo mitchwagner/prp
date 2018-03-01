@@ -43,7 +43,6 @@ class Affinity(RankingAlgorithm):
         affinities = list(set(affinities))
         
         affinities.sort(reverse=True)
-        print(affinities)
 
         rank_map = {}
         for i, a in enumerate(affinities):
@@ -65,6 +64,7 @@ class Affinity(RankingAlgorithm):
                         e[1], 
                         str(rank_map[a]),
                         str(a)]) + "\n")
+
 
     def conform_output(self, output_dir):
         None
