@@ -72,7 +72,7 @@ class QuickAffinity(RankingAlgorithm):
             "-o",
             os.path.join(str(Path(
                 reconstruction_input.output_dir, 
-                self.get_output_directory())), "output"),
+                self.get_output_directory())), "intermediate-output"),
             "-rlcsp"
             ])
 
@@ -80,8 +80,9 @@ class QuickAffinity(RankingAlgorithm):
         # Get the path score for an edge 
 
         outfile = Path(
-            self.get_full_output_file(
-                reconstruction_input.output_dir))
+            reconstruction_input.output_dir, 
+            self.get_output_directory(), 
+            "intermediate-output-projection.txt")
 
         path_scores = {}
         with outfile.open('r') as f:
@@ -138,7 +139,7 @@ class QuickAffinity(RankingAlgorithm):
         output_file = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
-            self.get_output_file())
+            "final.txt")
 
         with output_file.open('w') as f:
             for e in interactome.edges(data=True):
@@ -185,7 +186,7 @@ class QuickAffinity(RankingAlgorithm):
 
 
     def get_output_file(self):
-        return "output-projection.txt"
+        return "final.txt"
 
 
     def get_output_directory(self):
