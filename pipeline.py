@@ -590,6 +590,34 @@ class RegLinkerPipeline(object):
         return Interactome(interactome.name, path)
 
 
+    def purge_results_wrapper(self, folds):
+        for interactome in self.input_settings.interactomes:
+            for pathway_collection in self.input_settings.pathway_collections:
+                for pathway in pathway_collection.pathways:
+                    self.purge_results(
+                        interactome, pathway_collection, pathway, folds)
+
+
+    def purge_results(
+            self, interactome, pathway_collection, pathway, folds):
+
+        for i in range(folds):
+            output_dir = Path(
+                "outputs",
+                "cross-validation-reconstructions",
+                interactome.name,
+                pathway_collection.name,
+                pathway.name,
+                self.input_settings.subnetwork_creation,
+                "%d-folds" % folds,
+                "fold-%d" % i)
+
+            for algorithm in self.input_settings.algorithms:
+                alg_dir = algorithm.get_full_output_directory(output_dir)
+                print(str(alg_dir))
+                shutil.rmtree(str(alg_dir))
+
+
     def run_pathway_reconstructions_with_folds_wrapper(self, folds):
         for interactome in self.input_settings.interactomes:
             for pathway_collection in self.input_settings.pathway_collections:
@@ -1810,6 +1838,11 @@ def main():
     #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
     #pipeline.pruning_analysis_table()
+
+    if opts.purge_results:
+        print("Purging old results")
+        pipeline.purge_results_wrapper(num_folds)
+        print("Finished purging old results")
    
     if not opts.pathway_specific_interactomes_off:
         print("Creating pathway-specific interactomes")
@@ -1911,6 +1944,9 @@ def get_parser():
         action="store_true", default=False)
 
     parser.add_argument('--plot-aggregate-precision-recall-pathways-off', 
+        action="store_true", default=False)
+
+    parser.add_argument('--purge-results', 
         action="store_true", default=False)
 
     return parser
