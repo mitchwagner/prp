@@ -154,6 +154,12 @@ input_settings:
         - name: "quickreglinker"
           params: 
             rlc:
+                - ["one-n", "p*np*"]
+                - ["start-p-one-n", "pp*np*"]
+
+        - name: "quickreglinker"
+          params: 
+            rlc:
                 # At least 1 unknown edge, up to length 5 
                 - ["at-least-1-unknown-length-5", "n|np|pn|nn|npp|pnp|ppn|nnp|npn|pnn|nnn|nppp|pnpp|ppnp|pppn|nnpp|npnp|nppn|pnnp|pnpn|ppnn|nnnp|nnpn|npnn|pnnn|nnnn|npppp|pnppp|ppnpp|pppnp|ppppn|nnppp|npnpp|nppnp|npppn|pnnpp|pnpnp|pnppn|ppnnp|ppnpn|pppnn|nnnpp|nnpnp|nnppn|npnnp|npnpn|nppnn|pnnnp|pnnpn|pnpnn|ppnnn|nnnnp|nnnpn|nnpnn|npnnn|pnnnn|nnnnn"]
 

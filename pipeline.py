@@ -50,6 +50,7 @@ import src.algorithms.ShortcutsSS as Shortcuts
 import src.algorithms.ZeroLinker as ZeroLinker 
 import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker 
 import src.algorithms.Affinity as Affinity 
+import src.algorithms.QuickAffinity as QuickAffinity 
 
 # TODO: You have to change the venvs in each algorithm based on 
 # the platform you are running on.... -_-
@@ -295,7 +296,7 @@ class RegLinkerPipeline(object):
             print("#nodes: " + str(len(net.nodes())))
             print("#edges: " + str(len(net.edges())))
 
-
+   
     def pathway_edge_weight_histograms(self):
         for interactome in self.input_settings.interactomes:
             specific_interactome = interactome.path
@@ -398,7 +399,6 @@ class RegLinkerPipeline(object):
                 for result in results:
                     f.write("\t".join([str(elem) for elem in result]))
                     f.write("\n")
-
 
     # TODO: Fix, this is probably broken after refactor
     '''
@@ -1819,6 +1819,7 @@ RANKING_ALGORITHMS = {
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
     "pcsf" : PCSF.PCSF,
     "affinity" : Affinity.Affinity,
+    "quickaffinity": QuickAffinity.QuickAffinity,
     }
 
 
