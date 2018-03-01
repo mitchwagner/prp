@@ -615,7 +615,8 @@ class RegLinkerPipeline(object):
             for algorithm in self.input_settings.algorithms:
                 alg_dir = algorithm.get_full_output_directory(output_dir)
                 print(str(alg_dir))
-                shutil.rmtree(str(alg_dir))
+                if os.path.exists(str(alg_dir)):
+                    shutil.rmtree(str(alg_dir))
 
 
     def run_pathway_reconstructions_with_folds_wrapper(self, folds):
