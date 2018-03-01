@@ -967,17 +967,28 @@ class RegLinkerPipeline(object):
                 with outfile.open('w') as f:
                     for rank in retrieved_edges:
                         for edge, weight in rank:
-                            f.write(str(edge) + '\t' + str(weight) + '\t')
+                            # Components of write statements are repeated to
+                            # optimize write performance
                             if edge not in universe:
-                                f.write('none\t')
+                                f.write(str(edge) + '\t' 
+                                    + str(weight) + '\t' 
+                                    + 'none\t'
+                                    + info_map[edge])
                             elif edge in positive_folds[fold][1]:
-                                f.write('tp\t')
+                                f.write(str(edge) + '\t' 
+                                    + str(weight) + '\t' 
+                                    + 'tp\t'
+                                    + info_map[edge])
                             elif edge in negative_folds[fold][1]:
-                                f.write('fp\t')
+                                f.write(str(edge) + '\t' 
+                                    + str(weight) + '\t' 
+                                    + 'fp\t'
+                                    + info_map[edge])
                             else:
-                                f.write("critical error\n")
-                            f.write(info_map[edge])
-
+                                f.write(str(edge) + '\t' 
+                                    + str(weight) + '\t' 
+                                    + 'critical error\t'
+                                    + info_map[edge])
 
     '''
     def aggregate_tp_fp_scores_over_folds_wrapper(self, folds):
