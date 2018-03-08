@@ -1,3 +1,7 @@
+* March 7, 2018
+- After consulting with Murali and Aditya, I removed the second entry for
+  P19838 in the EGFR node file (the row that has its type listed as "none").
+
 * February 22, 2018
 - QuickLinkerConcat has some subtle errors due to floating point.
   In this algorithm, we combine the results for multiple regular expressions,
