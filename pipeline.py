@@ -11,6 +11,8 @@ from multiprocessing import Pool, cpu_count
 from pathlib import Path
 import shutil
 
+from typing import Dict
+
 import random
 import numpy as np
 
@@ -51,26 +53,14 @@ import src.algorithms.ZeroLinker as ZeroLinker
 import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker 
 import src.algorithms.Affinity as Affinity 
 import src.algorithms.QuickAffinity as QuickAffinity 
+import src.algorithms.QuickFlux as QuickFlux
+import src.algorithms.QuickFluxWeighted as QuickFluxWeighted
+import src.algorithms.QuickRWR as QuickRWR 
+
+# TODO: Explicit write-up of what our edge files and interactome files are
 
 # TODO: You have to change the venvs in each algorithm based on 
 # the platform you are running on.... -_-
-
-# TODO for now, ignoring incoming pathway edges to sources, outgoing from
-# targets. This might need to change eventually.
-
-# TODO TODO TODO: IGNORE incoming edges to receptors and outgoing edges from
-# transcription factors. There are SO MANY such edges!
-
-# TODO: Remove infrastructure for intra-pipeline prune-then-remove-edges
-#       Create script to prune netpath pathway files and write out nodes, edges
-#       This gets so complex. I need to loop through the edge files
-#       and node files and check to see if the node or edge remains after 
-#       pruning. If the answer is yes, re-write that line to the right file.
-
-# TODO: Check to make sure that errors from not creating files don't propogate
-# into the "conform output" function
-
-# TODO: Test alternate node removals
 
 # TODO: Looks like my assumption that nodes have to be in the edges file is
 #       wrong...I need to figure out where I made that assumption, and if it
@@ -78,14 +68,6 @@ import src.algorithms.QuickAffinity as QuickAffinity
 #       precision/recall on nodes, or use the edges set to get the nodes.
 #       BUT WAIT IT'S WORSE. ANY TIME I CREATE A NETWORK FOR THE PATHWAY, 
 #       I HAVE LEFT THESE NODES OUT.
-
-# Done?
-# 1) Check to make SURE the cross-validation is being done correctly
-
-# 2) Calculate precision recall on TEST SET ONLY
-
-# 3) Add legends to graphs for each algorithm, using algorithm name
-
 
 def run_fold(fold, fold_input):
     """
@@ -164,12 +146,13 @@ class RegLinkerPipeline(object):
     Encapsulates the steps of our analysis pipeline.
     """
 
-    subnetwork_creation_techniques = [
-        "remove-edges-then-prune", # don't use this
-        "remove-nodes-then-prune", # don't use this
-        "remove-edges", 
-        "remove-nodes"
-    ]
+    # TODO: Write now, we only remove edges.
+    #subnetwork_creation_techniques = [
+    #    "remove-edges-then-prune", # don't use this
+    #    "remove-nodes-then-prune", # don't use this
+    #    "remove-edges", 
+    #    "remove-nodes"
+    #]
 
 
     def __init__(self, input_settings, output_settings, 
@@ -1576,8 +1559,8 @@ class Interactome(object):
     This is a file-based version of an interactome that is used 
     exceedingly sparingly in the pipeline. I should look into how to
     I can refactor this.
-
     '''
+
     def __init__(self, name, path):
         self.name = name
         self.path = path
@@ -1619,10 +1602,13 @@ class Interactome(object):
 
 
 class PathwayCollection(object):
+    '''
+    Object that corresponds to a collection of pathways, on disk. In our
+    pipeline, the pathways in a collection are all stored in the same folder.
+    '''
 
     def __init__(self, name, path, pathways):
         ''' 
-        A collection of pathways, on disk
         :param name: name of the pathway collection
         :param path: directory the pathways are stored in 
         :param pathways: a list of names of pathways in the pathway collection
@@ -1634,8 +1620,8 @@ class PathwayCollection(object):
 
     def get_pathway_objs(self):
         '''
-        Return in-memory representations of each pathway in the pathway
-        collection
+        :return: a list of in-memory representations, corresponding to the
+            pathways in the pathway collection
         '''
         pathway_objs = []
 
@@ -1646,11 +1632,13 @@ class PathwayCollection(object):
 
 
 class PathwayOnDisk(object):
+    '''
+    Object that corresponds to a pathway on disk. In our pipeline, pathways
+    are stored as two files: a node list, and an edge list.
+    '''
 
     def __init__(self, name, path):
         '''
-        Object representing a pathway on disk. 
-        
         :param name: name of the pathway
         :param path: path where the pathway's on-disk files are stored
         '''
@@ -1659,16 +1647,25 @@ class PathwayOnDisk(object):
 
 
     def get_nodes_file(self):
+        '''
+        The pathway node list is stored in a file whose name is of the form
+        <pathway>-nodes.txt
+        '''
         return Path(self.path, self.name + "-nodes.txt")
 
 
     def get_edges_file(self):
+        '''
+        The pathway edge list is stored in a file whose name is of the form
+        <pathway>-edges.txt
+        '''
         return Path(self.path, self.name + "-edges.txt")
 
 
     def get_pathway_obj(self): 
         '''
-        Return an in-memory representation of the pathway
+        Return an in-memory representation of the pathway, by reading the
+        pathway node and edge lists into a Python object.
         '''
         with self.get_nodes_file().open('r') as nf, \
                 self.get_edges_file().open('r') as ef:
@@ -1678,6 +1675,11 @@ class PathwayOnDisk(object):
 
 
 class OutputSettings(object):
+    '''
+    Structure for storing the names of directories that output should
+    be written to
+    '''
+
     def __init__(self, base_dir, pathway_specific_interactome_dir, 
             reconstruction_dir, precrec_dir, vis_dir):
             
@@ -1815,7 +1817,7 @@ class ConfigParser(object):
         subsample_factor = precrec_map["subsample_factor"]
         return PrecisionRecallSettings(subsample_factor)
 
-
+RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker.PathLinker,
     "induced-subgraph" : InducedSubgraph.InducedSubgraph,
@@ -1832,6 +1834,9 @@ RANKING_ALGORITHMS = {
     "pcsf" : PCSF.PCSF,
     "affinity" : Affinity.Affinity,
     "quickaffinity": QuickAffinity.QuickAffinity,
+    "quickflux": QuickFlux.QuickFlux,
+    "quickfluxweighted": QuickFluxWeighted.QuickFluxWeighted,
+    "quickrwr": QuickRWR.QuickRWR,
     }
 
 
@@ -1877,7 +1882,7 @@ def main():
     #print("Computing tp/fp score distributions")
     print("Labeling output edges as tp/fp/none")
     #pipeline.pathway_edge_weight_histograms()
-    pipeline.write_tp_fp_with_folds_wrapper(num_folds)
+    #pipeline.write_tp_fp_with_folds_wrapper(num_folds)
     #pipeline.aggregate_tp_fp_over_folds_wrapper(num_folds)
     print("Finished labeling")
 
@@ -1910,17 +1915,17 @@ def main():
 
 
 def parse_arguments():
+    '''
+    Initialize a parser and use it to parse the command line arguments
+    :return: parsed dictionary of command line arguments
+    '''
     parser = get_parser()
     opts = parser.parse_args()
-
-    # Whether or not to overwrite computations
-    # Whether or not to compute precision recall
-    # Whether or not to visualize
 
     return opts
 
 
-def get_parser():
+def get_parser() -> argparse.ArgumentParser:
     """
     :return: an argparse ArgumentParser object for parsing command
         line parameters
