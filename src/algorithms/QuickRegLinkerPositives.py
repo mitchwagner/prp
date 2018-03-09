@@ -22,6 +22,7 @@ class QuickRegLinkerPositives(RankingAlgorithm):
         #######################################################################
         # 1)
         provided_edges = reconstruction_input.training_edges
+        negs = reconstruction_input.training_negatives
 
         edgesToComputeFile = Path(
             self.get_full_output_directory(
@@ -39,7 +40,8 @@ class QuickRegLinkerPositives(RankingAlgorithm):
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, provided_edges)
+             self.label_interactome_file(
+                in_file, out_file, provided_edges, negs)
 
         #######################################################################
         # 2) Keep only the necessary columns
@@ -102,7 +104,8 @@ class QuickRegLinkerPositives(RankingAlgorithm):
             ])
 
 
-    def label_interactome_file(self, in_handle, out_handle, positive_set):
+    def label_interactome_file(
+            self, in_handle, out_handle, positive_set, negative_set):
         """
         Read in one of our interactome files and add a label to every
         edge, with the label depending on whether or not that edge
@@ -117,8 +120,10 @@ class QuickRegLinkerPositives(RankingAlgorithm):
                 edge = (tokens[0], tokens[1])
                 if edge in positive_set:
                     out_handle.write(line.rstrip() + "\tp\n")
-                else:
+                elif edge in negative_set:
                     out_handle.write(line.rstrip() + "\tn\n")
+                else:
+                    out_handle.write(line.rstrip() + "\tx\n")
 
 
     def conform_output(self, output_dir):
