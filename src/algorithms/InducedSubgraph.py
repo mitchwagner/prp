@@ -21,21 +21,6 @@ class InducedSubgraph(RankingAlgorithm):
             nodes.add(edge[0])
             nodes.add(edge[1])
 
-        
-        #nodes = self.get_nodes_from_edge_file(
-        #    reconstruction_input.pathway_edges_file)
-
-        '''
-        # The pathway edges file is coped and modified in the cross-val. fold 
-        # procedure, but the nodes file is not. This uses all the nodes
-        # in the original pathway.
-        nodes = set() 
-        with reconstruction_input.pathway_nodes_file.open('r') as f:
-            for line in f:
-                if not line.rstrip().startswith("#"):
-                    nodes.add(line.split()[0])
-        '''
-
         # Compute the induced subgraph
         induced_subgraph = net.subgraph(nodes)
         prediction = induced_subgraph.edges()
