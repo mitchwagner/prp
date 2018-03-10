@@ -56,6 +56,7 @@ import src.algorithms.QuickAffinity as QuickAffinity
 import src.algorithms.QuickFlux as QuickFlux
 import src.algorithms.QuickFluxWeighted as QuickFluxWeighted
 import src.algorithms.QuickRWR as QuickRWR 
+import src.algorithms.QuickRWRWeighted as QuickRWRWeighted
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -161,6 +162,71 @@ class RegLinkerPipeline(object):
         self.input_settings = input_settings
         self.output_settings = output_settings
         self.precision_recall_settings = precision_recall_settings
+
+   
+    def paths_based_folds_analysis_wrapper(self):
+        for interactome in self.input_settings.interactomes:
+            for pathway_collection in self.input_settings.pathway_collections:
+                for pathway in pathway_collection.pathways:
+                    self.paths_based_folds_analysis(
+                        interactome, pathway_collection, pathway)
+
+
+    def paths_based_folds_analysis( 
+            self, interactome, pathway_collection, pathway):
+        '''
+         2 things to try here:
+         1) repeatedly run dijkstra's to find edge-disjoint paths, and
+            remove the edges found
+
+         2) Run Yen's algorithm, choose a subset that are edge disjoint
+            and see how many are left
+        '''
+
+        #specific_interactome = \
+        #    self.get_pathway_specific_interactome(interactome, pathway)
+
+        pathway_obj = pathway.get_pathway_obj()
+        net = RegLinkerPipeline.get_disjoint_paths_net_from_pathway(
+            pathway_obj)
+
+        max_flow, flow_dict = nx.maximum_flow(
+            net, "SS", "ST")
+
+        print("Maximum number of edge-disjoint paths: %d" % max_flow)
+
+        # Now find paths iteratively
+        # (This can be done by iteratively finding shortest paths, for
+        #  example, after removing any edges with flow of 0 in flow_dict,
+        #  and then removing the path found in each iteration
+
+        # Try both the pathway-specific interactome and the 
+        # regular interactome
+
+    @staticmethod
+    def set_unit_edge_capacity(network):
+        for tail, head in network.edges():
+            network[tail][head]["capacity"] = 1            
+
+    @staticmethod
+    def get_disjoint_paths_net_from_pathway(
+            pathway_obj, supersource="SS", supertarget="ST"):
+
+        net = RegLinkerPipeline.get_net_from_pathway(pathway_obj)
+
+        RegLinkerPipeline.set_unit_edge_capacity(net)
+
+        sources = pathway_obj.get_receptors(data=False)
+        targets = pathway_obj.get_tfs(data=False)
+
+        for source in sources:
+            net.add_edge(supersource, source)
+
+        for target in targets:
+            net.add_edge(target, supertarget)
+        
+        return net
+
 
     # TODO: needs refactoring
     '''
@@ -282,6 +348,7 @@ class RegLinkerPipeline(object):
    
     def pathway_edge_weight_histograms(self):
         for interactome in self.input_settings.interactomes:
+            # TODO: This is not a pathway specific interactome?
             specific_interactome = interactome.path
             for pathway_collection in self.input_settings.pathway_collections: 
                 for pathway in pathway_collection.pathways:
@@ -1076,8 +1143,9 @@ class RegLinkerPipeline(object):
             self, interactome, pathway_collection, pathway, folds):
         None
     '''
-
-    def get_net_from_pathway(self, pathway):
+    
+    @staticmethod
+    def get_net_from_pathway(pathway):
         edges = pathway.get_edges(data=True)
         nodes = pathway.get_nodes(data=True)
 
@@ -1119,6 +1187,12 @@ class RegLinkerPipeline(object):
     
 
     def get_folds_from_split(self, items, split):
+        """
+        Scikit-learn returns a "split" structure that stores the indices
+        of items in the train and test set of particular fold. This 
+        takes that structure and the items that were divided up, to 
+        return a structure of items instead of indices.
+        """
         folds = []
 
         for i, (train, test) in enumerate(split):
@@ -1130,6 +1204,11 @@ class RegLinkerPipeline(object):
 
     
     def split_edges_into_folds(self, edges, num_folds):
+        """
+        Use Scikit-learn k-fold cross validation functions to divide
+        the edges supplied to the function into num_folds folds of 
+        train and test sets.
+        """
         kf = KFold(n_splits=num_folds, shuffle=True, random_state=1800)
 
         split = kf.split(edges)
@@ -1140,7 +1219,16 @@ class RegLinkerPipeline(object):
 
     
     def get_filtered_pathway_edges(self, pathway, interactome):
-        net = self.get_net_from_pathway(pathway)
+        """
+        Performs the following pre-processing before returning the list
+        of edges in a pathway:
+
+        1) Remove edges that are not in the interactome
+
+        2) Remove edges that are incoming to sources and outgoing from
+           targets
+        """
+        net = RegLinkerPipeline.get_net_from_pathway(pathway)
 
         self.remove_edges_not_in_interactome(net, pathway, interactome)
 
@@ -1185,8 +1273,10 @@ class RegLinkerPipeline(object):
 
     def aggregate_precision_recall_over_folds_wrapper(self, num_folds):
         for interactome in self.input_settings.interactomes:
+            print(interactome.name)
             for pathway_collection in self.input_settings.pathway_collections:
                 for pathway in pathway_collection.pathways:
+                    print("    " + pathway.name)
                     self.aggregate_precision_recall_over_folds(
                         interactome, pathway_collection, pathway, num_folds)
 
@@ -1837,6 +1927,7 @@ RANKING_ALGORITHMS = {
     "quickflux": QuickFlux.QuickFlux,
     "quickfluxweighted": QuickFluxWeighted.QuickFluxWeighted,
     "quickrwr": QuickRWR.QuickRWR,
+    "quickrwrweighted": QuickRWRWeighted.QuickRWRWeighted,
     }
 
 
@@ -1856,6 +1947,8 @@ def main():
     #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
     #pipeline.pruning_analysis_table()
+
+    pipeline.paths_based_folds_analysis_wrapper()
 
     if opts.purge_results:
         print("Purging old results")
@@ -1911,6 +2004,7 @@ def main():
         pipeline.plot_pathway_collection_aggregate_precision_recall_wrapper(
             num_folds)
         print("Finished plotting")
+
     print("Pipeline complete")
 
 
