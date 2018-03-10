@@ -38,7 +38,11 @@ class QuickRWR(RankingAlgorithm):
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, provided_edges)
+
+            sets = [("p", provided_edges)]
+
+            reconstruction_input.label_interactome_file(
+                in_file, out_file, sets, default="n")
 
         #######################################################################
 
@@ -161,6 +165,26 @@ class QuickRWR(RankingAlgorithm):
             "-rlcsp"
             ])
 
+        final_out = Path(
+            reconstruction_input.output_dir, 
+            self.get_output_directory(),
+            "output-projection.txt")
+
+        # We need to keep the number of predictions to a reasonable length
+        final_out2 = Path(
+            reconstruction_input.output_dir, 
+            self.get_output_directory(),
+            "output-projection2.txt")
+
+        with final_out2.open("w") as outfile:
+            subprocess.call([
+                "head",
+                "-n", 
+                "5000",
+                str(final_out)],
+                stdout=outfile
+                )
+
 
     def get_interpolator(self, 
             old_min: float, old_max: float, new_min: float, new_max: float):
@@ -198,25 +222,6 @@ class QuickRWR(RankingAlgorithm):
         return induced_subgraph
 
 
-    def label_interactome_file(self, in_handle, out_handle, positive_set):
-        """
-        Read in one of our interactome files and add a label to every
-        edge, with the label depending on whether or not that edge
-        appears in the positive set.
-        """
-
-        for line in in_handle:
-            if pl_parse.is_comment_line(line):
-                out_handle.write(line)
-            else:
-                tokens = pl_parse.tokenize(line)
-                edge = (tokens[0], tokens[1])
-                if edge in positive_set:
-                    out_handle.write(line.rstrip() + "\tp\n")
-                else:
-                    out_handle.write(line.rstrip() + "\tn\n")
-
-
     def conform_output(self, output_dir):
         None
 
@@ -230,7 +235,7 @@ class QuickRWR(RankingAlgorithm):
 
 
     def get_output_file(self) -> str:
-        return "output-projection.txt"
+        return "output-projection2.txt"
 
 
     def get_output_directory(self) -> Path:

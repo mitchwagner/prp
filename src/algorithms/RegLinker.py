@@ -15,9 +15,7 @@ class RegLinker(RankingAlgorithm):
 
     def run(self, reconstruction_input):
         
-        provided_edges = None
-        with reconstruction_input.pathway_edges_file.open('r') as f:
-            provided_edges = list(pl_parse.get_edge_set(f))
+        provided_edges = reconstruction_input.training_edges
 
         labeled_interactome = Path(
             self.get_full_output_directory(
@@ -26,10 +24,14 @@ class RegLinker(RankingAlgorithm):
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, provided_edges)
+            
+            sets = [("p", provided_edges)]
+
+            reconstruction_input.label_interactome_file(
+                in_file, out_file, sets, default="n")
 
         subprocess.call([
-            "baobab-venv-regpathlinker/bin/python", 
+            "venv-regpathlinker/bin/python", 
             "src/external/regpathlinker/PathLinker.py", 
             str(labeled_interactome),
             str(reconstruction_input.pathway_nodes_file),
@@ -44,25 +46,6 @@ class RegLinker(RankingAlgorithm):
                 reconstruction_input.output_dir, 
                 self.get_output_directory())), ""),
             ])
-
-
-    def label_interactome_file(self, in_handle, out_handle, positive_set):
-        """
-        Read in one of our interactome files and add a label to every
-        edge, with the label depending on whether or not that edge
-        appears in the positive set.
-        """
-
-        for line in in_handle:
-            if pl_parse.is_comment_line(line):
-                out_handle.write(line)
-            else:
-                tokens = pl_parse.tokenize(line)
-                edge = (tokens[0], tokens[1])
-                if edge in positive_set:
-                    out_handle.write(line.rstrip() + "\tp\n")
-                else:
-                    out_handle.write(line.rstrip() + "\tn\n")
 
 
     def conform_output(self, output_dir):

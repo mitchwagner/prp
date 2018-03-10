@@ -39,7 +39,11 @@ class QuickFluxWeighted(RankingAlgorithm):
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, provided_edges)
+
+            sets = [("p", provided_edges)]
+            
+            reconstruction_input.label_interactome_file(
+                in_file, out_file, sets, default="n")
 
         #######################################################################
         cut_labeled_interactome = Path(
@@ -176,25 +180,6 @@ class QuickFluxWeighted(RankingAlgorithm):
         induced_subgraph = net.subgraph(nodes)
 
         return induced_subgraph
-
-
-    def label_interactome_file(self, in_handle, out_handle, positive_set):
-        """
-        Read in one of our interactome files and add a label to every
-        edge, with the label depending on whether or not that edge
-        appears in the positive set.
-        """
-
-        for line in in_handle:
-            if pl_parse.is_comment_line(line):
-                out_handle.write(line)
-            else:
-                tokens = pl_parse.tokenize(line)
-                edge = (tokens[0], tokens[1])
-                if edge in positive_set:
-                    out_handle.write(line.rstrip() + "\tp\n")
-                else:
-                    out_handle.write(line.rstrip() + "\tn\n")
 
 
     def conform_output(self, output_dir):

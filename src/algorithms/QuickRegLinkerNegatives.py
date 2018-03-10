@@ -7,6 +7,18 @@ from .RankingAlgorithm import RankingAlgorithm
 import src.external.pathlinker.parse as pl_parse
 
 class QuickRegLinkerNegatives(RankingAlgorithm):
+    '''
+    Okay, there were two ideas on the table: 
+    
+    1) Calculate paths ONLY through positive edges, which is QuickRegLinker
+    positives, with the option of hiding negatives that were in the training
+    set for the fold
+    
+    2) Calculate paths through ALL edges, but those paths must avoid negatives
+    that were included in the training fold.
+
+    This is #2
+    '''
     def __init__(self, params):
         self.rlc_abbr = params["rlc"][0]
         self.rlc = params["rlc"][1]
@@ -31,8 +43,12 @@ class QuickRegLinkerNegatives(RankingAlgorithm):
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(   
-                in_file, out_file, provided_edges, training_negatives)
+
+            sets = [("p", provided_edges),
+                    ("n", training_negatives)]
+
+            self.label_interactome_file(   
+                in_file, out_file, sets, default="x")
 
         #######################################################################
         # 2) Keep only the necessary columns
@@ -89,29 +105,6 @@ class QuickRegLinkerNegatives(RankingAlgorithm):
                 self.get_output_directory())), "output"),
             "-rlcsp"
             ])
-
-
-    def label_interactome_file(
-        self, in_handle, out_handle, positive_set, training_negatives):
-        """
-        Read in one of our interactome files and add a label to every
-        edge, with the label depending on whether or not that edge
-        appears in the positive set.
-        """
-
-        for line in in_handle:
-            if pl_parse.is_comment_line(line):
-                out_handle.write(line)
-            else:
-                tokens = pl_parse.tokenize(line)
-                edge = (tokens[0], tokens[1])
-                if edge in positive_set:
-                    out_handle.write(line.rstrip() + "\tp\n")
-                elif edge in training_negatives:
-                    continue
-                    #out_handle.write(line.rstrip() + "\tf\n")
-                else:
-                    out_handle.write(line.rstrip() + "\tn\n")
 
 
     def conform_output(self, output_dir):

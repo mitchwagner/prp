@@ -1,6 +1,7 @@
 from pathlib import Path
 import os
 
+import src.external.pathlinker.parse as pl_parse
 
 class PathwayReconstructionInput(object):
     """
@@ -24,6 +25,42 @@ class PathwayReconstructionInput(object):
 
         self.pathway_nodes_file = pathway_nodes_file
         self.output_dir = output_dir
+
+
+    def label_interactome_file(
+            self, in_handle, out_handle, sets, default="none"):
+        '''
+        Sets is a list of tuples, where the first element in each
+        tuple is a label, and the second is the set of elements tto 
+        give that label.
+
+        The sets of elements are intended to be disjoint. 
+
+        :param default: the default label to give to anything that does
+            not match anything in any of the provided sets
+        '''
+        for line in in_handle:
+            if pl_parse.is_comment_line(line):
+                out_handle.write(line)
+            else:
+                tokens = pl_parse.tokenize(line)
+                edge = (tokens[0], tokens[1])
+
+                flag = False
+                label = ""
+                for s in sets:
+                    # If the edge is in this set, label it with the set's 
+                    # label and stop checking sets
+                    if edge in s[1]:
+                        label = s[0]
+                        flag = True
+                        break;
+
+                # If the edge was not in any set, give the label "none"
+                if flag == False:
+                    label = default
+
+                out_handle.write(line.rstrip() + "\t" + label + "\n")
 
 
 class RankingAlgorithm(object):

@@ -40,13 +40,21 @@ class QuickRegLinkerSanityCheck(RankingAlgorithm):
         with reconstruction_input.all_edges_file.open('r') as f:
             all_edges = list(pl_parse.get_edge_set(f))
 
-        # To get the set of "f"s, take the set of all edges and subtract out
-        # out the positives from the training set
-        fs = list(set(all_edges) - set(provided_edges))
+        # To get the set of "t"s, take the set of all pathway edges and
+        # subtract out out the positives from the training set
+        # This yields the set of test positives. The goal is to only
+        # find paths through test positives and train positives, which
+        # should yield, 100% precision, as a sanity check
+        ts = list(set(all_edges) - set(provided_edges))
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, fs, provided_edges)
+
+            sets = [("p", provided_edges), 
+                    ("t", ts)]
+
+            reconstruction_input.label_interactome_file(
+                in_file, out_file, sets, default="n")
 
         #######################################################################
         # 2) Keep only the necessary columns
@@ -103,27 +111,6 @@ class QuickRegLinkerSanityCheck(RankingAlgorithm):
                 self.get_output_directory())), "output"),
             "-rlcsp"
             ])
-
-
-    def label_interactome_file(self, in_handle, out_handle, fs, training):
-        """
-        Read in one of our interactome files and add a label to every
-        edge, with the label depending on whether or not that edge
-        appears in the positive set.
-        """
-
-        for line in in_handle:
-            if pl_parse.is_comment_line(line):
-                out_handle.write(line)
-            else:
-                tokens = pl_parse.tokenize(line)
-                edge = (tokens[0], tokens[1])
-                if edge in training:
-                    out_handle.write(line.rstrip() + "\tp\n")
-                elif edge in fs:
-                    out_handle.write(line.rstrip() + "\tf\n")
-                else:
-                    out_handle.write(line.rstrip() + "\tn\n")
 
 
     def conform_output(self, output_dir):

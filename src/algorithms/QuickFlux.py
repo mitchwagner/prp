@@ -15,11 +15,8 @@ import src.external.pathlinker.parse as pl_parse
 # TODO: I should also do JUST a flux to see how well it does...
 class QuickFlux(RankingAlgorithm):
     '''
-    Put nodes incident on training edges in restart set, RWR, calculate edge
-    flux, then let edge's affinity be the flux on the edge.
-
-    Combine with Quick(Reg)Linker by finding paths using flux as edge weight,
-    or else multiplying QuickLinker scores by flux scores.
+    Multiply path score of QuickRegLinker for an edge with PageRank flux
+    through an edge, where the restart set has all nodes in it.
     '''
 
     def __init__(self, params:Dict):
@@ -39,7 +36,11 @@ class QuickFlux(RankingAlgorithm):
 
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, provided_edges)
+
+            sets = [("p", provided_edges)]
+
+            reconstruction_input.label_interactome_file(
+                in_file, out_file, sets, default="n")
 
         #######################################################################
         cut_labeled_interactome = Path(
@@ -158,25 +159,6 @@ class QuickFlux(RankingAlgorithm):
                         tup[1],
                         str(rank_map[tup[2]]),
                         str(tup[2]) + "\n"]))
-
-
-    def label_interactome_file(self, in_handle, out_handle, positive_set):
-        """
-        Read in one of our interactome files and add a label to every
-        edge, with the label depending on whether or not that edge
-        appears in the positive set.
-        """
-
-        for line in in_handle:
-            if pl_parse.is_comment_line(line):
-                out_handle.write(line)
-            else:
-                tokens = pl_parse.tokenize(line)
-                edge = (tokens[0], tokens[1])
-                if edge in positive_set:
-                    out_handle.write(line.rstrip() + "\tp\n")
-                else:
-                    out_handle.write(line.rstrip() + "\tn\n")
 
 
     def conform_output(self, output_dir):
