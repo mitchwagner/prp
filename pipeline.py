@@ -208,6 +208,7 @@ class RegLinkerPipeline(object):
         for tail, head in network.edges():
             network[tail][head]["capacity"] = 1            
 
+
     @staticmethod
     def get_disjoint_paths_net_from_pathway(
             pathway_obj, supersource="SS", supertarget="ST"):
@@ -344,6 +345,71 @@ class RegLinkerPipeline(object):
             print(interactome.name)
             print("#nodes: " + str(len(net.nodes())))
             print("#edges: " + str(len(net.edges())))
+
+
+    def edge_weight_distribution_wrapper(self):
+        for interactome in self.input_settings.interactomes:
+            self.edge_weight_distribution(interactome)
+
+
+    def edge_weight_distribution(self, interactome):
+        fig, ax = plt.subplots()
+
+        ax.set_title("Interactome edge distribution")
+        ax.set_xlabel("Edge weight (bin size = .05)")
+        ax.set_ylabel("# of edges in bin")
+
+        for pathway_collection in self.input_settings.pathway_collections:
+            edge_union = set()
+
+            # 1) Loop over all pathways and get the union of their edges
+            for pathway in pathway_collection.pathways:
+                pathway_obj = pathway.get_pathway_obj()
+                edges = set(pathway_obj.get_edges(data=False))
+
+                edge_union = edge_union.union(edges)
+            
+            # 2) Get the negatives from the interactome
+            specific_interactome = interactome.path
+            net = None
+            with specific_interactome.open('r') as f:
+                net = pl.readNetworkFile(f) 
+
+            final_positives = set(edges).intersection(
+                set(net.edges()))
+
+            negatives = set(net.edges()) - final_positives
+                
+            pos_weights = [net[x[0]][x[1]]["weight"] 
+                for x in final_positives] 
+            
+            neg_weights = [net[x[0]][x[1]]["weight"] 
+                for x in negatives] 
+
+            colors = ['red', 'lime']
+
+            neg_items = np.array(neg_weights)
+            pos_items = np.array(pos_weights)
+
+            ax.hist(
+                [neg_items, pos_items],
+                bins=np.arange(0,1,.05), 
+                histtype='bar',
+                color=colors,
+                stacked=True) 
+
+            out = Path(
+                "outputs",
+                "other",
+                "overall-edge-weight-distribution",
+                interactome.name,
+                pathway_collection.name,
+                "histogram.png")
+
+            out.parent.mkdir(parents=True, exist_ok=True)
+            
+            fig.tight_layout()
+            fig.savefig(str(out))
 
    
     def pathway_edge_weight_histograms(self):
@@ -1269,7 +1335,6 @@ class RegLinkerPipeline(object):
 
         return self.split_edges_into_folds(negatives, num_folds)
 
-    # Get predictions
 
     def aggregate_precision_recall_over_folds_wrapper(self, num_folds):
         for interactome in self.input_settings.interactomes:
@@ -1960,6 +2025,9 @@ def main():
         pipeline.create_pathway_specific_interactomes_wrapper()
         print("Finished creating pathway-specific interactomes")
 
+    pipeline.edge_weight_distribution_wrapper()
+    pipeline.pathway_edge_weight_histograms()
+
     if not opts.run_reconstructions_off:
         print("Running pathway reconstructions over folds") 
         pipeline.run_pathway_reconstructions_with_folds_wrapper(num_folds)
@@ -1974,7 +2042,6 @@ def main():
 
     #print("Computing tp/fp score distributions")
     print("Labeling output edges as tp/fp/none")
-    #pipeline.pathway_edge_weight_histograms()
     #pipeline.write_tp_fp_with_folds_wrapper(num_folds)
     #pipeline.aggregate_tp_fp_over_folds_wrapper(num_folds)
     print("Finished labeling")
