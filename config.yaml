@@ -247,17 +247,3 @@ output_settings:
     # Subdirectory of output_dir into which computed visualizations will
     # be placed
     visualization_dir: "visualizations"
-
-# Precision Recall Settings: initialize parameters for the calculation of
-# precision/recall curves
-precision_recall_settings:
-
-    # Given the size of our interactomes compared to the size of pathways, 
-    # it is generally prudent to subsample the negative set from the set of
-    # edges not in the pathway. This option controls that behavior.
-    # WARNING: Not implemented
-    subsample_negatives: true
-
-    # Should subsampling be turned on, the number of negatives selected
-    # will be sample_factor * <number of positives in a pathway>
-    subsample_factor: 50

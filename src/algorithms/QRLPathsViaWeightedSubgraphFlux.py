@@ -12,7 +12,7 @@ import src.external.pathlinker.PageRank as pr
 import src.external.pathlinker.parse as pl_parse
 
 
-class QuickRWRWeighted(RankingAlgorithm):
+class QRLPathsViaWeightedSubgraphFlux(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
@@ -231,11 +231,12 @@ class QuickRWRWeighted(RankingAlgorithm):
 
 
     def get_name(self) -> str:
-        return "quickrwrweighted"
+        return "QRLPathsViaWeightedSubgraphFlux"
 
 
     def get_descriptive_name(self) -> str:
-        return "quickrwrweighted, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
+        return "QRLPathsViaWeightedSubgraphFlux, q=%s, rlc=%s" % (
+            self.q, self.rlc_abbr)
 
 
     def get_output_file(self) -> str:

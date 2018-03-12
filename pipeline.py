@@ -39,30 +39,27 @@ from src.external.utils.pathway.pathway import Pathway
 import src.external.utils.pathway.pathway_parse as pathway_parse
 
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
-import src.algorithms.PathLinker as PathLinker 
-import src.algorithms.InducedSubgraph as InducedSubgraph 
-import src.algorithms.InducedSubgraphRanked as InducedSubgraphRanked 
-import src.algorithms.PCSF as PCSF 
-import src.algorithms.QuickRegLinker as QuickRegLinker 
-import src.algorithms.QuickRegLinkerNegatives as QuickNegatives
-import src.algorithms.QuickRegLinkerPositives as QuickPositives
-import src.algorithms.QuickRegLinkerConcat as QuickConcat 
-import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck 
-import src.algorithms.RegLinker as RegLinker 
-import src.algorithms.ShortcutsSS as Shortcuts 
-import src.algorithms.ZeroLinker as ZeroLinker 
-import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker 
-import src.algorithms.Affinity as Affinity 
-import src.algorithms.QuickAffinity as QuickAffinity 
-import src.algorithms.QuickFlux as QuickFlux
-import src.algorithms.QuickFluxWeighted as QuickFluxWeighted
-import src.algorithms.QuickRWR as QuickRWR 
-import src.algorithms.QuickRWRWeighted as QuickRWRWeighted
+import src.algorithms.PathLinker as PathLinker
+import src.algorithms.InducedSubgraph as InducedSubgraph
+import src.algorithms.InducedSubgraphRanked as InducedSubgraphRanked
+import src.algorithms.PCSF as PCSF
+import src.algorithms.QuickRegLinker as QuickRegLinker
+import src.algorithms.QRLIgnoreFoldNegatives as QuickNegatives
+import src.algorithms.QRLPathsThroughFoldPositives as QuickPositives
+import src.algorithms.QuickRegLinkerConcat as QuickConcat
+import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
+import src.algorithms.RegLinker as RegLinker
+import src.algorithms.ShortcutsSS as Shortcuts
+import src.algorithms.ZeroLinker as ZeroLinker
+import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker
+import src.algorithms.Affinity as Affinity
+import src.algorithms.QRLMultiplyAffinity as QuickAffinity
+import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
+import src.algorithms.QRLMultiplyInducedSubgraphFlux as QRLMultiplyInduced
+import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced 
+import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
 
 # TODO: Explicit write-up of what our edge files and interactome files are
-
-# TODO: You have to change the venvs in each algorithm based on 
-# the platform you are running on.... -_-
 
 # TODO: Looks like my assumption that nodes have to be in the edges file is
 #       wrong...I need to figure out where I made that assumption, and if it
@@ -119,8 +116,12 @@ def run_fold(fold, fold_input):
         "%d-folds" % folds,
         "fold-%d" % fold)
 
+    #alg_input = RankingAlgorithm.PathwayReconstructionInput(
+    #    specific_interactome, training_edges, node_file, 
+    #    output_dir, original_edge_file, negative_training)
+
     alg_input = RankingAlgorithm.PathwayReconstructionInput(
-        specific_interactome, training_edges, node_file, 
+        interactome.path, training_edges, node_file, 
         output_dir, original_edge_file, negative_training)
 
     #num_cores = cpu_count()
@@ -157,12 +158,10 @@ class RegLinkerPipeline(object):
     #]
 
 
-    def __init__(self, input_settings, output_settings, 
-            precision_recall_settings):
+    def __init__(self, input_settings, output_settings):
 
         self.input_settings = input_settings
         self.output_settings = output_settings
-        self.precision_recall_settings = precision_recall_settings
 
    
     def paths_based_folds_analysis_wrapper(self):
@@ -188,8 +187,6 @@ class RegLinkerPipeline(object):
 
         #######################################################################
         # Looking at the negative edges
-        # 3) paths = ksp.k_shortest_paths_yen(net, 'source', 'sink', opts.k_param, weight='ksp_weight', clip=not opts.include_tied_paths)
-        # 4) print(len(paths))
 
         #specific_interactome = \
         #    self.get_pathway_specific_interactome(interactome, pathway)
@@ -263,6 +260,7 @@ class RegLinkerPipeline(object):
 
         # Try both the pathway-specific interactome and the 
         # regular interactome
+
 
     @staticmethod
     def set_unit_edge_capacity(network):
@@ -396,6 +394,10 @@ class RegLinkerPipeline(object):
     '''
 
     def interactome_stats(self):
+        '''
+        Print interactome name, nodes in the interactome, and edges in the
+        interactome.
+        '''
         for interactome in self.input_settings.interactomes:
             net = None
 
@@ -414,6 +416,10 @@ class RegLinkerPipeline(object):
 
 
     def edge_weight_distribution(self, interactome):
+        '''
+        Show distribution of edge weights across the interactome (absent
+        signaling pathways) and across all pathways combined.
+        '''
         fig, ax = plt.subplots()
 
         ax.set_title("Interactome edge distribution")
@@ -435,10 +441,13 @@ class RegLinkerPipeline(object):
             net = None
             with specific_interactome.open('r') as f:
                 net = pl.readNetworkFile(f) 
-
+    
+            # Only look at pathway edges that are actually in the 
+            # interactome
             final_positives = set(edges).intersection(
                 set(net.edges()))
 
+            # Subtract out pathway edges from the interactome edges
             negatives = set(net.edges()) - final_positives
                 
             pos_weights = [net[x[0]][x[1]]["weight"] 
@@ -474,6 +483,10 @@ class RegLinkerPipeline(object):
 
 
     def pathway_edge_weight_histograms(self):
+        '''
+        Create histograms, per pathway, of the weights of edges in that
+        pathway.
+        '''
         for interactome in self.input_settings.interactomes:
             # TODO: This is not a pathway specific interactome?
             specific_interactome = interactome.path
@@ -777,6 +790,10 @@ class RegLinkerPipeline(object):
 
     def purge_results(
             self, interactome, pathway_collection, pathway, folds):
+        '''
+        Delete previously-computed pathway reconstructions 
+        for the algorithms specified in the config file.
+        '''
 
         for i in range(folds):
             output_dir = Path(
@@ -869,6 +886,9 @@ class RegLinkerPipeline(object):
 
     def post_reconstructions_to_graphspace(
             self, interactome, pathway_collection, pathway, folds):
+        '''
+        Post reconstructions to GraphSpace
+        '''
         
         node_file = pathway.get_nodes_file()
 
@@ -1376,42 +1396,61 @@ class RegLinkerPipeline(object):
 
         self.remove_edges_not_in_interactome(net, pathway, interactome)
 
+        '''
         self.remove_incoming_edges_to_sources(
             net, pathway.get_receptors(data=False))
 
         self.remove_outgoing_edges_from_targets(
             net, pathway.get_tfs(data=False))
+        '''
 
         return net.edges()
 
+    # Okay, I need to get the logic straight on the two functions below
+    #
+    # I have been taking the positive set as the pathway edges less
+    # edges incoming to sources, outgoing from targets, and anything not in
+    # the original interactome (not the pathway specific interactome)
+    # 
+    # On the other hand, I have been taking the negative set as the 
+    # pathway-specific interactome less any edges in a given pathway.
+    # That all seems right.
 
     def get_positive_folds_remove_edges(
-            self, interactome, pathway, num_folds):
+            self, interactome, pathway, k):
+        '''
+        Create k folds of training and test positives from the edges in the
+        pathway.
+        '''
 
         pathway_obj = pathway.get_pathway_obj()
 
         edges = self.get_filtered_pathway_edges(pathway_obj, interactome)
         edges.sort(key=lambda edge:(edge[0],edge[1]))
 
-        return self.split_edges_into_folds(edges, num_folds)
+        return self.split_edges_into_folds(edges, k)
 
 
-    def get_negative_folds(self, interactome, pathway, num_folds):
-        specific_interactome = \
-            self.get_pathway_specific_interactome(interactome, pathway)
-
-        #interactome_edges = set((x, y) 
-        #    for x, y, line in interactome.get_interactome_edges())
+    def get_negative_folds(self, interactome, pathway, k):
+        '''
+        Create k folds of training and test negatives from the edges in
+        the interactome after removing edges from the pathway.
+        '''
+        #specific_interactome = \
+        #    self.get_pathway_specific_interactome(interactome, pathway)
 
         interactome_edges = set((x, y) 
-            for x, y, line in specific_interactome.get_interactome_edges())
+            for x, y, line in interactome.get_interactome_edges())
+
+        #interactome_edges = set((x, y) 
+         #   for x, y, line in specific_interactome.get_interactome_edges())
         
         pathway_edges = set(pathway.get_pathway_obj().get_edges(data=False))
 
         negatives = list(interactome_edges.difference(pathway_edges)) 
         negatives.sort(key = lambda edge:(edge[0], edge[1]))
 
-        return self.split_edges_into_folds(negatives, num_folds)
+        return self.split_edges_into_folds(negatives, k)
 
 
     def aggregate_precision_recall_over_folds_wrapper(self, num_folds):
@@ -1775,11 +1814,6 @@ class InputSettings(object):
         self.subnetwork_creation = subnetwork_creation
 
 
-class PrecisionRecallSettings(object):
-    def __init__(self, subsample_factor):
-        self.subsample_factor = subsample_factor
-
-
 class Interactome(object):
     '''
     This is a file-based version of an interactome that is used 
@@ -1954,10 +1988,10 @@ class ConfigParser(object):
     def parse(config_file_handle):
         config_map = yaml.load(config_file_handle)
         return RegLinkerPipeline(
-            ConfigParser.__parse_input_settings(config_map["input_settings"]),
-            ConfigParser.__parse_output_settings(config_map["output_settings"]),
-            ConfigParser.__parse_precision_recall_settings(
-                config_map["precision_recall_settings"]))
+            ConfigParser.__parse_input_settings(
+                config_map["input_settings"]),
+            ConfigParser.__parse_output_settings(
+                config_map["output_settings"]))
 
     
     @staticmethod 
@@ -2038,11 +2072,6 @@ class ConfigParser(object):
             reconstruction_dir, precision_recall_dir, visualization_dir)
         
 
-    @staticmethod 
-    def __parse_precision_recall_settings(precrec_map):
-        subsample_factor = precrec_map["subsample_factor"]
-        return PrecisionRecallSettings(subsample_factor)
-
 RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
 RANKING_ALGORITHMS = {
     "pathlinker" : PathLinker.PathLinker,
@@ -2051,19 +2080,23 @@ RANKING_ALGORITHMS = {
     "reglinker" : RegLinker.RegLinker,
     "shortcuts-ss" : Shortcuts.ShortcutsSS,
     "quickreglinker" : QuickRegLinker.QuickRegLinker,
-    "quickreglinkernegatives" : QuickNegatives.QuickRegLinkerNegatives,
-    "quickreglinkerpositives" : QuickPositives.QuickRegLinkerPositives,
+    "qrlignorefoldnegatives" : QuickNegatives.QRLIgnoreFoldNegatives,
+    "qrlpathsthroughfoldpositives" : 
+        QuickPositives.QRLPathsThroughFoldPositives,
     "quickreglinkerconcat" : QuickConcat.QuickRegLinkerConcat,
     "zerolinker" : ZeroLinker.ZeroLinker,
     "zeroquickreglinker" : ZeroQuickRegLinker.ZeroQuickRegLinker,
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
     "pcsf" : PCSF.PCSF,
     "affinity" : Affinity.Affinity,
-    "quickaffinity": QuickAffinity.QuickAffinity,
-    "quickflux": QuickFlux.QuickFlux,
-    "quickfluxweighted": QuickFluxWeighted.QuickFluxWeighted,
-    "quickrwr": QuickRWR.QuickRWR,
-    "quickrwrweighted": QuickRWRWeighted.QuickRWRWeighted,
+    "quickaffinity": QuickAffinity.QRLMultiplyAffinity,
+    "qrlmultiplyuniformflux": QRLMultiplyUniform.QRLMultiplyUniformFlux,
+    "qrlmultiplyweightedsubgraphflux": 
+        QRLMultiplyInduced.QRLMultiplyInducedSubgraphFlux,
+    "qrlpathsviainducedsubgraphflux": 
+        QRLPathsInduced.QRLPathsViaInducedSubgraphFlux,
+    "qrlpathsviaweightedsubgraphflux": 
+        QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
     }
 
 

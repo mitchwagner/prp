@@ -6,7 +6,7 @@ from pathlib import Path
 from .RankingAlgorithm import RankingAlgorithm
 import src.external.pathlinker.parse as pl_parse
 
-class QuickRegLinkerPositives(RankingAlgorithm):
+class QRLPathsThroughFoldPositives(RankingAlgorithm):
     '''
     Okay, there were two ideas on the table: 
     
@@ -133,11 +133,11 @@ class QuickRegLinkerPositives(RankingAlgorithm):
 
 
     def get_name(self):
-        return "quickreglinkerpositives"
+        return "QRLPathsThroughFoldPositives"
 
 
     def get_descriptive_name(self):
-        return "quickreglinkerpositives, rlc=%s" % (self.rlc_abbr)
+        return "QRLPathsThroughFoldPositives, rlc=%s" % (self.rlc_abbr)
 
 
     def get_output_file(self):

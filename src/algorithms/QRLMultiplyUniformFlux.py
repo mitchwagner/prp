@@ -1,16 +1,28 @@
 import os
+import sys
 import shutil
 import subprocess
 from pathlib import Path
 
+from typing import Dict
+
 from .RankingAlgorithm import RankingAlgorithm
 import src.external.pathlinker.PathLinker as pl
+import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
 
-class QuickAffinity(RankingAlgorithm):
-    def __init__(self, params):
+
+# TODO: I should also do JUST a flux to see how well it does...
+class QRLMultiplyUniformFlux(RankingAlgorithm):
+    '''
+    Multiply path score of QuickRegLinker for an edge with PageRank flux
+    through an edge, where the restart set has all nodes in it.
+    '''
+
+    def __init__(self, params:Dict):
         self.rlc_abbr = params["rlc"][0]
         self.rlc = params["rlc"][1]
+        self.q = params["q"]
 
 
     def run(self, reconstruction_input):
@@ -96,66 +108,57 @@ class QuickAffinity(RankingAlgorithm):
                     path_scores[(toks[0], toks[1])] = float(toks[3])
 
         #######################################################################
-        # Multiply affinity by path score and write out
-        training_edges = set(reconstruction_input.training_edges)
+        # Calculate edge flux 
 
-        interactome = None
-
+        # Read in the interactome
+        net = None
         with reconstruction_input.interactome.open('r') as f:
-            interactome = pl.readNetworkFile(f)
+            net = pl.readNetworkFile(f)
 
-        for e in interactome.edges(data=True):
-            tail = e[0]
-            head = e[1]
-            tail_edges = set(interactome.edges(tail))
-            head_edges = set(interactome.edges(head))
+        # Set a minimum edge weight
+        for edge in net.edges(data=True):
+            if edge[2]["weight"] == 0:
+                edge[2]["weight"] = sys.float_info.min 
 
-            adjacent_edges = tail_edges.union(head_edges)
+        pagerank_scores = pr.pagerank(net, q=float(self.q))
 
-            shared_edges = adjacent_edges.intersection(training_edges)
-            
-            weights = [interactome[w[0]][w[1]]["weight"]    
-                       for w in shared_edges]
-            
-            affinity = sum(weights) * e[2]["weight"]
+        pl.calculateFluxEdgeWeights(net, pagerank_scores)
 
-            score = 0
-            if (e[0], e[1]) in path_scores.keys():
-                score = path_scores[(e[0], e[1])]
-            else:
-                # else, score is meant to be zero
-                None
-                
+        fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
+            for edge in net.edges(data=True)}
 
-            e[2]["affinity"] = affinity * score
+        # TODO: Find better names for these
+        multiplied = [(
+            edge[0], 
+            edge[1], 
+            fluxes[(edge[0], edge[1])] * path_scores[(edge[0], edge[1])])
+            for edge in path_scores.keys()]
 
-        # Rank and output
-        affinities = [e[2]["affinity"] for e in interactome.edges(data=True)]
+        # Sort the list of final scores 
+        multiplied_only = list(set([x[2] for x in multiplied]))
+        multiplied_only.sort(reverse=True)
 
-        affinities = list(set(affinities))
-        
-        affinities.sort(reverse=True)
-
+        # Map weights to their rank
         rank_map = {}
-        for i, a in enumerate(affinities):
+        for i, a in enumerate(multiplied_only):
             rank_map[a] = i
 
+        # Create output file
         output_file = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
             "final.txt")
 
+        # Write out final output file
         with output_file.open('w') as f:
-            for e in interactome.edges(data=True):
-
-                a = e[2]["affinity"]
-
-                if a > 0:
+            for i, tup in enumerate(
+                sorted(multiplied, key=lambda x: x[2], reverse=True)):
+                if i < 15000:
                     f.write("\t".join([
-                        e[0], 
-                        e[1], 
-                        str(rank_map[a]),
-                        str(a)]) + "\n")
+                        tup[0],
+                        tup[1],
+                        str(rank_map[tup[2]]),
+                        str(tup[2]) + "\n"]))
 
 
     def conform_output(self, output_dir):
@@ -163,11 +166,11 @@ class QuickAffinity(RankingAlgorithm):
 
 
     def get_name(self):
-        return "quickaffinity"
+        return "QRLMultiplyUniformFlux"
 
 
     def get_descriptive_name(self):
-        return "quickaffinity, rlc=%s" % (self.rlc_abbr)
+        return "QRLMultiplyUniformFlux, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
 
 
     def get_output_file(self):
@@ -177,4 +180,4 @@ class QuickAffinity(RankingAlgorithm):
     def get_output_directory(self):
         return Path(    
             self.get_name(), 
-            "rlc-%s" % (self.rlc_abbr))
+            "q-%s-rlc-%s" % (self.q, self.rlc_abbr))
