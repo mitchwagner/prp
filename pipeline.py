@@ -16,8 +16,8 @@ from typing import Dict
 import random
 import numpy as np
 
-from graphspace_python.graphs.classes.gsgraph import GSGraph
-from graphspace_python.api.client import GraphSpace
+#from graphspace_python.graphs.classes.gsgraph import GSGraph
+#from graphspace_python.api.client import GraphSpace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -58,6 +58,11 @@ import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform
 import src.algorithms.QRLMultiplyInducedSubgraphFlux as QRLMultiplyInduced
 import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced 
 import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
+
+import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
+import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
+import src.algorithms.InducedFluxWeightedEdge as InducedFluxWeightedEdge
+import src.algorithms.InducedFluxWeighted as InducedFluxWeighted
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -2097,6 +2102,10 @@ RANKING_ALGORITHMS = {
         QRLPathsInduced.QRLPathsViaInducedSubgraphFlux,
     "qrlpathsviaweightedsubgraphflux": 
         QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
+    "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
+    "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
+    "inducedfluxweightededge": InducedFluxWeightedEdge.InducedFluxWeightedEdge,
+    "inducedfluxweighted": InducedFluxWeighted.InducedFluxWeighted
     }
 
 
