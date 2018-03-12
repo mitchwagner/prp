@@ -31,6 +31,7 @@ from sklearn.model_selection import KFold
 import src.external.utils.precision_recall.precision_recall as precrec
 import src.external.utils.graph_algorithms.prune as prune
 
+import src.external.pathlinker.ksp_Astar as ksp
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.parse as pl_parse
 
@@ -182,18 +183,78 @@ class RegLinkerPipeline(object):
          2) Run Yen's algorithm, choose a subset that are edge disjoint
             and see how many are left
         '''
+        pathway_obj = pathway.get_pathway_obj()
+        pathway_net = RegLinkerPipeline.get_net_from_pathway(pathway_obj)
+
+        #######################################################################
+        # Looking at the negative edges
+        # 3) paths = ksp.k_shortest_paths_yen(net, 'source', 'sink', opts.k_param, weight='ksp_weight', clip=not opts.include_tied_paths)
+        # 4) print(len(paths))
 
         #specific_interactome = \
         #    self.get_pathway_specific_interactome(interactome, pathway)
+        
+        netnet = None
 
-        pathway_obj = pathway.get_pathway_obj()
+        # Create a NetworkX object from the interactome
+        with interactome.path.open('r') as f:
+            netnet = pl.readNetworkFile(f)
+
+        pathway_edges = set(pathway_net.edges())
+        interactome_edges = set(netnet.edges())
+    
+        intersection = pathway_edges.intersection(interactome_edges)
+
+        # Remove pathway edges
+        for edge in intersection:
+            netnet.remove_edge(edge[0], edge[1])
+
+        sources = pathway_obj.get_receptors(data=False)
+        targets = pathway_obj.get_tfs(data=False)
+        
+        # Apply PL log transform
+        pl.logTransformEdgeWeights(netnet)
+
+        RegLinkerPipeline.set_unit_edge_capacity(netnet)
+
+        # Add super sources and sinks
+        pl.modifyGraphForKSP_addSuperSourceSink(
+            netnet, sources, targets, weightForArtificialEdges=0)
+
+        # Get paths (try to find 500)
+        paths = ksp.k_shortest_paths_yen(
+            netnet, 'source', 'sink', 500, weight='ksp_weight', clip=False)
+    
+        print(pathway.name)
+        print("Number of paths through negatives found: " + str(len(paths)))
+
+        if len(paths) > 0:
+            avg_len = 0
+            ticker = 0
+            for path in paths:
+                ticker += 1
+                avg_len += len(path) - 2 #subtract source and sink edge
+
+            avg_len = avg_len / ticker
+            print("Avg len: " + str(avg_len))
+
+
+        max_flow, flow_dict = nx.maximum_flow(
+            netnet, "source", "sink")
+
+        print("Max # of edge-disjoint paths through negatives: %d" % max_flow)
+
+        #######################################################################
+        # Looking at the positive edges
+
         net = RegLinkerPipeline.get_disjoint_paths_net_from_pathway(
             pathway_obj)
 
         max_flow, flow_dict = nx.maximum_flow(
             net, "SS", "ST")
 
-        print("Maximum number of edge-disjoint paths: %d" % max_flow)
+        print("Max # of edge-disjoint paths through positives: %d" 
+            % max_flow)
 
         # Now find paths iteratively
         # (This can be done by iteratively finding shortest paths, for
@@ -411,7 +472,7 @@ class RegLinkerPipeline(object):
             fig.tight_layout()
             fig.savefig(str(out))
 
-   
+
     def pathway_edge_weight_histograms(self):
         for interactome in self.input_settings.interactomes:
             # TODO: This is not a pathway specific interactome?
