@@ -1273,6 +1273,10 @@ class RegLinkerPipeline(object):
     
     @staticmethod
     def get_net_from_pathway(pathway):
+        '''
+        Given an in-memory pathway object, construct a NetworkX DiGraph
+        from its nodes and edges.
+        '''
         edges = pathway.get_edges(data=True)
         nodes = pathway.get_nodes(data=True)
 
@@ -1285,6 +1289,10 @@ class RegLinkerPipeline(object):
 
 
     def remove_incoming_edges_to_sources(self, net, sources):
+        '''
+        Given a network and a set of sources, remove any edge from the
+        network directed into sources.
+        '''
         edges_to_remove = []
         for edge in net.edges():
             if edge[1] in sources:
@@ -1294,6 +1302,10 @@ class RegLinkerPipeline(object):
 
 
     def remove_outgoing_edges_from_targets(self, net, targets):
+        '''
+        Given a network and a set of targets, remove any edges from the
+        network directed out from the targets. 
+        '''
         edges_to_remove = []
         for edge in net.edges():
             if edge[0] in targets:
@@ -1303,6 +1315,11 @@ class RegLinkerPipeline(object):
 
 
     def remove_edges_not_in_interactome(self, net, pathway, interactome):
+        ''' 
+        Given a network, the pathway from which that network was derived,
+        and an interactome, remove any edges from the network that do not
+        appear in the interactome
+        '''
         interactome_edges = set([(x, y) 
             for x, y, line in interactome.get_interactome_edges()])
 
@@ -1485,13 +1502,6 @@ class RegLinkerPipeline(object):
             with new_outfile.open("w") as f: 
                 precrec.write_precision_recall_fractions(f, points)
 
-
-    # pos/neg: (edge, fold) CHECK
-    # predictions: [[ [((edge), weight),], ]] 
-    # List of fold results
-    # fold result => list of predictions 
-    # predictions => list of edges of the same rank/weight 
-    # predictions: [ (((edge), weight), fold) ]
 
     def flatten_fold_aggregate(self, xs):
         '''
