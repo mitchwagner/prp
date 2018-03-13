@@ -45,78 +45,12 @@ class InducedFluxWeighted(RankingAlgorithm):
             reconstruction_input.label_interactome_file(
                 in_file, out_file, sets, default="n")
 
-        #######################################################################
-        cut_labeled_interactome = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "cut-labeled-interactome.txt")
 
-        with cut_labeled_interactome.open("w") as outfile:
-            subprocess.call([
-                "cut",
-                "-f", 
-                "1,2,3,5",
-                str(labeled_interactome)],
-                stdout=outfile
-                )
-            
-        #######################################################################
-        dfa_prefix = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "dfa")
-
-        subprocess.call([
-            "/home/adyprat/anaconda2/envs/venv-regpathlinker/bin/python",
-            "src/external/regpathlinker/RegexToGraph.py",
-            str(self.rlc),
-            str(dfa_prefix)]
-            )
-
-        #######################################################################
-
-        subprocess.call([
-            "java",
-            "-Xmx15360m",
-            "-jar",
-            "src/external/quicklinker/build/libs/quicklinker.jar",
-            "-n",
-            str(cut_labeled_interactome),
-            "-nodeTypes",
-            str(reconstruction_input.pathway_nodes_file),
-            "-dfa",
-            str(dfa_prefix) + "-edges.txt",
-            "-dfaNodeTypes",
-            str(dfa_prefix) + "-nodes.txt",
-            "-o",
-            os.path.join(str(Path(
-                reconstruction_input.output_dir, 
-                self.get_output_directory())), "intermediate-output"),
-            "-rlcsp"
-            ])
-
-        #######################################################################
-        # Get the path score for an edge 
-
-        outfile = Path(
-            reconstruction_input.output_dir, 
-            self.get_output_directory(), 
-            "intermediate-output-projection.txt")
-
-        path_scores = {}
-        with outfile.open('r') as f:
-            for line in f:
-                if not line.startswith("#"):
-                    toks = line.split("\t") 
-                    path_scores[(toks[0], toks[1])] = float(toks[3])
-
-        #######################################################################
-
-        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
         weights = {} 
         for edge in provided_edges:
             # Default value of 0
             weights[str(edge[0])] = weights.get(edge[0],0) + 1
+
         # Read in the interactome
         net = None
         with reconstruction_input.interactome.open('r') as f:
@@ -134,12 +68,14 @@ class InducedFluxWeighted(RankingAlgorithm):
         fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
             for edge in net.edges(data=True)}
 
+        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
+        #for edge in induced_subgraph
         # TODO: Find better names for these
         multiplied = [(
             edge[0], 
             edge[1], 
-            fluxes[(edge[0], edge[1])] * 1)
-            for edge in path_scores.keys()]
+            fluxes[(edge[0], edge[1])])
+            for edge in induced_subgraph.edges()]
 
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))
