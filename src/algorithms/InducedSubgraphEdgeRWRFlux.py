@@ -13,18 +13,16 @@ import src.external.pathlinker.PageRank as pr
 import src.external.pathlinker.parse as pl_parse
 
 
-class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
+class InducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
 
-    Find edges that satisfy a regular expression, rank these edges by RWR 
-    scores.
+    Combine with Quick(Reg)Linker by finding paths using flux as edge weight,
+    or else multiplying QuickLinker scores by flux scores.
     '''
 
     def __init__(self, params:Dict):
-        self.rlc_abbr = params["rlc"][0]
-        self.rlc = params["rlc"][1]
         self.q = params["q"]
 
 
@@ -45,75 +43,6 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
             reconstruction_input.label_interactome_file(
                 in_file, out_file, sets, default="n")
 
-        #######################################################################
-        cut_labeled_interactome = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "cut-labeled-interactome.txt")
-
-        with cut_labeled_interactome.open("w") as outfile:
-            subprocess.call([
-                "cut",
-                "-f", 
-                "1,2,3,5",
-                str(labeled_interactome)],
-                stdout=outfile
-                )
-            
-        #######################################################################
-        dfa_prefix = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "dfa")
-
-        subprocess.call([
-            "/home/adyprat/anaconda2/envs/venv-regpathlinker/bin/python",
-            "src/external/regpathlinker/RegexToGraph.py",
-            str(self.rlc),
-            str(dfa_prefix)]
-            )
-
-        #######################################################################
-
-        subprocess.call([
-            "java",
-            "-Xmx15360m",
-            "-jar",
-            "src/external/quicklinker/build/libs/quicklinker.jar",
-            "-n",
-            str(cut_labeled_interactome),
-            "-nodeTypes",
-            str(reconstruction_input.pathway_nodes_file),
-            "-dfa",
-            str(dfa_prefix) + "-edges.txt",
-            "-dfaNodeTypes",
-            str(dfa_prefix) + "-nodes.txt",
-            "-o",
-            os.path.join(str(Path(
-                reconstruction_input.output_dir, 
-                self.get_output_directory())), "intermediate-output"),
-            "-rlcsp"
-            ])
-
-        #######################################################################
-        # Get the path score for an edge 
-
-        outfile = Path(
-            reconstruction_input.output_dir, 
-            self.get_output_directory(), 
-            "intermediate-output-projection.txt")
-
-        path_scores = {}
-        with outfile.open('r') as f:
-            for line in f:
-                if not line.startswith("#"):
-                    toks = line.split("\t") 
-                    path_scores[(toks[0], toks[1])] = float(toks[3])
-
-        #######################################################################
-
-        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
-        weights = {node:1 for node in induced_subgraph.nodes()}
 
         # Read in the interactome
         net = None
@@ -168,21 +97,14 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
             else:
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
-        # 2) PageRank without weighted restart set
-        pagerank_scores = pr.pagerank(net, q=float(self.q))
-
-        pl.calculateFluxEdgeWeights(net, pagerank_scores)
-
-        fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
-            for edge in net.edges(data=True)}
-        
-        
+        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
+        #for edge in induced_subgraph
         # TODO: Find better names for these
         multiplied = [(
             edge[0], 
             edge[1], 
-            fluxes_weighted[(edge[0], edge[1])] * 1)
-            for edge in path_scores.keys()]
+            fluxes_weighted[(edge[0], edge[1])])
+            for edge in induced_subgraph.edges()]
 
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))
@@ -210,7 +132,6 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
                         str(rank_map[tup[2]]),
                         str(tup[2]) + "\n"]))
 
-
     def get_induced_subgraph(self, reconstruction_input):
         net = None
         with reconstruction_input.interactome.open('r') as f:
@@ -230,13 +151,12 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
     def conform_output(self, output_dir):
         None
 
-
     def get_name(self) -> str:
-        return "QRLMultiplyEdgeRWRFlux"
+        return "InducedSubgraphEdgeRWRFlux"
 
 
     def get_descriptive_name(self) -> str:
-        return "QRLMultiplyEdgeRWRFlux, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
+        return "InducedSubgraphEdgeRWRFlux, q=%s" % (self.q)
 
 
     def get_output_file(self) -> str:
@@ -246,4 +166,4 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
     def get_output_directory(self) -> Path:
         return Path(    
             self.get_name(), 
-            "q-%s-rlc-%s" % (self.q, self.rlc_abbr))
+            "q-%s" % (self.q))

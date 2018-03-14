@@ -13,13 +13,13 @@ import src.external.pathlinker.PageRank as pr
 import src.external.pathlinker.parse as pl_parse
 
 
-class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
+class QRLEdgesViaEdgeRWRFlux(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
 
-    Find edges that satisfy a regular expression, rank these edges by RWR 
-    scores.
+    Combine with Quick(Reg)Linker by finding paths using flux as edge weight,
+    or else multiplying QuickLinker scores by flux scores.
     '''
 
     def __init__(self, params:Dict):
@@ -113,7 +113,6 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
         #######################################################################
 
         induced_subgraph = self.get_induced_subgraph(reconstruction_input)
-        weights = {node:1 for node in induced_subgraph.nodes()}
 
         # Read in the interactome
         net = None
@@ -168,15 +167,7 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
             else:
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
-        # 2) PageRank without weighted restart set
-        pagerank_scores = pr.pagerank(net, q=float(self.q))
 
-        pl.calculateFluxEdgeWeights(net, pagerank_scores)
-
-        fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
-            for edge in net.edges(data=True)}
-        
-        
         # TODO: Find better names for these
         multiplied = [(
             edge[0], 
@@ -232,11 +223,11 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
 
 
     def get_name(self) -> str:
-        return "QRLMultiplyEdgeRWRFlux"
+        return "QRLEdgesViaEdgeRWRFlux"
 
 
     def get_descriptive_name(self) -> str:
-        return "QRLMultiplyEdgeRWRFlux, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
+        return "QRLEdgesViaEdgeRWRFlux, q=%s, rlc=%s" % (self.q,self.rlc_abbr)
 
 
     def get_output_file(self) -> str:

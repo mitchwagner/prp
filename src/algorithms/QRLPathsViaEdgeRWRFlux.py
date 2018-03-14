@@ -115,7 +115,9 @@ class QRLPathsViaEdgeRWRFlux(RankingAlgorithm):
         
         # 4) Subtract unweighted edge flux from the weighted edge flux
 
-        difference = {edge:fluxes_weighted[edge] - fluxes[edge] 
+        #difference = {edge:fluxes_weighted[edge] - fluxes[edge] 
+        #    for edge in [(edge[0], edge[1]) for edge in fluxes.keys()]}
+        difference = {edge:fluxes_weighted[edge] 
             for edge in [(edge[0], edge[1]) for edge in fluxes.keys()]}
 
         # Map to new range of 0-.75 
@@ -145,7 +147,8 @@ class QRLPathsViaEdgeRWRFlux(RankingAlgorithm):
                         f2.write("\t".join([
                             toks[0],
                             toks[1],
-                            str(difference[(toks[0], toks[1])]),
+                            #str(difference[(toks[0], toks[1])]),
+                            str(fluxes[(toks[0], toks[1])]),
                             toks[3],
                             toks[4]]
                             ))
