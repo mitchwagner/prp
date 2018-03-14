@@ -56,13 +56,21 @@ import src.algorithms.Affinity as Affinity
 import src.algorithms.QRLMultiplyAffinity as QuickAffinity
 import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
 import src.algorithms.QRLMultiplyInducedSubgraphFlux as QRLMultiplyInduced
+import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
+
 import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced 
 import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
-
 import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
-import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
-import src.algorithms.InducedFluxWeightedEdge as InducedFluxWeightedEdge
-import src.algorithms.InducedFluxWeighted as InducedFluxWeighted
+
+
+import src.algorithms.InducedSubgraphRWRFlux as InducedSubgraphRWRFlux
+import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWRFlux
+
+import src.algorithms.QRLEdgesViaRWRFlux as QRLEdgesViaRWRFlux
+import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
+
+import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
+
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -2215,8 +2223,11 @@ RANKING_ALGORITHMS = {
         QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
     "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
-    "inducedfluxweightededge": InducedFluxWeightedEdge.InducedFluxWeightedEdge,
-    "inducedfluxweighted": InducedFluxWeighted.InducedFluxWeighted
+    "InducedSubgraphEdgeRWRFlux": InducedSubgraphEdgeRWRFlux.InducedSubgraphEdgeRWRFlux,
+    "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
+    "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
+    "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux
+
     }
 
 

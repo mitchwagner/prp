@@ -13,7 +13,7 @@ import src.external.pathlinker.PageRank as pr
 import src.external.pathlinker.parse as pl_parse
 
 
-class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
+class QRLEdgesViaRWRFlux(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
@@ -110,64 +110,32 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
                     toks = line.split("\t") 
                     path_scores[(toks[0], toks[1])] = float(toks[3])
 
-        #######################################################################
 
-        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
-        weights = {node:1 for node in induced_subgraph.nodes()}
+
+        weights = {} 
+        for tail, head in provided_edges:
+            # Default value of 0
+            weights[tail] = weights.get(tail, 0) + 1
 
         # Read in the interactome
         net = None
-        netCopy = None
         with reconstruction_input.interactome.open('r') as f:
             net = pl.readNetworkFile(f)
-
-        with reconstruction_input.interactome.open('r') as f:
-            netCopy = pl.readNetworkFile(f)
-
-        # Add dummy nodes for every node in the "head" of a p-labeled edge
-        TempNodes = set([])
-        for edge in provided_edges:
-            TempNodes.add(str(edge[0]+"_temp"))
-            netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
-
-        # Restart to newly added temporary nodes
-        #weights = {node:1 for node in TempNodes}
-        weights = {} 
-        for edge in provided_edges:
-            # Default value of 0
-            weights[str(edge[0]+"_temp")] = weights.get(str(edge[0]+"_temp"), 0) + 1
-
 
         # Set a minimum edge weight
         for edge in net.edges(data=True):
             if edge[2]["weight"] == 0:
                 edge[2]["weight"] = sys.float_info.min
-
-        # Set a minimum edge weight
-        for edge in netCopy.edges(data=True):
-            if edge[2]["weight"] == 0:
-                edge[2]["weight"] = sys.float_info.min
     
         # 1) PageRank using weighted restart set
         pagerank_scores_weighted = pr.pagerank(
-            netCopy, weights=weights, q=float(self.q))
+            net, weights=weights, q=float(self.q))
 
-        pl.calculateFluxEdgeWeights(netCopy, pagerank_scores_weighted)
-                
-        fluxes_weighted = {}
-        # Add edd fluxes computed from TempNodes to original head nodes
-        # If head is not in TempNodes, use normal ksp_weight
-        # If
-        for edge in netCopy.edges():
-            attr_dict=netCopy.get_edge_data(edge[0],edge[1])
-            if edge[0] in TempNodes:
-                attr_dict_original=netCopy.get_edge_data(edge[0][:-5],edge[1])
-                fluxes_weighted[(edge[0][:-5], edge[1])] = attr_dict_original["ksp_weight"]+attr_dict["ksp_weight"]
-            elif (edge[0],edge[1]) in provided_edges:
-                continue # This edge has already been added, do not overwrite it.
-            else:
-                fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
-            
+        pl.calculateFluxEdgeWeights(net, pagerank_scores_weighted)
+
+        fluxes_weighted = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
+            for edge in net.edges(data=True)}
+        
         # 2) PageRank without weighted restart set
         pagerank_scores = pr.pagerank(net, q=float(self.q))
 
@@ -175,14 +143,14 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
 
         fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
             for edge in net.edges(data=True)}
-        
-        
+
         # TODO: Find better names for these
         multiplied = [(
             edge[0], 
             edge[1], 
             fluxes_weighted[(edge[0], edge[1])] * 1)
             for edge in path_scores.keys()]
+        
 
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))
@@ -232,11 +200,11 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
 
 
     def get_name(self) -> str:
-        return "QRLMultiplyEdgeRWRFlux"
+        return "QRLEdgesViaRWRFlux"
 
 
     def get_descriptive_name(self) -> str:
-        return "QRLMultiplyEdgeRWRFlux, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
+        return "QRLEdgesViaRWRFlux, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
 
 
     def get_output_file(self) -> str:
@@ -244,6 +212,4 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
 
 
     def get_output_directory(self) -> Path:
-        return Path(    
-            self.get_name(), 
-            "q-%s-rlc-%s" % (self.q, self.rlc_abbr))
+        return Path(self.get_name(),"q-%s-rlc-%s" % (self.q, self.rlc_abbr))
