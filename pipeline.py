@@ -3,6 +3,7 @@ import csv
 import sys
 import time
 import yaml 
+import random
 import argparse
 import itertools
 import subprocess
@@ -16,8 +17,8 @@ from typing import Dict
 import random
 import numpy as np
 
-#from graphspace_python.graphs.classes.gsgraph import GSGraph
-#from graphspace_python.api.client import GraphSpace
+from graphspace_python.graphs.classes.gsgraph import GSGraph
+from graphspace_python.api.client import GraphSpace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -81,100 +82,1279 @@ import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
 #       BUT WAIT IT'S WORSE. ANY TIME I CREATE A NETWORK FOR THE PATHWAY, 
 #       I HAVE LEFT THESE NODES OUT.
 
-def run_fold(fold, fold_input):
+# TODO: Should really be in the utils subrepo 
+def get_net_from_pathway(pathway):
+    edges = pathway.get_edges(data=True)
+    nodes = pathway.get_nodes(data=True)
+
+    net = nx.DiGraph()
+
+    net.add_edges_from(edges)
+    net.add_nodes_from(nodes)
+
+    return net
+
+
+def remove_incoming_edges_to_sources(net, sources):
+    edges_to_remove = []
+    for edge in net.edges():
+        if edge[1] in sources:
+            edges_to_remove.append(edge)
+
+    net.remove_edges_from(edges_to_remove)
+
+
+def remove_outgoing_edges_from_targets(net, targets):
+    edges_to_remove = []
+    for edge in net.edges():
+        if edge[0] in targets:
+            edges_to_remove.append(edge)
+
+    net.remove_edges_from(edges_to_remove)
+
+
+def get_folds_from_split(items, split):
     """
-    Parallelizable, module-level method designed to run an
-    algorithm over a fold.
+    Scikit-learn returns a "split" structure that stores the indices
+    of items in the train and test set of particular fold. This 
+    takes that structure and the items that were divided up, to 
+    return a structure of items instead of indices.
     """
+    folds = []
+
+    for i, (train, test) in enumerate(split):
+        train_items = [items[x] for x in train]
+        test_items = [items[y] for y in test]
+
+        folds.append((train_items, test_items))
+    return folds
+
+
+def split_items_into_folds(items, num_folds):
+    """
+    Use Scikit-learn k-fold cross validation functions to divide
+    the items supplied to the function into num_folds folds of 
+    train and test sets.
+    """
+    kf = KFold(n_splits=num_folds, shuffle=True, random_state=1800)
+
+    split = kf.split(items)
     
-    directory = fold_input[0]
-    subnetwork_creation = fold_input[1]
-    interactome = fold_input[2]
-    pathway_collection = fold_input[3]
-    pathway = fold_input[4]
-    specific_interactome = fold_input[5]
-    folds = fold_input[6]
-    algs = fold_input[7]
-    positive_folds = fold_input[8]
-    negative_folds = fold_input[9]
+    folds = []
 
-    # 4) Provide the algorithm the modified pathway 
-    # Get the proper name after creating the output and pass it 
-    # to the algorithm as the pathway file
-    modified_edge_file = Path(
-        directory,
-        interactome.name,
-        pathway.name,
-        subnetwork_creation,
-        "%d-folds" % folds,
-        "fold-%d" % fold,
-        "edges.txt")
+    return get_folds_from_split(items, split) 
 
-    training_edges = positive_folds[fold][0]
-    negative_training = negative_folds[fold][0]
+
+def get_filtered_pathway_edges(pathway, interactome):
+    """
+    Performs the following pre-processing before returning the list
+    of edges in a pathway:
+
+    1) Remove edges that are not in the interactome
+
+    2) Remove edges that are incoming to sources and outgoing from
+       targets
+    """
+    net = get_net_from_pathway(pathway)
+
+    remove_edges_not_in_interactome(net, pathway, interactome)
+
+    return net.edges()
+
+
+def remove_edges_not_in_interactome(net, pathway, interactome):
+    interactome_edges = set([(x, y) 
+        for x, y, line in interactome.get_interactome_edges()])
+
+    pathway_edges = set(pathway.get_edges(data=False))
+
+    for edge in pathway_edges:
+        if edge not in interactome_edges:
+            net.remove_edge(edge[0], edge[1])
+
+
+def get_filtered_pathway_nodes(pathway, interactome):
+    net = get_net_from_pathway(pathway)
+
+    remove_nodes_not_in_interactome(net, pathway, interactome)
+    remove_sources_and_targets(net, pathway)
+
+    return net.nodes()
+
+
+def remove_nodes_not_in_interactome(net, pathway, interactome):
+    interactome_nodes = set()
+    for x, y, line in interactome.get_interactome_edges():
+        interactome_nodes.add(x)
+        interactome_nodes.add(y)
+
+    pathway_nodes = set(pathway.get_nodes(data=False))
+
+    for node in pathway_nodes:
+        if node not in interactome_nodes:
+            net.remove_node(node)
+
+def remove_sources_and_targets(net, pathway):
+    sources = pathway.get_receptors(data=False)
+    targets = pathway.get_tfs(data=False)
+
+    net_nodes = set(net.nodes())
+
+    for source in sources:
+        if source in net_nodes:
+            net.remove_node(source)
+
+    net_nodes = set(net.nodes())
+
+    for target in targets:
+        if target in net_nodes:
+            net.remove_node(target)
+
+
+def flatten_fold_aggregate(xs):
+    '''
+    [[a,b],[c]] -> [(a, 0), (b, 0), (c, 1)]
     
-    # All edges in the pathway. Some algorithms which cheat (as sanity checks)
-    # need this information to cheat effectively
-    original_edge_file = pathway.get_edges_file()
+    Inner lists correspond to folds, and folds here corespond to int 
+    labels:
 
-    node_file = pathway.get_nodes_file()
-
-    output_dir = Path(
-        "outputs",
-        "cross-validation-reconstructions",
-        interactome.name,
-        pathway_collection.name,
-        pathway.name,
-        subnetwork_creation,
-        "%d-folds" % folds,
-        "fold-%d" % fold)
-
-    #alg_input = RankingAlgorithm.PathwayReconstructionInput(
-    #    specific_interactome, training_edges, node_file, 
-    #    output_dir, original_edge_file, negative_training)
-
-    alg_input = RankingAlgorithm.PathwayReconstructionInput(
-        interactome.path, training_edges, node_file, 
-        output_dir, original_edge_file, negative_training)
-
-    #num_cores = cpu_count()
-    num_cores = 1 
-    p = multiprocessing.pool.ThreadPool(num_cores)
-
-    p.starmap(run_alg, itertools.product(
-        algs, [alg_input]))
-    p.close()
-    p.join()
+    [[edgeA,edgeB],[edgeC]] -> [(edgeA, 0), (edgeB, 0), (edgeC, 1)]
+    '''
+    flat = [(y, i) for i, ys in enumerate(xs) for y in ys]
+    return flat
 
 
-def run_alg(algorithm, alg_input):
+def flatten_fold_predictions(xs):
+    '''
+    I need to decompose and re-group these predictions by weight
+
+    1)
+    [[{(edge, weight)}]] -> [((edge, weight), fold)]
+    [[{a}]] -> [(a, 0)]
+
+    2)
+    Regrouping:
+    [((edge, weight), fold)] -> [{((edge, weight),fold)}]
+    
+    3)
+    Making the items match the positives/negatives:
+    [{(edge, weight),fold}] -> [{(edge, fold)}]
+    ''' 
+    flat = [(z, i) for i, ys in enumerate(xs) for y in ys for z in y]
+
+    weights = set([x[0][1] for x in flat])
+    weights = list(weights)
+    weights.sort(reverse=True)
+
+    regrouped = []
+    for weight in weights:
+        s = {x for x in flat if x[0][1] == weight}
+        regrouped.append(s)
+
+    final = [{(x[0][0], x[1]) for x in xs} for xs in regrouped]
+
+    return final
+
+
+class FoldCreator(object):
+    '''
+    Abstract the process of creating a fold to an object.
+    '''
+    
+    def __init__(self, interactome, pathway, options):
+        self.interactome = interactome
+        self.pathway = pathway
+        self.options = options
+
+
+    def create_positive_folds():
+        raise NotImplementedError()
+
+
+    def create_negative_folds(): 
+        raise NotImplementedError()
+        
+        
+    def get_output_prefix(): 
+        raise NotImplementedError()
+
+
+    def get_test_fold_iterator():
+        '''
+        Returns an iterator that returns tuples:
+            (test_negatives, test_positives, fold_name)
+        '''
+        raise NotImplementedError()
+
+
+    def get_train_fold_iterator():
+        '''
+        Returns an iterator that returns tuples:
+            (train_negatives, train_positives, fold_name)
+        '''
+        raise NotImplementedError()
+
+
+class EdgeWithholdingFoldCreator(FoldCreator):
+    '''
+    Create folds by randomly removing edges in folds
+    '''
+    
+    def __init__(self, interactome, pathway, options):
+        self.interactome = interactome
+        self.pathway = pathway
+        self.num_folds = options["num_folds"]
+
+
+    def create_positive_folds(self):
+        pathway_obj = self.pathway.get_pathway_obj()
+
+        edges = get_filtered_pathway_edges(pathway_obj, self.interactome)
+        edges.sort(key=lambda edge:(edge[0], edge[1]))
+
+        return split_items_into_folds(edges, self.num_folds)
+
+
+    def create_negative_folds(self): 
+        interactome_edges = set((x, y) 
+            for x, y, line in self.interactome.get_interactome_edges())
+
+        pathway_edges = self.pathway.get_pathway_obj().get_edges(data=False)
+        pathway_edges = set(pathway_edges)
+
+        negatives = list(interactome_edges.difference(pathway_edges)) 
+        negatives.sort(key = lambda edge:(edge[0], edge[1]))
+
+        return split_items_into_folds(negatives, self.num_folds)
+        
+        
+    def get_output_prefix(self): 
+        return Path("%d-folds" % self.num_folds)
+
+
+    def get_fold_prefix(self, fold):
+        return Path(self.get_output_prefix(), "fold-%d" % fold)
+    
+
+    def get_training_folds(self):
+        '''
+        Returns an iterator that returns tuples:
+            (train_negatives, train_positives, fold_name)
+        '''
+        positive_folds = self.create_positive_folds()
+        negative_folds = self.create_negative_folds()
+
+        for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            fold_name = self.get_fold_prefix(i)
+            yield (pair[0][0], pair[1][0], fold_name)
+
+
+    def get_test_folds(self):
+        '''
+        Returns an iterator that returns tuples:
+            (test_negatives, test_positives, fold_name)
+        '''
+        positive_folds = self.create_positive_folds()
+        negative_folds = self.create_negative_folds()
+
+        for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            fold_name = self.get_fold_prefix(i)
+            yield (pair[0][1], pair[1][1], fold_name)
+
+
+class NodeWithholdingFoldCreator(FoldCreator):
+    '''
+    Create folds by iteratively deleting nodes and s-t pruning the
+    resulting network until only a specified percentage of nodes remain.
+
+    '''
+    
+    def __init__(self, interactome, pathway, options):
+        self.interactome = interactome
+        self.pathway = pathway
+        self.percent = options["percent_to_keep"]
+        self.itr = options["iterations"]
+
+
+    def create_positive_folds(self):
+        # Choose a random group of nodes, and delete them.
+    
+        pathway_obj = self.pathway.get_pathway_obj()
+
+        nodes = get_filtered_pathway_nodes(pathway_obj, self.interactome)
+        
+        original_edges = set(get_net_from_pathway(pathway_obj).edges())
+
+        rand_inits = range(self.itr)
+
+        folds = []
+
+        for rand in rand_inits:
+            nodes.sort()
+            random.Random(rand).shuffle(nodes)
+
+            num_to_keep = int(self.percent * len(nodes))
+            
+            nodes_to_keep = nodes[:num_to_keep]
+            nodes_to_delete = nodes[num_to_keep:]
+
+            temp_net = get_net_from_pathway(pathway_obj)
+            remove_edges_not_in_interactome(
+                temp_net, pathway_obj, self.interactome)
+
+            for node in nodes_to_delete:
+                temp_net.remove_node(node)
+            
+            train = temp_net.edges()
+            test = list(original_edges - set(train))
+            folds.append((train, test))
+
+        return folds
+
+    # The only thing I can think of would be checking to see the percent of
+    # edges in the pathway that were used in the training set and matching that
+    # percent
+
+    def create_negative_folds(self): 
+        interactome_edges = set((x, y) 
+            for x, y, line in self.interactome.get_interactome_edges())
+
+        pathway_edges = self.pathway.get_pathway_obj().get_edges(data=False)
+        pathway_edges = set(pathway_edges)
+
+        negatives = list(interactome_edges.difference(pathway_edges)) 
+        negatives.sort(key = lambda edge:(edge[0], edge[1]))
+
+        rand_inits = range(self.itr)
+
+        folds = []
+
+        for rand in rand_inits:
+            negatives.sort(key = lambda edge:(edge[0], edge[1]))
+            random.Random(rand).shuffle(negatives)
+
+            num_to_keep = int(self.percent * len(negatives))
+            
+            edges_to_keep = negatives[:num_to_keep]
+            edges_to_delete = negatives[num_to_keep:]
+
+            folds.append((edges_to_keep, edges_to_delete))
+
+        return folds
+        
+        
+    def get_output_prefix(self): 
+        return Path("keep-%f-%d-iterations" % (self.percent, self.itr))
+
+
+    def get_fold_prefix(self, fold):
+        return Path(self.get_output_prefix(), "iteration-%d" % self.itr)
+    
+
+    def get_training_folds(self):
+        '''
+        Returns an iterator that returns tuples:
+            (train_negatives, train_positives, fold_name)
+        '''
+        positive_folds = self.create_positive_folds()
+        negative_folds = self.create_negative_folds()
+
+        for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            fold_name = self.get_fold_prefix(i)
+            yield (pair[0][0], pair[1][0], fold_name)
+
+
+    def get_test_folds(self):
+        '''
+        Returns an iterator that returns tuples:
+            (test_negatives, test_positives, fold_name)
+        '''
+        positive_folds = self.create_positive_folds()
+        negative_folds = self.create_negative_folds()
+
+        for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            fold_name = self.get_fold_prefix(i)
+            yield (pair[0][1], pair[1][1], fold_name)
+
+
+class Evaluator(object):
+    '''
+    A runnable analysis to be incorporated into the pipeline
+    '''
+    
+    def get_name(self):
+        '''
+        Return a name for the evaluation performed by the Evaluator
+        '''
+        raise NotImplementedError()
+
+
+    def run(self, output_dir=Path()):
+        '''
+        Glues the entire Evaluator's suite of functionality into a
+        single runnable function
+        '''
+        raise NotImplementedError()
+
+#class DataSetEvaluator(Evaluator):
+
+'''
+def pathway_edge_weight_histograms(self):
+
+    Create histograms, per pathway, of the weights of edges in that
+    pathway.
+
+    for interactome in self.input_settings.interactomes:
+        # TODO: This is not a pathway specific interactome?
+        specific_interactome = interactome.path
+        for pathway_collection in self.input_settings.pathway_collections: 
+            for pathway in pathway_collection.pathways:
+                fig, ax = plt.subplots()
+
+                ax.set_title(pathway.name)
+                ax.set_xlabel("Edge weight (bin size = .05)")
+                ax.set_ylabel("# of edges in bin")
+
+                pathway_obj = pathway.get_pathway_obj()
+                edges = pathway_obj.get_edges(data=False)
+
+                interactome = None
+                with specific_interactome.open('r') as f:
+                    interactome = pl.readNetworkFile(f) 
+
+                final_edges = set(edges).intersection(
+                    set(interactome.edges()))
+            
+                weights = [interactome[x[0]][x[1]]["weight"] 
+                    for x in final_edges] 
+
+
+                ax.hist(weights, bins=np.arange(0,1,.05), fc=(0,0,1,.5))
+
+                out = Path(
+                    "outputs",
+                    "other",
+                    "edge-weight-distribution",
+                    pathway.name + "-histogram.png")
+
+                out.parent.mkdir(parents=True, exist_ok=True)
+
+                fig.savefig(str(out))
+'''
+
+class AlgorithmEvaluator(Evaluator):
+    '''
+    Base class for an object that has a fold creation procedure and a way
+    of evaluating pathway reconstruction results for those folds.
+    '''
+
+    def __init__(
+            self, interactome, pathway_collection, algorithms, options={}):
+        '''
+        :param interactome: on-disk interactome object
+        :param pathway_collection: PathwayCollection object
+        :param algorithms: list of RankingAlgorithms
+        :param options: map of options for the evaluator
+        '''
+        self.interactome = interactome
+        self.pathway_collection = pathway_collection
+        self.algorithms = algorithms
+        self.options = options
+
+
+    def get_name(self):
+        raise NotImplementedError()
+
+
+    def get_output_prefix(self):
+        raise NotImplementedError()
+
+
+    def get_fold_creator(self, pathway):
+        raise NotImplementedError()
+
+
+    def get_fold_creators(self):
+        fcs = []
+
+        for pathway in self.pathway_collection.pathways:
+            fcs.append(self.get_fold_creator(pathway))
+
+        return fcs
+
+
+    def run_reconstructions(self, output_dir=Path()):
+        '''
+        Run each algorithm.
+        '''
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            for fold in fc.get_training_folds():
+                for algorithm in self.algorithms:
+                    # First, write output directory
+                    full_output_dir = Path(
+                        output_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    alg_dir = algorithm.get_full_output_directory(
+                        full_output_dir)
+                    
+                    # TODO: Is this step even necessary?
+                    alg_dir.mkdir(parents=True, exist_ok=True)
+
+                    # Second, run the algorithms         
+                    alg_input = RankingAlgorithm.PathwayReconstructionInput(
+                        self.interactome.path,
+                        fold[0], # training positive edges
+                        pathway.get_nodes_file(),
+                        full_output_dir,
+                        pathway.get_edges_file(),
+                        fold[1]) # training negative edges
+
+                    self.run_alg(algorithm, alg_input)
+
+
+    def run_alg(self, algorithm, alg_input):
+        print("Running " + algorithm.get_descriptive_name())
+        start = time.time()
+        algorithm.run_wrapper(alg_input, should_force=False)
+        end = time.time()
+        print("Time to run: " + str(end - start))
+
+
+    def evaluate_reconstructions(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Precision/recall or some other analysis 
+        '''
+        raise NotImplementedError()
+
+
+    def plot_results(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+        raise NotImplementedError()
+
+
+    def run(self, output_dir=Path()):
+        reconstruction_dir = Path(output_dir, "reconstruction")
+        evaluation_dir = Path(output_dir, "evaluation")
+        visualization_dir = Path(output_dir, "visualization")
+
+        self.run_reconstructions(reconstruction_dir)
+        self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
+        self.plot_results(evaluation_dir, visualization_dir)
+
+
+class EdgeWithholdingEvaluator(AlgorithmEvaluator): 
+
+    def get_fold_creator(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = EdgeWithholdingFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
+
+
+    def get_name(self):
+        return "edge-withholding cross-validation"
+   
+
+    def evaluate_reconstructions(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+        self.aggregate_pr_over_pathways(evaluation_dir)
+
+
+    def aggregate_pr_over_folds(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            for algorithm in self.algorithms:
+                predictions = []
+                test_positives = []
+                test_negatives = []
+
+                for fold in fc.get_test_folds():
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+                    
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        reconstruction_file.touch()
+
+                    # Where we will write precision/recall results
+                    pr_output_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        "%d-folds" % self.options["num_folds"],
+                        "aggregate")
+
+                    positives = fold[0]
+                    negatives = fold[1]
+                    
+                    retrieved_edges = set()
+
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+                        predictions.append(fold_predictions)
+
+                    test_positives.append(positives)
+                    test_negatives.append(negatives)
+                    
+                flat_test_pos = set(flatten_fold_aggregate(test_positives))
+                flat_test_neg = set(flatten_fold_aggregate(test_negatives))
+                flat_pred = flatten_fold_predictions(predictions)
+
+                # Call existing precrec functions passing these things above
+                points = \
+                    precrec.compute_precision_recall_curve_negatives_fractions(
+                        flat_pred, flat_test_pos, flat_test_neg)
+               
+                new_outfile = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                new_outfile.parent.mkdir(parents=True, exist_ok=True)
+
+                with new_outfile.open("w") as f: 
+                    precrec.write_precision_recall_fractions(f, points)
+
+
+    def aggregate_pr_over_pathways(self, evaluation_dir=Path()):
+
+        # Where we will write precision/recall, aggregated over
+        # all pathways
+        pathway_collection_pr_output_dir = Path(
+            evaluation_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            "aggregate",
+            self.get_output_prefix(),
+            "%d-folds" % self.options["num_folds"])
+
+        for algorithm in self.algorithms:    
+            curves = []
+            
+            # Where we wrote precision/recall, aggregated over
+            # all folds per pathway
+            for pathway in self.pathway_collection.pathways:
+                pathway_pr_output_dir = Path(
+                    evaluation_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    "%d-folds" % self.options["num_folds"],
+                    "aggregate")
+
+                pathway_pr_outfile = Path(
+                    pathway_pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                with pathway_pr_outfile.open('r') as f:
+                    curve = precrec.read_precision_recall_fractions(f)
+                    curves.append(curve)
+
+            aggregated = precrec.aggregate_precision_recall_curve_fractions(
+                curves)
+
+            # Write aggregated curve back out
+            pathway_collection_pr_outfile = Path(
+                pathway_collection_pr_output_dir, 
+                algorithm.get_output_directory(),
+                "precision-recall.txt") 
+
+            pathway_collection_pr_outfile.parent.mkdir(
+                parents=True, exist_ok=True)
+
+            with pathway_collection_pr_outfile.open("w") as f: 
+                precrec.write_precision_recall_fractions(f, aggregated)
+
+
+    def plot_results(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
+        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
+
+
+    def plot_pr_individual_pathways(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        for pathway in self.pathway_collection.pathways:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                self.interactome.name + " " +
+                self.pathway_collection.name + " " +
+                pathway.name)
+
+            # Where we wrote precision/recall results
+            pr_output_dir = Path(
+                evaluation_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "%d-folds" % self.options["num_folds"],
+                "aggregate")
+
+            # PDF file we will write
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "%d-folds" % self.options["num_folds"],
+                "precision-recall.pdf")
+    
+            # PNG file we will write 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "%d-folds" % self.options["num_folds"],
+                "precision-recall.png")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt")
+
+                points = []
+
+                with pr_file.open('r') as f:
+                    points = precrec.read_precision_recall_fractions(f)
+
+                precrec.plot_precision_recall_curve_fractions(
+                    points, label=algorithm.get_descriptive_name(), ax=ax)
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            lgd = ax.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5,-0.1))
+
+            fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+            fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+
+    def plot_pr_all_pathways(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        for pathway in self.pathway_collection.pathways:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                self.interactome.name + " " +
+                self.pathway_collection.name + " " +
+                "Number folds: " + str(self.options["num_folds"]))
+
+            # Where we wrote precision/recall results
+            pr_output_dir = Path(
+                evaluation_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                "aggregate",
+                self.get_output_prefix(),
+                "%d-folds" % self.options["num_folds"])
+
+            # PDF file we will write
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "%d-folds" % self.options["num_folds"],
+                "precision-recall.pdf")
+    
+            # PNG file we will write 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "%d-folds" % self.options["num_folds"],
+                "precision-recall.png")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt")
+
+                points = []
+
+                with pr_file.open('r') as f:
+                    points = precrec.read_precision_recall_fractions(f)
+
+                precrec.plot_precision_recall_curve_fractions(
+                    points, label=algorithm.get_descriptive_name(), ax=ax)
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            lgd = ax.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5,-0.1))
+
+            fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+            fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+
+    def get_output_prefix(self):
+        return Path("edge-witholding")
+
+
+class NodeWithholdingEvaluator(AlgorithmEvaluator): 
+
+    def get_fold_creator(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = NodeWithholdingFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
+
+
+    def get_name(self):
+        return "node-withholding evaluation"
+   
+
+    def evaluate_reconstructions(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+        self.aggregate_pr_over_pathways(evaluation_dir)
+
+
+    def aggregate_pr_over_folds(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            for algorithm in self.algorithms:
+                predictions = []
+                test_positives = []
+                test_negatives = []
+
+                for fold in fc.get_test_folds():
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+                    
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        reconstruction_file.touch()
+
+                    # Where we will write precision/recall results
+                    pr_output_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        "keep-%f-%d-iterations" % (
+                            self.options["percent_to_keep"], 
+                            self.options["iterations"]),
+                        "aggregate")
+
+                    positives = fold[0]
+                    negatives = fold[1]
+                    
+                    retrieved_edges = set()
+
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+                        predictions.append(fold_predictions)
+
+                    test_positives.append(positives)
+                    test_negatives.append(negatives)
+                    
+                flat_test_pos = set(flatten_fold_aggregate(test_positives))
+                flat_test_neg = set(flatten_fold_aggregate(test_negatives))
+                flat_pred = flatten_fold_predictions(predictions)
+
+                # Call existing precrec functions passing these things above
+                points = \
+                    precrec.compute_precision_recall_curve_negatives_fractions(
+                        flat_pred, flat_test_pos, flat_test_neg)
+               
+                new_outfile = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                new_outfile.parent.mkdir(parents=True, exist_ok=True)
+
+                with new_outfile.open("w") as f: 
+                    precrec.write_precision_recall_fractions(f, points)
+
+
+    def aggregate_pr_over_pathways(self, evaluation_dir=Path()):
+        # Where we will write precision/recall, aggregated over
+        # all pathways
+        pathway_collection_pr_output_dir = Path(
+            evaluation_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            "aggregate",
+            self.get_output_prefix(),
+            "keep-%f-%d-iterations" % (
+                self.options["percent_to_keep"],
+                self.options["iterations"]))
+
+        for algorithm in self.algorithms:    
+            curves = []
+            
+            # Where we wrote precision/recall, aggregated over
+            # all folds per pathway
+            for pathway in self.pathway_collection.pathways:
+                pathway_pr_output_dir = Path(
+                    evaluation_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    "keep-%f-%d-iterations" % (
+                        self.options["percent_to_keep"],
+                        self.options["iterations"]),
+                    "aggregate")
+
+                pathway_pr_outfile = Path(
+                    pathway_pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                with pathway_pr_outfile.open('r') as f:
+                    curve = precrec.read_precision_recall_fractions(f)
+                    curves.append(curve)
+
+            aggregated = precrec.aggregate_precision_recall_curve_fractions(
+                curves)
+
+            # Write aggregated curve back out
+            pathway_collection_pr_outfile = Path(
+                pathway_collection_pr_output_dir, 
+                algorithm.get_output_directory(),
+                "precision-recall.txt") 
+
+            pathway_collection_pr_outfile.parent.mkdir(
+                parents=True, exist_ok=True)
+
+            with pathway_collection_pr_outfile.open("w") as f: 
+                precrec.write_precision_recall_fractions(f, aggregated)
+
+
+    def plot_results(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
+        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
+
+
+    def plot_pr_individual_pathways(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        for pathway in self.pathway_collection.pathways:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                self.interactome.name + " " +
+                self.pathway_collection.name + " " +
+                pathway.name)
+
+            # Where we wrote precision/recall results
+            pr_output_dir = Path(
+                evaluation_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "keep-%f-%d-iterations" % (
+                        self.options["percent_to_keep"],
+                        self.options["iterations"]),
+                "aggregate")
+
+            # PDF file we will write
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "keep-%f-%d-iterations" % (
+                        self.options["percent_to_keep"],
+                        self.options["iterations"]),
+                "precision-recall.pdf")
+    
+            # PNG file we will write 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "keep-%f-%d-iterations" % (
+                    self.options["percent_to_keep"],
+                    self.options["iterations"]),
+                "precision-recall.png")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt")
+
+                points = []
+
+                with pr_file.open('r') as f:
+                    points = precrec.read_precision_recall_fractions(f)
+
+                precrec.plot_precision_recall_curve_fractions(
+                    points, label=algorithm.get_descriptive_name(), ax=ax)
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            lgd = ax.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5,-0.1))
+
+            fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+            fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+
+    def plot_pr_all_pathways(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        for pathway in self.pathway_collection.pathways:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                self.interactome.name + " " +
+                self.pathway_collection.name + " " +
+                "Percent labeled: %f Number iterations: %d" % (
+                    self.options["percent_to_keep"],
+                    self.options["iterations"]))
+
+            # Where we wrote precision/recall results
+            pr_output_dir = Path(
+                evaluation_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                "aggregate",
+                self.get_output_prefix(),
+                "keep-%f-%d-iterations" % (
+                    self.options["percent_to_keep"], 
+                    self.options["iterations"]))
+
+            # PDF file we will write
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "keep-%f-%d-iterations" % (
+                    self.options["percent_to_keep"], 
+                    self.options["iterations"]),
+                "precision-recall.pdf")
+    
+            # PNG file we will write 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "keep-%f-%d-iterations" % (
+                    self.options["percent_to_keep"], 
+                    self.options["iterations"]),
+                "precision-recall.png")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt")
+
+                points = []
+
+                with pr_file.open('r') as f:
+                    points = precrec.read_precision_recall_fractions(f)
+
+                precrec.plot_precision_recall_curve_fractions(
+                    points, label=algorithm.get_descriptive_name(), ax=ax)
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            lgd = ax.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5,-0.1))
+
+            fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+            fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+
+    def get_output_prefix(self):
+        return Path("node-witholding")
+
+
+class Pipeline(object):
     """
-    Module-level function for parallelizing the running of algorithms 
+    1) Package the data from config file into appropriate set of evaluations 
+    2) Run the evaluations created in the step above
     """
-    start = time.time()
-    algorithm.run_wrapper(alg_input, should_force=False)
-    end = time.time()
-    print("Time to run: " + str(end - start))
-
-
-class RegLinkerPipeline(object):
-    """
-    Encapsulates the steps of our analysis pipeline.
-    """
-
-    # TODO: Write now, we only remove edges.
-    #subnetwork_creation_techniques = [
-    #    "remove-edges-then-prune", # don't use this
-    #    "remove-nodes-then-prune", # don't use this
-    #    "remove-edges", 
-    #    "remove-nodes"
-    #]
-
 
     def __init__(self, input_settings, output_settings):
 
         self.input_settings = input_settings
         self.output_settings = output_settings
+
+        self.evaluators = self.__create_evaluators()
+
+
+    def __create_evaluators(self):
+        '''
+        Define the set of evaluators the pipeline will use in analysis
+        '''
+        evaluators = []
+
+        for interactome in self.input_settings.interactomes:
+            for collection in self.input_settings.pathway_collections:
+                #evaluators.append(
+                #    EdgeWithholdingEvaluator(
+                #        interactome, 
+                #        collection, 
+                #        self.input_settings.algorithms, 
+                #        {"num_folds":2}))
+                evaluators.append(
+                    NodeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_to_keep":.9, "iterations": 2}))
+
+                evaluators.append(
+                    NodeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_to_keep":.7, "iterations": 2}))
+
+                evaluators.append(
+                    NodeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_to_keep":.5, "iterations": 2}))
+
+                evaluators.append(
+                    NodeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_to_keep":.3, "iterations": 2}))
+
+                evaluators.append(
+                    NodeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_to_keep":.1, "iterations": 2}))
+
+        return evaluators
+
+
+    def run_evaluators(self):
+        '''
+        Run the mini-pipeline in each evaluator
+        '''
+
+        base_output_dir = Path("outputs")
+
+        for evaluator in self.evaluators:
+            evaluator.run(base_output_dir)
 
    
     def paths_based_folds_analysis_wrapper(self):
@@ -195,20 +1375,42 @@ class RegLinkerPipeline(object):
          2) Run Yen's algorithm, choose a subset that are edge disjoint
             and see how many are left
         '''
+        print(pathway.name)
+
         pathway_obj = pathway.get_pathway_obj()
-        pathway_net = RegLinkerPipeline.get_net_from_pathway(pathway_obj)
+        pathway_net = get_net_from_pathway(pathway_obj)
 
-        #######################################################################
-        # Looking at the negative edges
+        nodes = pathway_net.nodes()
 
-        #specific_interactome = \
-        #    self.get_pathway_specific_interactome(interactome, pathway)
-        
+        print("Number of strongly connected components: " 
+            + str(nx.number_strongly_connected_components(pathway_net)))
+
+        ccs = nx.strongly_connected_components(pathway_net)
+
+        for cc in ccs:
+            print("    " + str(len(cc)))
+
+
+        print("Number of weakly connected components: " 
+            + str(nx.number_weakly_connected_components(pathway_net)))
+
+        ccs = nx.weakly_connected_components(pathway_net)
+
+        for cc in ccs:
+            print("    " + str(len(cc)))
+
         netnet = None
 
         # Create a NetworkX object from the interactome
         with interactome.path.open('r') as f:
             netnet = pl.readNetworkFile(f)
+
+        netnetccs = nx.weakly_connected_components(netnet)
+
+        print(len(list(netnetccs)))
+
+        #######################################################################
+        # Looking at the negative edges
 
         pathway_edges = set(pathway_net.edges())
         interactome_edges = set(netnet.edges())
@@ -225,7 +1427,7 @@ class RegLinkerPipeline(object):
         # Apply PL log transform
         pl.logTransformEdgeWeights(netnet)
 
-        RegLinkerPipeline.set_unit_edge_capacity(netnet)
+        Pipeline.set_unit_edge_capacity(netnet)
 
         # Add super sources and sinks
         pl.modifyGraphForKSP_addSuperSourceSink(
@@ -235,7 +1437,6 @@ class RegLinkerPipeline(object):
         paths = ksp.k_shortest_paths_yen(
             netnet, 'source', 'sink', 500, weight='ksp_weight', clip=False)
     
-        print(pathway.name)
         print("Number of paths through negatives found: " + str(len(paths)))
 
         if len(paths) > 0:
@@ -257,7 +1458,7 @@ class RegLinkerPipeline(object):
         #######################################################################
         # Looking at the positive edges
 
-        net = RegLinkerPipeline.get_disjoint_paths_net_from_pathway(
+        net = Pipeline.get_disjoint_paths_net_from_pathway(
             pathway_obj)
 
         max_flow, flow_dict = nx.maximum_flow(
@@ -285,9 +1486,9 @@ class RegLinkerPipeline(object):
     def get_disjoint_paths_net_from_pathway(
             pathway_obj, supersource="SS", supertarget="ST"):
 
-        net = RegLinkerPipeline.get_net_from_pathway(pathway_obj)
+        net = get_net_from_pathway(pathway_obj)
 
-        RegLinkerPipeline.set_unit_edge_capacity(net)
+        Pipeline.set_unit_edge_capacity(net)
 
         sources = pathway_obj.get_receptors(data=False)
         targets = pathway_obj.get_tfs(data=False)
@@ -495,47 +1696,6 @@ class RegLinkerPipeline(object):
             fig.savefig(str(out))
 
 
-    def pathway_edge_weight_histograms(self):
-        '''
-        Create histograms, per pathway, of the weights of edges in that
-        pathway.
-        '''
-        for interactome in self.input_settings.interactomes:
-            # TODO: This is not a pathway specific interactome?
-            specific_interactome = interactome.path
-            for pathway_collection in self.input_settings.pathway_collections: 
-                for pathway in pathway_collection.pathways:
-                    fig, ax = plt.subplots()
-
-                    ax.set_title(pathway.name)
-                    ax.set_xlabel("Edge weight (bin size = .05)")
-                    ax.set_ylabel("# of edges in bin")
-
-                    pathway_obj = pathway.get_pathway_obj()
-                    edges = pathway_obj.get_edges(data=False)
-
-                    interactome = None
-                    with specific_interactome.open('r') as f:
-                        interactome = pl.readNetworkFile(f) 
-
-                    final_edges = set(edges).intersection(
-                        set(interactome.edges()))
-                
-                    weights = [interactome[x[0]][x[1]]["weight"] 
-                        for x in final_edges] 
-
-
-                    ax.hist(weights, bins=np.arange(0,1,.05), fc=(0,0,1,.5))
-
-                    out = Path(
-                        "outputs",
-                        "other",
-                        "edge-weight-distribution",
-                        pathway.name + "-histogram.png")
-
-                    out.parent.mkdir(parents=True, exist_ok=True)
-
-                    fig.savefig(str(out))
 
     
     def pruning_analysis_table(self):
@@ -824,69 +1984,6 @@ class RegLinkerPipeline(object):
                 print(str(alg_dir))
                 if os.path.exists(str(alg_dir)):
                     shutil.rmtree(str(alg_dir))
-
-
-    def run_pathway_reconstructions_with_folds_wrapper(self, folds):
-        for interactome in self.input_settings.interactomes:
-            for pathway_collection in self.input_settings.pathway_collections:
-                for pathway in pathway_collection.pathways:
-                    self.run_pathway_reconstructions_with_folds(
-                        interactome, pathway_collection, pathway, folds)
-
-
-    def run_pathway_reconstructions_with_folds(
-            self, interactome, pathway_collection, pathway, folds):
-
-        # Make directories, before parallelization
-        for i in range(folds):
-            output_dir = Path(
-                "outputs",
-                "cross-validation-reconstructions",
-                interactome.name,
-                pathway_collection.name,
-                pathway.name,
-                self.input_settings.subnetwork_creation,
-                "%d-folds" % folds,
-                "fold-%d" % i)
-
-            output_dir.mkdir(parents=True, exist_ok=True)
-            
-            for algorithm in self.input_settings.algorithms:
-                alg_dir = algorithm.get_full_output_directory(output_dir)
-                alg_dir.mkdir(parents=True, exist_ok=True)
-
-
-        # Run in parallel over the folds and algorithms
-
-        specific_interactome = self.get_pathway_specific_interactome_file_path(
-            interactome, pathway)
-
-        #num_cores = cpu_count()
-        num_cores = 1 
-        p = Pool(num_cores)
-
-        positive_folds = self.get_positive_folds_remove_edges(
-            interactome, pathway, folds) 
-
-        negative_folds = self.get_negative_folds(
-            interactome, pathway, folds)
-
-        p.starmap(run_fold, itertools.product(
-            [i for i in range(folds)], 
-            [[self.output_settings.get_cross_validation_folds_dir(),
-              self.input_settings.subnetwork_creation,
-              interactome,
-              pathway_collection,
-              pathway,
-              specific_interactome,
-              folds,
-              self.input_settings.algorithms,
-              positive_folds,
-              negative_folds
-            ]]))
-
-        p.close()
-        p.join()
 
     
     def post_reconstructions_to_graphspace_wrapper(self, folds):
@@ -1289,535 +2386,6 @@ class RegLinkerPipeline(object):
 
 
 
-
-    '''
-    def aggregate_tp_fp_scores_over_pathways_wrapper(self, folds):
-        for interactome in self.input_settings.interactomes:
-            for pathway_collection in self.input_settings.pathway_collections:
-                for pathway in pathway_collection.pathways:
-                    self.aggregate_tp_fp_scores_over_pathways(
-                        interactome, pathway_collection, pathway, folds)
-
-
-    def aggregate_tp_fp_scores_over_pathways_wrapper(
-            self, interactome, pathway_collection, pathway, folds):
-        None
-    '''
-    
-    @staticmethod
-    def get_net_from_pathway(pathway):
-        '''
-        Given an in-memory pathway object, construct a NetworkX DiGraph
-        from its nodes and edges.
-        '''
-        edges = pathway.get_edges(data=True)
-        nodes = pathway.get_nodes(data=True)
-
-        net = nx.DiGraph()
-
-        net.add_edges_from(edges)
-        net.add_nodes_from(nodes)
-
-        return net
-
-
-    def remove_incoming_edges_to_sources(self, net, sources):
-        '''
-        Given a network and a set of sources, remove any edge from the
-        network directed into sources.
-        '''
-        edges_to_remove = []
-        for edge in net.edges():
-            if edge[1] in sources:
-                edges_to_remove.append(edge)
-
-        net.remove_edges_from(edges_to_remove)
-
-
-    def remove_outgoing_edges_from_targets(self, net, targets):
-        '''
-        Given a network and a set of targets, remove any edges from the
-        network directed out from the targets. 
-        '''
-        edges_to_remove = []
-        for edge in net.edges():
-            if edge[0] in targets:
-                edges_to_remove.append(edge)
-
-        net.remove_edges_from(edges_to_remove)
-
-
-    def remove_edges_not_in_interactome(self, net, pathway, interactome):
-        ''' 
-        Given a network, the pathway from which that network was derived,
-        and an interactome, remove any edges from the network that do not
-        appear in the interactome
-        '''
-        interactome_edges = set([(x, y) 
-            for x, y, line in interactome.get_interactome_edges()])
-
-        pathway_edges = set(pathway.get_edges(data=False))
-
-        for edge in pathway_edges:
-            if edge not in interactome_edges:
-                net.remove_edge(edge[0], edge[1])
-    
-
-    def get_folds_from_split(self, items, split):
-        """
-        Scikit-learn returns a "split" structure that stores the indices
-        of items in the train and test set of particular fold. This 
-        takes that structure and the items that were divided up, to 
-        return a structure of items instead of indices.
-        """
-        folds = []
-
-        for i, (train, test) in enumerate(split):
-            train_items = [items[x] for x in train]
-            test_items = [items[y] for y in test]
-
-            folds.append((train_items, test_items))
-        return folds
-
-    
-    def split_edges_into_folds(self, edges, num_folds):
-        """
-        Use Scikit-learn k-fold cross validation functions to divide
-        the edges supplied to the function into num_folds folds of 
-        train and test sets.
-        """
-        kf = KFold(n_splits=num_folds, shuffle=True, random_state=1800)
-
-        split = kf.split(edges)
-        
-        folds = []
-
-        return self.get_folds_from_split(edges, split) 
-
-    
-    def get_filtered_pathway_edges(self, pathway, interactome):
-        """
-        Performs the following pre-processing before returning the list
-        of edges in a pathway:
-
-        1) Remove edges that are not in the interactome
-
-        2) Remove edges that are incoming to sources and outgoing from
-           targets
-        """
-        net = RegLinkerPipeline.get_net_from_pathway(pathway)
-
-        self.remove_edges_not_in_interactome(net, pathway, interactome)
-
-        '''
-        self.remove_incoming_edges_to_sources(
-            net, pathway.get_receptors(data=False))
-
-        self.remove_outgoing_edges_from_targets(
-            net, pathway.get_tfs(data=False))
-        '''
-
-        return net.edges()
-
-    # Okay, I need to get the logic straight on the two functions below
-    #
-    # I have been taking the positive set as the pathway edges less
-    # edges incoming to sources, outgoing from targets, and anything not in
-    # the original interactome (not the pathway specific interactome)
-    # 
-    # On the other hand, I have been taking the negative set as the 
-    # pathway-specific interactome less any edges in a given pathway.
-    # That all seems right.
-
-    def get_positive_folds_remove_edges(
-            self, interactome, pathway, k):
-        '''
-        Create k folds of training and test positives from the edges in the
-        pathway.
-        '''
-
-        pathway_obj = pathway.get_pathway_obj()
-
-        edges = self.get_filtered_pathway_edges(pathway_obj, interactome)
-        edges.sort(key=lambda edge:(edge[0],edge[1]))
-
-        return self.split_edges_into_folds(edges, k)
-
-
-    def get_negative_folds(self, interactome, pathway, k):
-        '''
-        Create k folds of training and test negatives from the edges in
-        the interactome after removing edges from the pathway.
-        '''
-        #specific_interactome = \
-        #    self.get_pathway_specific_interactome(interactome, pathway)
-
-        interactome_edges = set((x, y) 
-            for x, y, line in interactome.get_interactome_edges())
-
-        #interactome_edges = set((x, y) 
-         #   for x, y, line in specific_interactome.get_interactome_edges())
-        
-        pathway_edges = set(pathway.get_pathway_obj().get_edges(data=False))
-
-        negatives = list(interactome_edges.difference(pathway_edges)) 
-        negatives.sort(key = lambda edge:(edge[0], edge[1]))
-
-        return self.split_edges_into_folds(negatives, k)
-
-
-    def aggregate_precision_recall_over_folds_wrapper(self, num_folds):
-        for interactome in self.input_settings.interactomes:
-            print(interactome.name)
-            for pathway_collection in self.input_settings.pathway_collections:
-                for pathway in pathway_collection.pathways:
-                    print("    " + pathway.name)
-                    self.aggregate_precision_recall_over_folds(
-                        interactome, pathway_collection, pathway, num_folds)
-
-
-    def aggregate_precision_recall_over_folds(
-            self, interactome, pathway_collection, pathway, num_folds):
-
-        aggregate_output_dir = Path(
-            "outputs",
-            "cross-validation-precision-recall",
-            interactome.name,
-            pathway_collection.name,
-            pathway.name,
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds,
-            "aggregate")
-
-        positive_folds = self.get_positive_folds_remove_edges(    
-            interactome, pathway, num_folds)
-
-        negative_folds = self.get_negative_folds(
-            interactome, pathway, num_folds)
-
-        for algorithm in self.input_settings.algorithms:
-            predictions = []
-            test_positives = []
-            test_negatives = []
-
-            for i in range(num_folds):
-
-                results_dir = Path(
-                    "outputs",
-                    "cross-validation-reconstructions",
-                    interactome.name,
-                    pathway_collection.name,
-                    pathway.name,
-                    self.input_settings.subnetwork_creation,
-                    "%d-folds" % num_folds,
-                    "fold-%d" % i)
-
-                output_file = Path(
-                    results_dir, 
-                    algorithm.get_output_directory(),
-                    algorithm.get_output_file())
-
-                # Some error prevented the creation of the file.
-                # At the moment, this only happens when the reglinker
-                # fails to find paths. Thus, create an empty file.
-                if not output_file.exists():
-                    output_file.touch()
-                
-                retrieved_edges = set()
-
-                fold_predictions = None
-                with output_file.open('r') as f:
-                    # [((tail, head), weight)]
-                    fold_predictions = pl_parse.parse_ranked_edges(f)
-
-                predictions.append(fold_predictions)
-
-                test_positives.append(positive_folds[i][1])
-                test_negatives.append(negative_folds[i][1])
-                
-            flat_test_pos = set(self.flatten_fold_aggregate(test_positives))
-            flat_test_neg = set(self.flatten_fold_aggregate(test_negatives))
-            flat_pred = self.flatten_fold_predictions(predictions)
-
-            # Call existing precrec functions passing these things above
-            points = \
-                precrec.compute_precision_recall_curve_negatives_fractions(
-                    flat_pred, flat_test_pos, flat_test_neg)
-           
-            new_outfile = Path(
-                aggregate_output_dir, 
-                algorithm.get_output_directory(),
-                "precision-recall.txt") 
-
-            new_outfile.parent.mkdir(parents=True, exist_ok=True)
-
-            with new_outfile.open("w") as f: 
-                precrec.write_precision_recall_fractions(f, points)
-
-
-    def flatten_fold_aggregate(self, xs):
-        '''
-        [[a,b],[c]] -> [(a, 0), (b, 0), (c, 1)]
-        
-        Inner lists correspond to folds, and folds here corespond to int 
-        labels:
-
-        [[edgeA,edgeB],[edgeC]] -> [(edgeA, 0), (edgeB, 0), (edgeC, 1)]
-        '''
-        flat = [(y, i) for i, ys in enumerate(xs) for y in ys]
-        return flat
-
-
-    def flatten_fold_predictions(self, xs):
-        '''
-        I need to decompose and re-group these predictions by weight
-
-        1)
-        [[{(edge, weight)}]] -> [((edge, weight), fold)]
-        [[{a}]] -> [(a, 0)]
-
-        2)
-        Regrouping:
-        [((edge, weight), fold)] -> [{((edge, weight),fold)}]
-        
-        3)
-        Making the items match the positives/negatives:
-        [{(edge, weight),fold}] -> [{(edge, fold)}]
-        ''' 
-        #flat = [(y, i) for i, ys in enumerate(xs) for y in ys] 
-        flat = [(z, i) for i, ys in enumerate(xs) for y in ys for z in y]
-
-        weights = set([x[0][1] for x in flat])
-        weights = list(weights)
-        weights.sort(reverse=True)
-
-        regrouped = []
-        for weight in weights:
-            s = {x for x in flat if x[0][1] == weight}
-            regrouped.append(s)
-
-        final = [{(x[0][0], x[1]) for x in xs} for xs in regrouped]
-
-        return final
-
-
-    def plot_pathway_aggregate_precision_recall_wrapper(self, num_folds):
-        for interactome in self.input_settings.interactomes:
-            for pathway_collection in self.input_settings.pathway_collections:
-                for pathway in pathway_collection.pathways:
-                    self.plot_pathway_aggregate_precision_recall(
-                        interactome, pathway_collection, pathway, num_folds)
-
-    
-    def plot_pathway_aggregate_precision_recall(
-            self, interactome, pathway_collection, pathway, num_folds):
-
-        fig, ax = precrec.init_precision_recall_figure()
-
-        ax.set_title(
-            interactome.name + " " +
-            pathway_collection.name + " " +
-            pathway.name)
-        
-        new_output_dir = Path(
-            "outputs",
-            "cross-validation-precision-recall",
-            interactome.name,
-            pathway_collection.name,
-            pathway.name,
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds,
-            "aggregate")
-
-        vis_file_pdf = Path(
-            "outputs",
-            "cross-validation-visualization",
-            interactome.name,
-            pathway_collection.name,
-            pathway.name,
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds,
-            "precision-recall.pdf")
-
-        vis_file_png = Path(
-            "outputs",
-            "cross-validation-visualization",
-            interactome.name,
-            pathway_collection.name,
-            pathway.name,
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds,
-            "precision-recall.png")
-
-        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
-
-        for algorithm in self.input_settings.algorithms:
-            
-            pr_file = Path(
-                new_output_dir,
-                algorithm.get_output_directory(),
-                "precision-recall.txt")
-
-            points = []
-
-            with pr_file.open('r') as f:
-                points = precrec.read_precision_recall_fractions(f)
-
-            precrec.plot_precision_recall_curve_fractions(
-                points, label=algorithm.get_descriptive_name(), ax=ax)
-
-        handles, labels = ax.get_legend_handles_labels()
-
-        lgd = ax.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5,-0.1))
-
-        fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
-            bbox_inches='tight')
-
-        fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
-            bbox_inches='tight')
-
-
-    def aggregate_precision_recall_over_pathways_wrapper(self, num_folds):
-        for interactome in self.input_settings.interactomes:
-            for pathway_collection in self.input_settings.pathway_collections:
-                    self.aggregate_precision_recall_over_pathways(
-                        interactome, pathway_collection, num_folds)
-
-
-    def aggregate_precision_recall_over_pathways(
-            self, interactome, pathway_collection, num_folds):
-        None
-        # Collection -> this one
-        # Pathway -> aggregate_over_folds
-        # Fold -> No longer writing
-        # Take the precision/recall results for the folds and aggregate them
-        # based on ranks like normal
-
-        # Where to write final result
-        new_output_dir = Path(
-            "outputs",
-            "cross-validation-precision-recall",
-            interactome.name,
-            pathway_collection.name,
-            "aggregate",
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds)
-
-        for algorithm in self.input_settings.algorithms:
-            curves = []
-
-            for pathway in pathway_collection.pathways: 
-                output_dir = Path(
-                    "outputs",
-                    "cross-validation-precision-recall",
-                    interactome.name,
-                    pathway_collection.name,
-                    pathway.name,
-                    self.input_settings.subnetwork_creation,
-                    "%d-folds" % num_folds,
-                    "aggregate")
-
-                # Get the precision/recall curve from the right file
-                outfile = Path(
-                    output_dir, 
-                    algorithm.get_output_directory(),
-                    "precision-recall.txt") 
-                
-                with outfile.open('r') as f:
-                    curve = precrec.read_precision_recall_fractions(f)
-                    curves.append(curve)
-
-            aggregated = precrec.aggregate_precision_recall_curve_fractions(
-                curves)
-
-            # Write averaged curve back out
-
-            new_outfile = Path(
-                new_output_dir, 
-                algorithm.get_output_directory(),
-                "precision-recall.txt") 
-
-            new_outfile.parent.mkdir(parents=True, exist_ok=True)
-
-            with new_outfile.open("w") as f: 
-                precrec.write_precision_recall_fractions(f, aggregated)
-       
-
-    def plot_pathway_collection_aggregate_precision_recall_wrapper(
-        self, num_folds):
-        for interactome in self.input_settings.interactomes:
-            for pathway_collection in self.input_settings.pathway_collections:
-                    self.plot_pathway_collection_aggregate_precision_recall(
-                        interactome, pathway_collection, num_folds)
-
-    
-    def plot_pathway_collection_aggregate_precision_recall(
-            self, interactome, pathway_collection, num_folds):
-
-        fig, ax = precrec.init_precision_recall_figure()
-
-        ax.set_title(
-            interactome.name + " " +
-            pathway_collection.name + " " +
-            "Number folds: " + str(num_folds))
-        
-        output_dir = Path(
-            "outputs",
-            "cross-validation-precision-recall",
-            interactome.name,
-            pathway_collection.name,
-            "aggregate",
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds)
-
-        vis_file_pdf = Path(
-            "outputs",
-            "cross-validation-visualization",
-            interactome.name,
-            pathway_collection.name,
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds,
-            "precision-recall.pdf")
-
-        vis_file_png = Path(
-            "outputs",
-            "cross-validation-visualization",
-            interactome.name,
-            pathway_collection.name,
-            self.input_settings.subnetwork_creation,
-            "%d-folds" % num_folds,
-            "precision-recall.png")
-
-        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
-
-        for algorithm in self.input_settings.algorithms:
-            
-            pr_file = Path(
-                output_dir,
-                algorithm.get_output_directory(),
-                "precision-recall.txt")
-
-            points = []
-
-            with pr_file.open('r') as f:
-                points = precrec.read_precision_recall_fractions(f)
-
-            precrec.plot_precision_recall_curve_fractions(
-                points, label=algorithm.get_descriptive_name(), ax=ax)
-
-        handles, labels = ax.get_legend_handles_labels()
-
-        lgd = ax.legend(handles, labels, loc='upper center', 
-            bbox_to_anchor=(0.5,-0.1))
-
-        fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
-            bbox_inches='tight')
-
-        fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
-            bbox_inches='tight')
-
-
 class InputSettings(object):
     def __init__(self, interactomes, pathway_collections, algorithms,
             subnetwork_creation):
@@ -2000,7 +2568,7 @@ class ConfigParser(object):
     @staticmethod 
     def parse(config_file_handle):
         config_map = yaml.load(config_file_handle)
-        return RegLinkerPipeline(
+        return Pipeline(
             ConfigParser.__parse_input_settings(
                 config_map["input_settings"]),
             ConfigParser.__parse_output_settings(
@@ -2102,7 +2670,7 @@ RANKING_ALGORITHMS = {
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
     "pcsf" : PCSF.PCSF,
     "affinity" : Affinity.Affinity,
-    "quickaffinity": QuickAffinity.QRLMultiplyAffinity,
+    "qrlmultiplyaffinity": QuickAffinity.QRLMultiplyAffinity,
     "qrlmultiplyuniformflux": QRLMultiplyUniform.QRLMultiplyUniformFlux,
     "qrlmultiplyweightedsubgraphflux": 
         QRLMultiplyInduced.QRLMultiplyInducedSubgraphFlux,
@@ -2132,6 +2700,7 @@ def main():
 
     print("Pipeline started")
 
+    pipeline.run_evaluators()
     #pipeline.interactome_stats()
     #pipeline.pathway_subset_analysis()
     #pipeline.graphspace_pruning_upload_wrapper()
@@ -2139,16 +2708,20 @@ def main():
 
     pipeline.paths_based_folds_analysis_wrapper()
 
+    # TODO: Ideally, the Evaluator class I now have should support the 
+    # command-line switches instead
+    """
     if opts.purge_results:
         print("Purging old results")
         pipeline.purge_results_wrapper(num_folds)
         print("Finished purging old results")
    
-    if not opts.pathway_specific_interactomes_off:
-        print("Creating pathway-specific interactomes")
-        pipeline.create_pathway_specific_interactomes_wrapper()
-        print("Finished creating pathway-specific interactomes")
+    #if not opts.pathway_specific_interactomes_off:
+    #    print("Creating pathway-specific interactomes")
+    #    pipeline.create_pathway_specific_interactomes_wrapper()
+    #    print("Finished creating pathway-specific interactomes")
 
+    
     pipeline.edge_weight_distribution_wrapper()
     pipeline.pathway_edge_weight_histograms()
 
@@ -2174,27 +2747,7 @@ def main():
     #    print("Uploading reconstructions to GraphSpace")
     #    pipeline.post_reconstructions_to_graphspace_wrapper(num_folds)
     #    print("Finished uploading reconstructions to GraphSpace")
-    
-    if not opts.aggregate_precision_recall_folds_off:
-        print("Aggregating precision/recall over folds")
-        pipeline.aggregate_precision_recall_over_folds_wrapper(num_folds)
-        print("Finished aggregating precision/recall over folds")
-
-    if not opts.plot_aggregate_precision_recall_folds_off:
-        print("Plotting fold-aggregated precision/recall curves")
-        pipeline.plot_pathway_aggregate_precision_recall_wrapper(num_folds)
-        print("Finished plotting")
-
-    if not opts.aggregate_precision_recall_pathways_off:
-        print("Aggregating precision/recall over pathways")
-        pipeline.aggregate_precision_recall_over_pathways_wrapper(num_folds)
-        print("Finished aggregating precision/recall over pathways")
-
-    if not opts.plot_aggregate_precision_recall_pathways_off:
-        print("Plotting pathway-aggregated precision/recall curves")
-        pipeline.plot_pathway_collection_aggregate_precision_recall_wrapper(
-            num_folds)
-        print("Finished plotting")
+    """
 
     print("Pipeline complete")
 
