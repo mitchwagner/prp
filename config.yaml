@@ -172,15 +172,15 @@ input_settings:
             q:
                 - .5
 
-        - name: "InducedSubgraphEdgeRWRFlux"
-          params: 
-            q:
-                - .5
+        #- name: "InducedSubgraphEdgeRWRFlux"
+        #  params: 
+        #    q:
+        #        - .5
 
-        - name: "InducedSubgraphRWRFlux"
-          params: 
-            q:
-                - .5
+        #- name: "InducedSubgraphRWRFlux"
+        #  params: 
+        #    q:
+        #        - .5
 
         #- name: "inducedfluxweightededge"
         #  params: 
@@ -190,12 +190,12 @@ input_settings:
         #        - .5
 
 
-        - name: "qrlmultiplyaffinity"
-          params: 
-            rlc:
-                - ["one-n", "p*np*"]
-                #- ["one-n-or-two", "p*np*|p*np*np*"]
-                - ["start-p-one-n", "pp*np*"]
+        #- name: "qrlmultiplyaffinity"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        #- ["one-n-or-two", "p*np*|p*np*np*"]
+        #        - ["start-p-one-n", "pp*np*"]
                 #- ["two-n", "p*np*np*"]
                 #- ["any", "(p|n)*"]
 
@@ -205,18 +205,18 @@ input_settings:
         #        - ["one-n-or-x", "p*(n|x)p*"]
         #        - ["one-x", "p*xp*"]
 
-        - name: "qrlmultiplyuniformflux"
-          params: 
-            rlc:
-                - ["one-n", "p*np*"]
-                #- ["any","(p|n)*"]
-            q:
-                #- .0
-                #- .1
-                #- .2
-                - .3
-                #- .4
-                #- .5
+        #- name: "qrlmultiplyuniformflux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        #- ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
 
         - name: "QRLEdgesViaEdgeRWRFlux"
           params: 
@@ -231,18 +231,18 @@ input_settings:
                 #- .4
                 #- .5
 
-        - name: "QRLEdgesViaRWRFlux"
-          params: 
-            rlc:
-                - ["one-n", "p*np*"]
-                #- ["any","(p|n)*"]
-            q:
-                #- .0
-                #- .1
-                #- .2
-                - .3
-                #- .4
-                #- .5
+        #- name: "QRLEdgesViaRWRFlux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        #- ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
 
         #- name: "qrlmultiplyinducedsubgraphflux"
         #  params: 
@@ -332,10 +332,10 @@ input_settings:
 
         # TODO: the labeling has since changed. We should look though
         # paths with ps and ts, not ps and fs
-        - name: "quickreglinker-sanity"
-          params: 
-            rlc:
-                - ["one-n", "p*tp*"]
+        #- name: "quickreglinker-sanity"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*tp*"]
         #        # At least 1 unknown edge, up to length 5 
         #        - ["at-least-1-unknown-length-5", "f|fp|pf|ff|fpp|pfp|ppf|ffp|fpf|pff|fff|fppp|pfpp|ppfp|pppf|ffpp|fpfp|fppf|pffp|pfpf|ppff|fffp|ffpf|fpff|pfff|ffff|fpppp|pfppp|ppfpp|pppfp|ppppf|ffppp|fpfpp|fppfp|fpppf|pffpp|pfpfp|pfppf|ppffp|ppfpf|pppff|fffpp|ffpfp|ffppf|fpffp|fpfpf|fppff|pfffp|pffpf|pfpff|ppfff|ffffp|fffpf|ffpff|fpfff|pffff|fffff"]
 
@@ -353,6 +353,24 @@ input_settings:
         #        # At most three unknown edges, start or end with a known
         #        # edge
         #        - ["at-most-3-unknown-with-positive", "p*|pp*fp*|p*fpp*|pp*fp*fp*|p*fp*fpp*|pp*fp*fp*fp*|p*fp*fp*fpp*"] 
+
+        #- name: "QRLConcatEdgeRWR"
+        #  params:
+        #    rlcs:
+        #        - ["123-one", ["p*1p*", "p*2p*", "p*3p*"]]
+        #        - ["123-two", ["p*1p*1p*", "p*1p*2p*", "p*2p*1p*", "p*2p*2p*", 
+        #                       "p*1p*3p*", "p*3p*1p*", "p*2p*3p*", "p*3p*2p*", 
+        #                       "p*3p*3p*"]]
+
+        #        - ["123-one-two", ["p*1p*", "p*2p*", "p*3p*", "p*1p*1p*", 
+        #                           "p*1p*2p*", "p*2p*1p*", "p*2p*2p*", 
+        #                           "p*1p*3p*", "p*3p*1p*", "p*2p*3p*", 
+        #                           "p*3p*2p*", "p*3p*3p*"]]
+        #    num_bins:
+        #        - 3
+
+        #    q:
+        #        - .5
 
         - name: "shortcuts-ss"
           params:

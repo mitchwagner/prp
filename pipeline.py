@@ -72,6 +72,8 @@ import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
 
 import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
 
+import src.algorithms.QRLConcatEdgeRWR as QRLConcatEdgeRWR
+
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -451,7 +453,8 @@ class NodeWithholdingFoldCreator(FoldCreator):
 
             # Random deletion of pathway edges as well
             random.seed(0)
-            train = temp_net.edges()
+            train = list(temp_net.edges())
+            train.sort(key=lambda edge: (edge[0], edge[1]))
 
             for edge in train:
                 toss = random.uniform(0, 1)
@@ -1620,12 +1623,12 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_to_keep":.9, "iterations": 2}))
 
-                evaluators.append(
-                    NodeWithholdingEvaluator(
-                        interactome, 
-                        collection, 
-                        self.input_settings.algorithms, 
-                        {"percent_to_keep":.99, "iterations": 2}))
+                #evaluators.append(
+                #    NodeWithholdingEvaluator(
+                #        interactome, 
+                #        collection, 
+                #        self.input_settings.algorithms, 
+                #        {"percent_to_keep":.99, "iterations": 2}))
 
                 #evaluators.append(
                 #    NodeWithholdingEvaluator(
@@ -1654,7 +1657,7 @@ class Pipeline(object):
                 #        collection, 
                 #        self.input_settings.algorithms, 
                 #        {"percent_to_keep":.1, "iterations": 2}))
-
+                None
         return evaluators
 
 
@@ -2995,8 +2998,11 @@ RANKING_ALGORITHMS = {
     "InducedSubgraphEdgeRWRFlux": InducedSubgraphEdgeRWRFlux.InducedSubgraphEdgeRWRFlux,
     "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
     "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
-    "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux
-
+    "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
+    "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
+    "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
+    "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
+    "QRLConcatEdgeRWR" : QRLConcatEdgeRWR.QRLConcatEdgeRWR,
     }
 
 
