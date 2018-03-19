@@ -151,9 +151,9 @@ input_settings:
         #        # a known edge 
         #        - ["at-most-2-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*"]
 
-        #        - ["at-most-2-unknown", "p*np*|p*np*np*"]
+       #        - ["at-most-2-unknown", "p*np*|p*np*np*"]
 
-        #        # At most three unknown edges, start or end with a known
+       #        # At most three unknown edges, start or end with a known
         #        # edge
         #        - ["at-most-3-unknown-with-positive", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*np*np*s|sp*np*np*npp*s"] 
 
@@ -168,15 +168,19 @@ input_settings:
           params: 
             rlc:
                 - ["one-n", "p*np*"]
+                - ["two-n", "p*np*np*"]
             q:
                 - .5
 
-        #- name: "inducedfluxweighted"
-        #  params: 
-        #    rlc:
-        #        - ["one-n", "p*np*"]
-        #    q:
-        #        - .5
+        - name: "InducedSubgraphEdgeRWRFlux"
+          params: 
+            q:
+                - .5
+
+        - name: "InducedSubgraphRWRFlux"
+          params: 
+            q:
+                - .5
 
         #- name: "inducedfluxweightededge"
         #  params: 
@@ -202,6 +206,32 @@ input_settings:
         #        - ["one-x", "p*xp*"]
 
         - name: "qrlmultiplyuniformflux"
+          params: 
+            rlc:
+                - ["one-n", "p*np*"]
+                #- ["any","(p|n)*"]
+            q:
+                #- .0
+                #- .1
+                #- .2
+                - .3
+                #- .4
+                #- .5
+
+        - name: "QRLEdgesViaEdgeRWRFlux"
+          params: 
+            rlc:
+                - ["one-n", "p*np*"]
+                - ["any","(p|n)*"]
+            q:
+                #- .0
+                #- .1
+                #- .2
+                - .3
+                #- .4
+                #- .5
+
+        - name: "QRLEdgesViaRWRFlux"
           params: 
             rlc:
                 - ["one-n", "p*np*"]
@@ -253,11 +283,11 @@ input_settings:
         #        #- .4
         #        #- .5
 
-        - name: "quickreglinker"
-          params: 
-            rlc:
-                - ["one-n", "p*np*"]
-                - ["two-n", "p*np*np*"]
+#        - name: "quickreglinker"
+#          params: 
+#            rlc:
+#                - ["one-n", "p*np*"]
+#                - ["two-n", "p*np*np*"]
                 #- ["any","(p|n)*"]
                 #- ["start-p-one-n", "pp*np*"]
                 #- ["one-n-end-p", "p*npp*"]
@@ -302,9 +332,10 @@ input_settings:
 
         # TODO: the labeling has since changed. We should look though
         # paths with ps and ts, not ps and fs
-        #- name: "quickreglinker-sanity"
-        #  params: 
-        #    rlc:
+        - name: "quickreglinker-sanity"
+          params: 
+            rlc:
+                - ["one-n", "p*tp*"]
         #        # At least 1 unknown edge, up to length 5 
         #        - ["at-least-1-unknown-length-5", "f|fp|pf|ff|fpp|pfp|ppf|ffp|fpf|pff|fff|fppp|pfpp|ppfp|pppf|ffpp|fpfp|fppf|pffp|pfpf|ppff|fffp|ffpf|fpff|pfff|ffff|fpppp|pfppp|ppfpp|pppfp|ppppf|ffppp|fpfpp|fppfp|fpppf|pffpp|pfpfp|pfppf|ppffp|ppfpf|pppff|fffpp|ffpfp|ffppf|fpffp|fpfpf|fppff|pfffp|pffpf|pfpff|ppfff|ffffp|fffpf|ffpff|fpfff|pffff|fffff"]
 
@@ -323,10 +354,10 @@ input_settings:
         #        # edge
         #        - ["at-most-3-unknown-with-positive", "p*|pp*fp*|p*fpp*|pp*fp*fp*|p*fp*fpp*|pp*fp*fp*fp*|p*fp*fp*fpp*"] 
 
-        #- name: "shortcuts-ss"
-        #  params:
-        #    k: [1000]
-        #    alpha: [1.2]
+        - name: "shortcuts-ss"
+          params:
+            k: [1000]
+            alpha: [1.2]
 
 # Output Settings: initialize base output folder names
 output_settings:

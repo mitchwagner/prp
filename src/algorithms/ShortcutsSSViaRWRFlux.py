@@ -76,14 +76,14 @@ class ShortcutsSSViaRWRFlux(RankingAlgorithm):
 
         # Map to new range of 0-.75 
 
-        old_min = sorted(difference.values())[0]
-        old_max = sorted(difference.values())[-1]
-        new_min = 0 
-        new_max = .75
+        #old_min = sorted(difference.values())[0]
+        #old_max = sorted(difference.values())[-1]
+        #new_min = 0 
+        #new_max = .75
 
-        fn = self.get_interpolator(old_min, old_max, new_min, new_max)
+        #fn = self.get_interpolator(old_min, old_max, new_min, new_max)
 
-        difference = {x:fn(difference[x]) for x in difference.keys()}
+        #difference = {x:fn(difference[x]) for x in difference.keys()}
 
         # 5) Write out new labeled interactome where we have replaced the
         #    weight with the new edge flux

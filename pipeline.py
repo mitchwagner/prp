@@ -84,6 +84,10 @@ import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
 
 # TODO: Should really be in the utils subrepo 
 def get_net_from_pathway(pathway):
+    '''
+    Given a pathway object, create a NetworkX DiGraph from its nodes and
+    edges.
+    '''
     edges = pathway.get_edges(data=True)
     nodes = pathway.get_nodes(data=True)
 
@@ -96,6 +100,10 @@ def get_net_from_pathway(pathway):
 
 
 def remove_incoming_edges_to_sources(net, sources):
+    '''
+    Given a NetworkX DiGraph and a list of nodes that are sources, 
+    removing incoming edges to source nodes in the DiGraph.
+    '''
     edges_to_remove = []
     for edge in net.edges():
         if edge[1] in sources:
@@ -105,6 +113,10 @@ def remove_incoming_edges_to_sources(net, sources):
 
 
 def remove_outgoing_edges_from_targets(net, targets):
+    '''
+    Given a NetworkX DiGraph and a list of nodes that are targets,
+    remove outgoing edges from the target nodes in the DiGraph.
+    '''
     edges_to_remove = []
     for edge in net.edges():
         if edge[0] in targets:
@@ -174,9 +186,15 @@ def remove_edges_not_in_interactome(net, pathway, interactome):
 
 
 def get_filtered_pathway_nodes(pathway, interactome):
+    '''
+    Return a list of all nodes in a pathway that are not sources or
+    targets in the pathway, and are also in the interactome.
+    '''
+
     net = get_net_from_pathway(pathway)
 
     remove_nodes_not_in_interactome(net, pathway, interactome)
+
     remove_sources_and_targets(net, pathway)
 
     return net.nodes()
@@ -193,6 +211,7 @@ def remove_nodes_not_in_interactome(net, pathway, interactome):
     for node in pathway_nodes:
         if node not in interactome_nodes:
             net.remove_node(node)
+
 
 def remove_sources_and_targets(net, pathway):
     sources = pathway.get_receptors(data=False)
@@ -344,9 +363,13 @@ class EdgeWithholdingFoldCreator(FoldCreator):
         positive_folds = self.create_positive_folds()
         negative_folds = self.create_negative_folds()
 
+        folds = []
+
         for i, pair in enumerate(zip(positive_folds, negative_folds)):
             fold_name = self.get_fold_prefix(i)
-            yield (pair[0][0], pair[1][0], fold_name)
+            folds.append((pair[0][0], pair[1][0], fold_name))
+
+        return folds
 
 
     def get_test_folds(self):
@@ -357,16 +380,22 @@ class EdgeWithholdingFoldCreator(FoldCreator):
         positive_folds = self.create_positive_folds()
         negative_folds = self.create_negative_folds()
 
+        folds = []
+
         for i, pair in enumerate(zip(positive_folds, negative_folds)):
             fold_name = self.get_fold_prefix(i)
-            yield (pair[0][1], pair[1][1], fold_name)
+            folds.append((pair[0][1], pair[1][1], fold_name))
+
+        return folds
 
 
 class NodeWithholdingFoldCreator(FoldCreator):
     '''
-    Create folds by iteratively deleting nodes and s-t pruning the
-    resulting network until only a specified percentage of nodes remain.
+    Create positive "folds" via the removal of nodes (and associated edges)
+    from a pathway.
 
+    Create negative "folds" by sampling some percent of the edges in the
+    interactome that are not in the pathway.
     '''
     
     def __init__(self, interactome, pathway, options):
@@ -377,43 +406,72 @@ class NodeWithholdingFoldCreator(FoldCreator):
 
 
     def create_positive_folds(self):
-        # Choose a random group of nodes, and delete them.
-    
         pathway_obj = self.pathway.get_pathway_obj()
 
+        # Get the list of pathway nodes that are in the interactome
+        # and that are not sources or targets
         nodes = get_filtered_pathway_nodes(pathway_obj, self.interactome)
         
+        # Get the list of edges in the original pathway
         original_edges = set(get_net_from_pathway(pathway_obj).edges())
 
+        # Create a consistent list of seeds for the random number generator 
         rand_inits = range(self.itr)
 
         folds = []
 
         for rand in rand_inits:
+            # First, sort the nodes to make sure they are in the same order.
+            # Then, randomly shuffle them using a seed
             nodes.sort()
             random.Random(rand).shuffle(nodes)
 
+            # Get the number of nodes to keep
             num_to_keep = int(self.percent * len(nodes))
             
+            # Partition the list
             nodes_to_keep = nodes[:num_to_keep]
             nodes_to_delete = nodes[num_to_keep:]
 
+            print("to keep: %d" % len(nodes_to_keep))
+            print("to delete: %d" % len(nodes_to_delete))
+
+
+            # Create a temporary version of the pathway and remove edges
+            # not in the interactome
             temp_net = get_net_from_pathway(pathway_obj)
             remove_edges_not_in_interactome(
                 temp_net, pathway_obj, self.interactome)
-
+            
+            # Delete nodes from the temporary pathway
             for node in nodes_to_delete:
                 temp_net.remove_node(node)
-            
+
+
+
+            # Random deletion of pathway edges as well
+            random.seed(0)
+            train = temp_net.edges()
+
+            for edge in train:
+                toss = random.uniform(0, 1)
+                if toss > self.percent:
+                    temp_net.remove_edge(edge[0], edge[1])
+           
+
+
+
+
+            # Create a fold using the resulting lists of edges
             train = temp_net.edges()
             test = list(original_edges - set(train))
             folds.append((train, test))
 
+            print("train: %d" % len(train))
+            print("test: %d" % len(test))
+
         return folds
 
-    # The only thing I can think of would be checking to see the percent of
-    # edges in the pathway that were used in the training set and matching that
-    # percent
 
     def create_negative_folds(self): 
         interactome_edges = set((x, y) 
@@ -423,7 +481,6 @@ class NodeWithholdingFoldCreator(FoldCreator):
         pathway_edges = set(pathway_edges)
 
         negatives = list(interactome_edges.difference(pathway_edges)) 
-        negatives.sort(key = lambda edge:(edge[0], edge[1]))
 
         rand_inits = range(self.itr)
 
@@ -448,7 +505,7 @@ class NodeWithholdingFoldCreator(FoldCreator):
 
 
     def get_fold_prefix(self, fold):
-        return Path(self.get_output_prefix(), "iteration-%d" % self.itr)
+        return Path(self.get_output_prefix(), "iteration-%d" % fold)
     
 
     def get_training_folds(self):
@@ -459,9 +516,14 @@ class NodeWithholdingFoldCreator(FoldCreator):
         positive_folds = self.create_positive_folds()
         negative_folds = self.create_negative_folds()
 
+        folds = []
+
         for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            # [([],[]),([],[])]
             fold_name = self.get_fold_prefix(i)
-            yield (pair[0][0], pair[1][0], fold_name)
+            folds.append((pair[0][0], pair[1][0], fold_name))
+
+        return folds
 
 
     def get_test_folds(self):
@@ -472,9 +534,13 @@ class NodeWithholdingFoldCreator(FoldCreator):
         positive_folds = self.create_positive_folds()
         negative_folds = self.create_negative_folds()
 
+        folds = []
+
         for i, pair in enumerate(zip(positive_folds, negative_folds)):
             fold_name = self.get_fold_prefix(i)
-            yield (pair[0][1], pair[1][1], fold_name)
+            folds.append((pair[0][1], pair[1][1], fold_name))
+
+        return folds
 
 
 class Evaluator(object):
@@ -620,16 +686,22 @@ class AlgorithmEvaluator(Evaluator):
                         full_output_dir,
                         pathway.get_edges_file(),
                         fold[1]) # training negative edges
-
+                    
+                    print("Running algorithm: ")
+                    print("    " + self.interactome.name)
+                    print("    " + self.pathway_collection.name)
+                    print("    " + pathway.name)
+                    print("    " + str(fold[2]))
                     self.run_alg(algorithm, alg_input)
 
 
     def run_alg(self, algorithm, alg_input):
-        print("Running " + algorithm.get_descriptive_name())
+        print("    Running " + algorithm.get_descriptive_name())
         start = time.time()
         algorithm.run_wrapper(alg_input, should_force=False)
         end = time.time()
-        print("Time to run: " + str(end - start))
+        print("    Time to run: " + str(end - start))
+        print("-----------------------------------------------------")
 
 
     def evaluate_reconstructions(
@@ -650,9 +722,22 @@ class AlgorithmEvaluator(Evaluator):
         evaluation_dir = Path(output_dir, "evaluation")
         visualization_dir = Path(output_dir, "visualization")
 
+        print("Beginning evaluation of:\n"
+            + "    interactome: %s\n" % self.interactome.name
+            + "    pathway collection: %s\n" % self.pathway_collection.name
+            + "    procedure: %s\n" % self.get_name())
+
+        print("Running reconstructions...")
         self.run_reconstructions(reconstruction_dir)
+        print("Finished running")
+
+        print("Evaluating reconstructions...")
         self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
+        print("Finished evaluating")
+
+        print("Plotting results...")
         self.plot_results(evaluation_dir, visualization_dir)
+        print("Finished plotting")
 
 
 class EdgeWithholdingEvaluator(AlgorithmEvaluator): 
@@ -977,13 +1062,19 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
 
     def evaluate_reconstructions(
             self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Calculate performance metrics, like precision/recall scores.
+        '''
         self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
         self.aggregate_pr_over_pathways(evaluation_dir)
 
 
-    def aggregate_pr_over_folds(
+    def calculate_pr_per_fold(
             self, reconstruction_dir=Path(), evaluation_dir=Path()):
-
+        '''
+        Calculate the precision recall curve and average precison
+        for each fold independently, writing it to disk.
+        '''
         fold_creators = self.get_fold_creators()
 
         creator_pathway_pairs = zip(
@@ -992,10 +1083,6 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
 
         for pathway, fc in creator_pathway_pairs:
             for algorithm in self.algorithms:
-                predictions = []
-                test_positives = []
-                test_negatives = []
-
                 for fold in fc.get_test_folds():
                     # Where the results were written to
                     reconstruction_output_dir = Path(
@@ -1005,7 +1092,7 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                         pathway.name,
                         self.get_output_prefix(),
                         fold[2])
-                    
+
                     reconstruction_file = Path(
                         reconstruction_output_dir, 
                         algorithm.get_output_directory(),
@@ -1016,6 +1103,12 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                     # fails to find paths. Thus, create an empty file.
                     if not reconstruction_file.exists():
                         reconstruction_file.touch()
+        
+        None
+
+        """
+
+                    
 
                     # Where we will write precision/recall results
                     pr_output_dir = Path(
@@ -1049,19 +1142,143 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 points = \
                     precrec.compute_precision_recall_curve_negatives_fractions(
                         flat_pred, flat_test_pos, flat_test_neg)
+
+                points2 = \
+                    precrec.compute_precision_recall_curve_negatives_decimals(
+                        flat_pred, flat_test_pos, flat_test_neg)
+
+                weighted_avg = precrec.compute_average_precision(points2)
                
                 new_outfile = Path(
                     pr_output_dir, 
                     algorithm.get_output_directory(),
                     "precision-recall.txt") 
 
+                new_outfile2 = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "average-precision.txt") 
+
                 new_outfile.parent.mkdir(parents=True, exist_ok=True)
 
                 with new_outfile.open("w") as f: 
                     precrec.write_precision_recall_fractions(f, points)
 
+                with new_outfile2.open("w") as f: 
+                    f.write(str(weighted_avg))
+            """
+
+
+    def aggregate_pr_over_folds(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Merge the precision/recall results per pathway using folds
+        '''
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            for algorithm in self.algorithms:
+                predictions = []
+                test_positives = []
+                test_negatives = []
+
+                for fold in fc.get_test_folds():
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+                    
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    print(str(reconstruction_file))
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        print("ALERT: RECONSTRUCTION FILE NOT FOUND")
+                        reconstruction_file.touch()
+
+                    # Where we will write precision/recall results
+                    pr_output_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        "keep-%f-%d-iterations" % (
+                            self.options["percent_to_keep"], 
+                            self.options["iterations"]),
+                        "aggregate")
+
+                    positives = fold[0]
+                    negatives = fold[1]
+
+                    print(len(positives))
+                    print(len(negatives))
+                    
+                    retrieved_edges = set()
+
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+                        predictions.append(fold_predictions)
+
+                    test_positives.append(positives)
+                    test_negatives.append(negatives)
+
+
+                flat_test_pos = set(flatten_fold_aggregate(test_positives))
+                flat_test_neg = set(flatten_fold_aggregate(test_negatives))
+                flat_pred = flatten_fold_predictions(predictions)
+
+
+                # Call existing precrec functions passing these things above
+                points = \
+                    precrec.compute_precision_recall_curve_negatives_fractions(
+                        flat_pred, flat_test_pos, flat_test_neg)
+
+                points2 = \
+                    precrec.compute_precision_recall_curve_negatives_decimals(
+                        flat_pred, flat_test_pos, flat_test_neg)
+
+                weighted_avg = precrec.compute_average_precision(points2)
+               
+                new_outfile = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                new_outfile2 = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "average-precision.txt") 
+
+                new_outfile.parent.mkdir(parents=True, exist_ok=True)
+
+                with new_outfile.open("w") as f: 
+                    precrec.write_precision_recall_fractions(f, points)
+
+                with new_outfile2.open("w") as f: 
+                    f.write(str(weighted_avg))
+
 
     def aggregate_pr_over_pathways(self, evaluation_dir=Path()):
+        '''
+        Per algorithm, aggregate the precision/recall scores across
+        pathways.
+        '''
         # Where we will write precision/recall, aggregated over
         # all pathways
         pathway_collection_pr_output_dir = Path(
@@ -1119,8 +1336,96 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
 
+        self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
         self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
         self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
+
+
+    def plot_avg_precision_boxplot(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+        '''
+        Create a boxplot, per algorithm, of the average precision values
+        it obtains on the pathways in this pathway collection.
+        '''
+
+        fig, ax = precrec.init_precision_recall_figure()
+
+        ax.set_title(
+            self.interactome.name + " " +
+            self.pathway_collection.name)
+
+        # PDF file we will write
+        vis_file_pdf = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-%d-iterations" % (
+                    self.options["percent_to_keep"],
+                    self.options["iterations"]),
+            "average-precision.pdf")
+
+        # PNG file we will write 
+        vis_file_png = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-%d-iterations" % (
+                self.options["percent_to_keep"],
+                self.options["iterations"]),
+            "average-precision.png")
+
+        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+        labels = []
+        results = []
+        for algorithm in self.algorithms:
+            labels.append(algorithm.get_descriptive_name())
+
+            points = []
+            for pathway in self.pathway_collection.pathways:
+
+                # Where we wrote precision/recall results
+                pr_output_dir = Path(
+                    evaluation_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    "keep-%f-%d-iterations" % (
+                            self.options["percent_to_keep"],
+                            self.options["iterations"]),
+                    "aggregate")
+
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "average-precision.txt")
+
+
+                with pr_file.open('r') as f:
+                    line = next(f)
+                    point = float(line.strip())
+                    points.append(point)
+
+            results.append(points)
+
+        ax.boxplot(results, labels=labels)
+
+        #ax.set_xticklabels(list(range(1, len(labels + 1))), labels)
+
+        for tick in ax.get_xticklabels():
+            tick.set_rotation(90)
+
+        # handles, labels = ax.get_legend_handles_labels()
+
+        #lgd = ax.legend(handles, labels, loc='upper center', 
+        #    bbox_to_anchor=(0.5,-0.1))
+
+        fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+
+        fig.savefig(str(vis_file_png), bbox_inches='tight')
 
 
     def plot_pr_individual_pathways(
@@ -1320,28 +1625,35 @@ class Pipeline(object):
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
-                        {"percent_to_keep":.7, "iterations": 2}))
+                        {"percent_to_keep":.99, "iterations": 2}))
 
-                evaluators.append(
-                    NodeWithholdingEvaluator(
-                        interactome, 
-                        collection, 
-                        self.input_settings.algorithms, 
-                        {"percent_to_keep":.5, "iterations": 2}))
+                #evaluators.append(
+                #    NodeWithholdingEvaluator(
+                #        interactome, 
+                #        collection, 
+                #        self.input_settings.algorithms, 
+                #        {"percent_to_keep":.7, "iterations": 2}))
 
-                evaluators.append(
-                    NodeWithholdingEvaluator(
-                        interactome, 
-                        collection, 
-                        self.input_settings.algorithms, 
-                        {"percent_to_keep":.3, "iterations": 2}))
+                #evaluators.append(
+                #    NodeWithholdingEvaluator(
+                #        interactome, 
+                #        collection, 
+                #        self.input_settings.algorithms, 
+                #        {"percent_to_keep":.5, "iterations": 2}))
 
-                evaluators.append(
-                    NodeWithholdingEvaluator(
-                        interactome, 
-                        collection, 
-                        self.input_settings.algorithms, 
-                        {"percent_to_keep":.1, "iterations": 2}))
+                #evaluators.append(
+                #    NodeWithholdingEvaluator(
+                #        interactome, 
+                #        collection, 
+                #        self.input_settings.algorithms, 
+                #        {"percent_to_keep":.3, "iterations": 2}))
+
+                #evaluators.append(
+                #    NodeWithholdingEvaluator(
+                #        interactome, 
+                #        collection, 
+                #        self.input_settings.algorithms, 
+                #        {"percent_to_keep":.1, "iterations": 2}))
 
         return evaluators
 
