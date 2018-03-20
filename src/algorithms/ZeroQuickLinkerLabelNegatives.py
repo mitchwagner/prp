@@ -5,19 +5,16 @@ from pathlib import Path
 
 from .RankingAlgorithm import RankingAlgorithm
 import src.external.pathlinker.parse as pl_parse
-# Cheat 
-# TODO: Give pathway positive edges weight of 1 in interacomte so that
-# they are essentially free
-class ZeroLinker(RankingAlgorithm):
+
+class ZeroQuickLinkerLabelNegatives(RankingAlgorithm):
     def __init__(self, params):
-        self.k = params["k"]
+        None
 
 
     def run(self, reconstruction_input):
-
-        ######################################################################
-        # Zero out the interactome
-        provided_edges = reconstruction_input.training_edges 
+        #######################################################################
+        # 1) Re-weight interactome
+        provided_edges = reconstruction_input.training_edges
 
         zero_interactome = Path(
             self.get_full_output_directory(
@@ -30,21 +27,25 @@ class ZeroLinker(RankingAlgorithm):
             self.give_pathway_positives_zero_weight(
                 in_file, out_file, provided_edges)
 
-        ################3######################################################
-        # Run PathLinker
-        subprocess.call([ "python", "src/external/pathlinker/run.py", 
-            "-k", str(self.k),
-            "--write-paths",
-            "--output",
+        #######################################################################
+        # 2) Run QuickLinker
+
+        subprocess.call([
+            "java",
+            "-Xmx15360m",
+            "-jar",
+            "src/external/quicklinker/build/libs/quicklinker.jar",
+            "-n",
+            str(zero_interactome),
+            "-nodeTypes",
+            str(reconstruction_input.pathway_nodes_file),
+            "-o",
             os.path.join(str(Path(
                 reconstruction_input.output_dir, 
-                self.get_output_directory())), ""),
-            str(zero_interactome),
-            str(reconstruction_input.pathway_nodes_file)
+                self.get_output_directory())), "output"),
             ])
 
 
-    # TODO: Make sure this is working correctly by checking output
     def give_pathway_positives_zero_weight( 
         self, in_handle, out_handle, positive_set):
         """
@@ -83,16 +84,16 @@ class ZeroLinker(RankingAlgorithm):
 
 
     def get_name(self):
-        return "zerolinker"
+        return "ZeroQuickLinkerLabelNegatives"
 
 
     def get_descriptive_name(self):
-        return "zerolinker, k=%d" % self.k
+        return "ZeroQuickLinkerLabelNegatives"
 
 
     def get_output_file(self):
-        return "k-%d-ranked-edges.txt" % self.k
+        return "output-ranked-edges.txt"
 
 
     def get_output_directory(self):
-        return Path(self.get_name(), "k-%d-paths" % self.k)
+        return Path(self.get_name())

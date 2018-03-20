@@ -51,8 +51,13 @@ import src.algorithms.QuickRegLinkerConcat as QuickConcat
 import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
 import src.algorithms.RegLinker as RegLinker
 import src.algorithms.ShortcutsSS as Shortcuts
+
 import src.algorithms.ZeroLinker as ZeroLinker
 import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker
+import src.algorithms.ZeroQuickLinker as ZeroQuickLinker
+import src.algorithms.ZeroQuickLinkerLabelNegatives as \
+    ZeroQuickLinkerLabelNegatives
+
 import src.algorithms.Affinity as Affinity
 import src.algorithms.QRLMultiplyAffinity as QuickAffinity
 import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
@@ -63,7 +68,6 @@ import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced
 import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
 import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
 
-
 import src.algorithms.InducedSubgraphRWRFlux as InducedSubgraphRWRFlux
 import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWRFlux
 
@@ -73,6 +77,7 @@ import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
 import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
 
 import src.algorithms.QRLConcatEdgeRWR as QRLConcatEdgeRWR
+import src.algorithms.ZeroLinkerLabelNegatives as ZeroLinkerLabelNegatives 
 
 
 # TODO: Explicit write-up of what our edge files and interactome files are
@@ -470,6 +475,9 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             train = temp_net.edges()
             test = list(original_edges - set(train))
             folds.append((train, test))
+                
+            print("||||||||||||||||||||||||||||||||||||||||||")
+            print("training edges: " + str(train))
 
             print("train: %d" % len(train))
             print("test: %d" % len(test))
@@ -819,7 +827,6 @@ class EdgeWithholdingEvaluator(AlgorithmEvaluator):
                     positives = fold[0]
                     negatives = fold[1]
                     
-                    retrieved_edges = set()
 
                     with reconstruction_file.open('r') as f:
                         fold_predictions = pl_parse.parse_ranked_edges(f)
@@ -1072,11 +1079,12 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         '''
         Calculate performance metrics, like precision/recall scores.
         '''
+        self.calculate_avg_pr_per_fold(reconstruction_dir, evaluation_dir)
         self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
         self.aggregate_pr_over_pathways(evaluation_dir)
 
 
-    def calculate_pr_per_fold(
+    def calculate_avg_pr_per_fold(
             self, reconstruction_dir=Path(), evaluation_dir=Path()):
         '''
         Calculate the precision recall curve and average precison
@@ -1111,12 +1119,6 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     if not reconstruction_file.exists():
                         reconstruction_file.touch()
         
-        None
-
-        """
-
-                    
-
                     # Where we will write precision/recall results
                     pr_output_dir = Path(
                         evaluation_dir,
@@ -1124,56 +1126,37 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                         self.pathway_collection.name,
                         pathway.name,
                         self.get_output_prefix(),
-                        "keep-%f-%d-iterations" % (
-                            self.options["percent_to_keep"], 
-                            self.options["iterations"]),
-                        "aggregate")
+                        fold[2])
 
-                    positives = fold[0]
-                    negatives = fold[1]
-                    
-                    retrieved_edges = set()
+                    positives = set(fold[0])
+                    negatives = set(fold[1])
 
+
+                    fold_predictions = None
                     with reconstruction_file.open('r') as f:
                         fold_predictions = pl_parse.parse_ranked_edges(f)
-                        predictions.append(fold_predictions)
-
-                    test_positives.append(positives)
-                    test_negatives.append(negatives)
-                    
-                flat_test_pos = set(flatten_fold_aggregate(test_positives))
-                flat_test_neg = set(flatten_fold_aggregate(test_negatives))
-                flat_pred = flatten_fold_predictions(predictions)
-
-                # Call existing precrec functions passing these things above
-                points = \
-                    precrec.compute_precision_recall_curve_negatives_fractions(
-                        flat_pred, flat_test_pos, flat_test_neg)
-
-                points2 = \
-                    precrec.compute_precision_recall_curve_negatives_decimals(
-                        flat_pred, flat_test_pos, flat_test_neg)
-
-                weighted_avg = precrec.compute_average_precision(points2)
                
-                new_outfile = Path(
-                    pr_output_dir, 
-                    algorithm.get_output_directory(),
-                    "precision-recall.txt") 
+                    fold_predictions = [
+                        set([tup[0] for tup in s])
+                        for s in fold_predictions]
 
-                new_outfile2 = Path(
-                    pr_output_dir, 
-                    algorithm.get_output_directory(),
-                    "average-precision.txt") 
 
-                new_outfile.parent.mkdir(parents=True, exist_ok=True)
+                    points = \
+                        precrec.compute_precision_recall_curve_negatives_decimals(
+                            fold_predictions, positives, negatives)
 
-                with new_outfile.open("w") as f: 
-                    precrec.write_precision_recall_fractions(f, points)
+                    weighted_avg = precrec.compute_average_precision(points)
+                    print("WEIGHTED_AVG: %f" % weighted_avg)
 
-                with new_outfile2.open("w") as f: 
-                    f.write(str(weighted_avg))
-            """
+                    new_outfile = Path(
+                        pr_output_dir, 
+                        algorithm.get_output_directory(),
+                        "average-precision.txt") 
+
+                    new_outfile.parent.mkdir(parents=True, exist_ok=True)
+
+                    with new_outfile.open("w") as f: 
+                        f.write(str(weighted_avg))
 
 
     def aggregate_pr_over_folds(
@@ -1193,6 +1176,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 predictions = []
                 test_positives = []
                 test_negatives = []
+
+                avg_prec = []
 
                 for fold in fc.get_test_folds():
                     # Where the results were written to
@@ -1237,7 +1222,6 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     print(len(positives))
                     print(len(negatives))
                     
-                    retrieved_edges = set()
 
                     with reconstruction_file.open('r') as f:
                         fold_predictions = pl_parse.parse_ranked_edges(f)
@@ -1245,6 +1229,28 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
                     test_positives.append(positives)
                     test_negatives.append(negatives)
+
+                    
+
+                    # Already-written average precision
+                    avg_avg_prec_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    avg_avg_prec_file = Path(
+                        avg_avg_prec_dir, 
+                        algorithm.get_output_directory(),
+                        "average-precision.txt") 
+
+                    
+                    with avg_avg_prec_file.open('r') as f:
+                        line = next(f)
+                        point = float(line.strip())
+                        avg_prec.append(point)
 
 
                 flat_test_pos = set(flatten_fold_aggregate(test_positives))
@@ -1262,7 +1268,14 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                         flat_pred, flat_test_pos, flat_test_neg)
 
                 weighted_avg = precrec.compute_average_precision(points2)
-               
+
+                avg_avg_prec = sum(avg_prec) / len(avg_prec)
+                print("===================")
+                print(avg_prec)
+                print(sum(avg_prec))
+                print(len(avg_prec))
+                print(avg_avg_prec)
+
                 new_outfile = Path(
                     pr_output_dir, 
                     algorithm.get_output_directory(),
@@ -1271,7 +1284,14 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 new_outfile2 = Path(
                     pr_output_dir, 
                     algorithm.get_output_directory(),
-                    "average-precision.txt") 
+                    "average-aggregate-precision.txt") 
+
+
+                new_outfile3 = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "average-average-precision.txt") 
+
 
                 new_outfile.parent.mkdir(parents=True, exist_ok=True)
 
@@ -1280,6 +1300,9 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
                 with new_outfile2.open("w") as f: 
                     f.write(str(weighted_avg))
+
+                with new_outfile3.open("w") as f: 
+                    f.write(str(avg_avg_prec))
 
 
     def aggregate_pr_over_pathways(self, evaluation_dir=Path()):
@@ -1358,14 +1381,21 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         it obtains on the pathways in this pathway collection.
         '''
 
-        fig, ax = precrec.init_precision_recall_figure()
+        fig1, ax1 = precrec.init_precision_recall_figure()
+        fig2, ax2 = precrec.init_precision_recall_figure()
 
-        ax.set_title(
+        ax1.set_title(
+            "aggregated " + 
+            self.interactome.name + " " +
+            self.pathway_collection.name)
+
+        ax2.set_title(
+            "averaged" + 
             self.interactome.name + " " +
             self.pathway_collection.name)
 
         # PDF file we will write
-        vis_file_pdf = Path(
+        vis_file_pdf1 = Path(
             visualization_dir,
             self.interactome.name,
             self.pathway_collection.name,
@@ -1374,10 +1404,10 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 self.options["percent_nodes_to_keep"], 
                 self.options["percent_edges_to_keep"], 
                 self.options["iterations"]),
-            "average-precision.pdf")
+            "average-aggregate-precision.pdf")
 
         # PNG file we will write 
-        vis_file_png = Path(
+        vis_file_png1 = Path(
             visualization_dir,
             self.interactome.name,
             self.pathway_collection.name,
@@ -1386,16 +1416,42 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 self.options["percent_nodes_to_keep"], 
                 self.options["percent_edges_to_keep"], 
                 self.options["iterations"]),
-            "average-precision.png")
+            "average-aggregate-precision.png")
 
-        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+        # PDF file we will write
+        vis_file_pdf2 = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "average-average-precision.pdf")
+
+        # PNG file we will write 
+        vis_file_png2 = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "average-average-precision.png")
+
+        vis_file_pdf1.parent.mkdir(parents=True, exist_ok=True)
 
         labels = []
-        results = []
+        results_agg = []
+        results_avg = []
         for algorithm in self.algorithms:
             labels.append(algorithm.get_descriptive_name())
 
-            points = []
+            points_agg = []
+            points_avg = []
             for pathway in self.pathway_collection.pathways:
 
                 # Where we wrote precision/recall results
@@ -1411,34 +1467,43 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                         self.options["iterations"]),
                     "aggregate")
 
-                pr_file = Path(
+                pr_file1 = Path(
                     pr_output_dir,
                     algorithm.get_output_directory(),
-                    "average-precision.txt")
+                    "average-aggregate-precision.txt")
 
+                pr_file2 = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "average-average-precision.txt")
 
-                with pr_file.open('r') as f:
+                with pr_file1.open('r') as f:
                     line = next(f)
                     point = float(line.strip())
-                    points.append(point)
+                    points_agg.append(point)
 
-            results.append(points)
+                with pr_file2.open('r') as f:
+                    line = next(f)
+                    point = float(line.strip())
+                    points_avg.append(point)
 
-        ax.boxplot(results, labels=labels)
+            results_agg.append(points_agg)
+            results_avg.append(points_avg)
 
-        #ax.set_xticklabels(list(range(1, len(labels + 1))), labels)
+        ax1.boxplot(results_agg, labels=labels)
+        ax2.boxplot(results_avg, labels=labels)
 
-        for tick in ax.get_xticklabels():
+        for tick in ax1.get_xticklabels():
             tick.set_rotation(90)
 
-        # handles, labels = ax.get_legend_handles_labels()
+        for tick in ax2.get_xticklabels():
+            tick.set_rotation(90)
 
-        #lgd = ax.legend(handles, labels, loc='upper center', 
-        #    bbox_to_anchor=(0.5,-0.1))
+        fig1.savefig(str(vis_file_pdf1), bbox_inches='tight')
+        fig1.savefig(str(vis_file_png1), bbox_inches='tight')
 
-        fig.savefig(str(vis_file_pdf), bbox_inches='tight')
-
-        fig.savefig(str(vis_file_png), bbox_inches='tight')
+        fig2.savefig(str(vis_file_pdf2), bbox_inches='tight')
+        fig2.savefig(str(vis_file_png2), bbox_inches='tight')
 
 
     def plot_pr_individual_pathways(
@@ -2967,6 +3032,8 @@ RANKING_ALGORITHMS = {
         QuickPositives.QRLPathsThroughFoldPositives,
     "quickreglinkerconcat" : QuickConcat.QuickRegLinkerConcat,
     "zerolinker" : ZeroLinker.ZeroLinker,
+    "ZeroLinkerLabelNegatives" : 
+        ZeroLinkerLabelNegatives.ZeroLinkerLabelNegatives,
     "zeroquickreglinker" : ZeroQuickRegLinker.ZeroQuickRegLinker,
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
     "pcsf" : PCSF.PCSF,
@@ -2989,6 +3056,9 @@ RANKING_ALGORITHMS = {
     "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
     "QRLConcatEdgeRWR" : QRLConcatEdgeRWR.QRLConcatEdgeRWR,
+    "ZeroQuickLinker" : ZeroQuickLinker.ZeroQuickLinker,
+    "ZeroQuickLinkerLabelNegatives" : 
+        ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
     }
 
 
