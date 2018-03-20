@@ -305,7 +305,7 @@ class FoldCreator(object):
         raise NotImplementedError()
 
 
-    def get_test_fold_iterator():
+    def get_test_folds():
         '''
         Returns an iterator that returns tuples:
             (test_negatives, test_positives, fold_name)
@@ -313,7 +313,7 @@ class FoldCreator(object):
         raise NotImplementedError()
 
 
-    def get_train_fold_iterator():
+    def get_training_folds():
         '''
         Returns an iterator that returns tuples:
             (train_negatives, train_positives, fold_name)
@@ -731,11 +731,43 @@ class AlgorithmEvaluator(Evaluator):
             self, evaluation_dir=Path(), visualization_dir=Path()):
         raise NotImplementedError()
 
+    
+    def purge_results(self, reconstruction_dir=Path()):
+        '''
+        Delete previously-computed pathway reconstructions 
+        for the algorithms specified in the config file.
+        '''
 
-    def run(self, output_dir=Path()):
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            for fold in fc.get_training_folds():
+                output_dir = Path(
+                    reconstruction_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    fold[2])
+
+                for algorithm in self.algorithms:
+                    alg_dir = algorithm.get_full_output_directory(output_dir)
+                    print(str(alg_dir))
+                    if os.path.exists(str(alg_dir)):
+                        shutil.rmtree(str(alg_dir))
+        
+
+    def run(self, output_dir=Path(), purge_results=False):
         reconstruction_dir = Path(output_dir, "reconstruction")
         evaluation_dir = Path(output_dir, "evaluation")
         visualization_dir = Path(output_dir, "visualization")
+
+        if purge_results:
+            self.purge_results(reconstruction_dir)
 
         print("Beginning evaluation of:\n"
             + "    interactome: %s\n" % self.interactome.name
@@ -1684,6 +1716,10 @@ class Pipeline(object):
         self.evaluators = self.__create_evaluators()
 
 
+    def set_purge_results(self, purge_results):
+        self.purge_results = purge_results
+
+
     def __create_evaluators(self):
         '''
         Define the set of evaluators the pipeline will use in analysis
@@ -1720,7 +1756,7 @@ class Pipeline(object):
         base_output_dir = Path("outputs")
 
         for evaluator in self.evaluators:
-            evaluator.run(base_output_dir)
+            evaluator.run(base_output_dir, self.purge_results)
 
    
     def paths_based_folds_analysis_wrapper(self):
@@ -2319,37 +2355,6 @@ class Pipeline(object):
         return Interactome(interactome.name, path)
 
 
-    def purge_results_wrapper(self, folds):
-        for interactome in self.input_settings.interactomes:
-            for pathway_collection in self.input_settings.pathway_collections:
-                for pathway in pathway_collection.pathways:
-                    self.purge_results(
-                        interactome, pathway_collection, pathway, folds)
-
-
-    def purge_results(
-            self, interactome, pathway_collection, pathway, folds):
-        '''
-        Delete previously-computed pathway reconstructions 
-        for the algorithms specified in the config file.
-        '''
-
-        for i in range(folds):
-            output_dir = Path(
-                "outputs",
-                "cross-validation-reconstructions",
-                interactome.name,
-                pathway_collection.name,
-                pathway.name,
-                self.input_settings.subnetwork_creation,
-                "%d-folds" % folds,
-                "fold-%d" % i)
-
-            for algorithm in self.input_settings.algorithms:
-                alg_dir = algorithm.get_full_output_directory(output_dir)
-                print(str(alg_dir))
-                if os.path.exists(str(alg_dir)):
-                    shutil.rmtree(str(alg_dir))
 
     
     def post_reconstructions_to_graphspace_wrapper(self, folds):
@@ -3071,6 +3076,8 @@ def main():
 
     with open(config_file, "r") as conf:
         pipeline = ConfigParser.parse(conf) 
+
+    pipeline.set_purge_results(opts.purge_results)
 
     print("Pipeline started")
 
