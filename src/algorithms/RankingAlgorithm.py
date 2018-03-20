@@ -39,6 +39,15 @@ class PathwayReconstructionInput(object):
         :param default: the default label to give to anything that does
             not match anything in any of the provided sets
         '''
+
+        edge_label_map = {}
+
+        for s in sets:
+            for edge in s[1]:
+                # Don't overwrite earlier label
+                if edge not in edge_label_map:
+                    edge_label_map[edge] = s[0]
+
         for line in in_handle:
             if pl_parse.is_comment_line(line):
                 out_handle.write(line)
@@ -46,6 +55,9 @@ class PathwayReconstructionInput(object):
                 tokens = pl_parse.tokenize(line)
                 edge = (tokens[0], tokens[1])
 
+                label = edge_label_map.get(edge, default)
+
+                '''
                 flag = False
                 label = ""
                 for s in sets:
@@ -59,6 +71,7 @@ class PathwayReconstructionInput(object):
                 # If the edge was not in any set, give the label "none"
                 if flag == False:
                     label = default
+                '''
 
                 out_handle.write(line.rstrip() + "\t" + label + "\n")
 
