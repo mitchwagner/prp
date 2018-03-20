@@ -391,7 +391,7 @@ class EdgeWithholdingFoldCreator(FoldCreator):
         return folds
 
 
-class NodeWithholdingFoldCreator(FoldCreator):
+class NodeEdgeWithholdingFoldCreator(FoldCreator):
     '''
     Create positive "folds" via the removal of nodes (and associated edges)
     from a pathway.
@@ -403,7 +403,8 @@ class NodeWithholdingFoldCreator(FoldCreator):
     def __init__(self, interactome, pathway, options):
         self.interactome = interactome
         self.pathway = pathway
-        self.percent = options["percent_to_keep"]
+        self.percent_nodes = options["percent_nodes_to_keep"]
+        self.percent_edges = options["percent_edges_to_keep"]
         self.itr = options["iterations"]
 
 
@@ -429,7 +430,7 @@ class NodeWithholdingFoldCreator(FoldCreator):
             random.Random(rand).shuffle(nodes)
 
             # Get the number of nodes to keep
-            num_to_keep = int(self.percent * len(nodes))
+            num_to_keep = int(self.percent_nodes * len(nodes))
             
             # Partition the list
             nodes_to_keep = nodes[:num_to_keep]
@@ -458,7 +459,7 @@ class NodeWithholdingFoldCreator(FoldCreator):
 
             for edge in train:
                 toss = random.uniform(0, 1)
-                if toss > self.percent:
+                if toss > self.percent_edges:
                     temp_net.remove_edge(edge[0], edge[1])
            
 
@@ -493,7 +494,7 @@ class NodeWithholdingFoldCreator(FoldCreator):
             negatives.sort(key = lambda edge:(edge[0], edge[1]))
             random.Random(rand).shuffle(negatives)
 
-            num_to_keep = int(self.percent * len(negatives))
+            num_to_keep = int(self.percent_edges * len(negatives))
             
             edges_to_keep = negatives[:num_to_keep]
             edges_to_delete = negatives[num_to_keep:]
@@ -504,7 +505,10 @@ class NodeWithholdingFoldCreator(FoldCreator):
         
         
     def get_output_prefix(self): 
-        return Path("keep-%f-%d-iterations" % (self.percent, self.itr))
+        return Path("keep-%f-nodes-%f-edges-%d-iterations" % (
+            self.percent_nodes, 
+            self.percent_edges,
+            self.itr))
 
 
     def get_fold_prefix(self, fold):
@@ -1046,21 +1050,21 @@ class EdgeWithholdingEvaluator(AlgorithmEvaluator):
         return Path("edge-witholding")
 
 
-class NodeWithholdingEvaluator(AlgorithmEvaluator): 
+class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator): 
 
     def get_fold_creator(self, pathway):
         '''
         Create a fold creator for the provided pathway, given this
         evaluation's specified interactome and pathway
         '''
-        fc = NodeWithholdingFoldCreator(
+        fc = NodeEdgeWithholdingFoldCreator(
             self.interactome, pathway, self.options)
 
         return fc
 
 
     def get_name(self):
-        return "node-withholding evaluation"
+        return "node-and-edge-withholding evaluation"
    
 
     def evaluate_reconstructions(
@@ -1221,8 +1225,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                         self.pathway_collection.name,
                         pathway.name,
                         self.get_output_prefix(),
-                        "keep-%f-%d-iterations" % (
-                            self.options["percent_to_keep"], 
+                        "keep-%f-nodes-%f-edges-%d-iterations" % (
+                            self.options["percent_nodes_to_keep"], 
+                            self.options["percent_edges_to_keep"], 
                             self.options["iterations"]),
                         "aggregate")
 
@@ -1290,8 +1295,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
             self.pathway_collection.name,
             "aggregate",
             self.get_output_prefix(),
-            "keep-%f-%d-iterations" % (
-                self.options["percent_to_keep"],
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
                 self.options["iterations"]))
 
         for algorithm in self.algorithms:    
@@ -1306,8 +1312,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                     self.pathway_collection.name,
                     pathway.name,
                     self.get_output_prefix(),
-                    "keep-%f-%d-iterations" % (
-                        self.options["percent_to_keep"],
+                    "keep-%f-nodes-%f-edges-%d-iterations" % (
+                        self.options["percent_nodes_to_keep"], 
+                        self.options["percent_edges_to_keep"], 
                         self.options["iterations"]),
                     "aggregate")
 
@@ -1363,9 +1370,10 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
             self.interactome.name,
             self.pathway_collection.name,
             self.get_output_prefix(),
-            "keep-%f-%d-iterations" % (
-                    self.options["percent_to_keep"],
-                    self.options["iterations"]),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
             "average-precision.pdf")
 
         # PNG file we will write 
@@ -1374,8 +1382,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
             self.interactome.name,
             self.pathway_collection.name,
             self.get_output_prefix(),
-            "keep-%f-%d-iterations" % (
-                self.options["percent_to_keep"],
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
                 self.options["iterations"]),
             "average-precision.png")
 
@@ -1396,9 +1405,10 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                     self.pathway_collection.name,
                     pathway.name,
                     self.get_output_prefix(),
-                    "keep-%f-%d-iterations" % (
-                            self.options["percent_to_keep"],
-                            self.options["iterations"]),
+                    "keep-%f-nodes-%f-edges-%d-iterations" % (
+                        self.options["percent_nodes_to_keep"], 
+                        self.options["percent_edges_to_keep"], 
+                        self.options["iterations"]),
                     "aggregate")
 
                 pr_file = Path(
@@ -1450,9 +1460,10 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 self.pathway_collection.name,
                 pathway.name,
                 self.get_output_prefix(),
-                "keep-%f-%d-iterations" % (
-                        self.options["percent_to_keep"],
-                        self.options["iterations"]),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
                 "aggregate")
 
             # PDF file we will write
@@ -1462,9 +1473,10 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 self.pathway_collection.name,
                 pathway.name,
                 self.get_output_prefix(),
-                "keep-%f-%d-iterations" % (
-                        self.options["percent_to_keep"],
-                        self.options["iterations"]),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
                 "precision-recall.pdf")
     
             # PNG file we will write 
@@ -1474,8 +1486,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 self.pathway_collection.name,
                 pathway.name,
                 self.get_output_prefix(),
-                "keep-%f-%d-iterations" % (
-                    self.options["percent_to_keep"],
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
                     self.options["iterations"]),
                 "precision-recall.png")
 
@@ -1518,9 +1531,10 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
             ax.set_title(
                 self.interactome.name + " " +
                 self.pathway_collection.name + " " +
-                "Percent labeled: %f Number iterations: %d" % (
-                    self.options["percent_to_keep"],
-                    self.options["iterations"]))
+                "Percent nodes: %f percent edges: % f Number iterations: %d" % 
+                (self.options["percent_nodes_to_keep"],
+                 self.options["percent_edges_to_keep"],
+                 self.options["iterations"]))
 
             # Where we wrote precision/recall results
             pr_output_dir = Path(
@@ -1529,8 +1543,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 self.pathway_collection.name,
                 "aggregate",
                 self.get_output_prefix(),
-                "keep-%f-%d-iterations" % (
-                    self.options["percent_to_keep"], 
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
                     self.options["iterations"]))
 
             # PDF file we will write
@@ -1539,8 +1554,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 self.interactome.name,
                 self.pathway_collection.name,
                 self.get_output_prefix(),
-                "keep-%f-%d-iterations" % (
-                    self.options["percent_to_keep"], 
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
                     self.options["iterations"]),
                 "precision-recall.pdf")
     
@@ -1550,8 +1566,9 @@ class NodeWithholdingEvaluator(AlgorithmEvaluator):
                 self.interactome.name,
                 self.pathway_collection.name,
                 self.get_output_prefix(),
-                "keep-%f-%d-iterations" % (
-                    self.options["percent_to_keep"], 
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
                     self.options["iterations"]),
                 "precision-recall.png")
 
@@ -1616,48 +1633,17 @@ class Pipeline(object):
                 #        collection, 
                 #        self.input_settings.algorithms, 
                 #        {"num_folds":2}))
-                evaluators.append(
-                    NodeWithholdingEvaluator(
-                        interactome, 
-                        collection, 
-                        self.input_settings.algorithms, 
-                        {"percent_to_keep":.9, "iterations": 2}))
+                for j in [0.2, 0.4, 0.6, 0.8]:
+                    for k in [0.2, 0.4, 0.6, 0.8]:
+                        evaluators.append(
+                            NodeEdgeWithholdingEvaluator(
+                                interactome, 
+                                collection, 
+                                self.input_settings.algorithms, 
+                                {"percent_nodes_to_keep": j, 
+                                 "percent_edges_to_keep": k,
+                                 "iterations": 2}))
 
-                #evaluators.append(
-                #    NodeWithholdingEvaluator(
-                #        interactome, 
-                #        collection, 
-                #        self.input_settings.algorithms, 
-                #        {"percent_to_keep":.99, "iterations": 2}))
-
-                #evaluators.append(
-                #    NodeWithholdingEvaluator(
-                #        interactome, 
-                #        collection, 
-                #        self.input_settings.algorithms, 
-                #        {"percent_to_keep":.7, "iterations": 2}))
-
-                #evaluators.append(
-                #    NodeWithholdingEvaluator(
-                #        interactome, 
-                #        collection, 
-                #        self.input_settings.algorithms, 
-                #        {"percent_to_keep":.5, "iterations": 2}))
-
-                #evaluators.append(
-                #    NodeWithholdingEvaluator(
-                #        interactome, 
-                #        collection, 
-                #        self.input_settings.algorithms, 
-                #        {"percent_to_keep":.3, "iterations": 2}))
-
-                #evaluators.append(
-                #    NodeWithholdingEvaluator(
-                #        interactome, 
-                #        collection, 
-                #        self.input_settings.algorithms, 
-                #        {"percent_to_keep":.1, "iterations": 2}))
-                None
         return evaluators
 
 
