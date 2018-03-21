@@ -120,7 +120,7 @@ class QRLConcatEdgeRWR(RankingAlgorithm):
         bins = np.array_split(multiplied, self.num_bins)
 
         sets = [("p", provided_edges)]
-        # TODO: I can label traiging negatives too
+        # TODO: I can label training negatives too
         # sets.append
 
         for i in range(self.num_bins):

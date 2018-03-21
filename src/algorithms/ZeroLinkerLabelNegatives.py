@@ -8,7 +8,7 @@ import src.external.pathlinker.parse as pl_parse
 # Cheat 
 # TODO: Give pathway positive edges weight of 1 in interacomte so that
 # they are essentially free
-class ZeroLinker(RankingAlgorithm):
+class ZeroLinkerLabelNegatives(RankingAlgorithm):
     def __init__(self, params):
         self.k = params["k"]
 
@@ -18,6 +18,12 @@ class ZeroLinker(RankingAlgorithm):
         ######################################################################
         # Zero out the interactome
         provided_edges = reconstruction_input.training_edges 
+        training_negatives = reconstruction_input.training_negatives
+
+        zero_interactome_a = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "zero-interactome-a.txt")
 
         zero_interactome = Path(
             self.get_full_output_directory(
@@ -25,10 +31,16 @@ class ZeroLinker(RankingAlgorithm):
             "zero-interactome.txt")
 
         with reconstruction_input.interactome.open('r') as in_file,\
-                zero_interactome.open('w') as out_file:
+                zero_interactome_a.open('w') as out_file:
 
             self.give_pathway_positives_zero_weight(
                 in_file, out_file, provided_edges)
+
+        with zero_interactome_a.open('r') as in_file,\
+                zero_interactome.open('w') as out_file:
+
+            self.give_pathway_negatives_high_weight(
+                in_file, out_file, training_negatives)
 
         ################3######################################################
         # Run PathLinker
@@ -44,7 +56,6 @@ class ZeroLinker(RankingAlgorithm):
             ])
 
 
-    # TODO: Make sure this is working correctly by checking output
     def give_pathway_positives_zero_weight( 
         self, in_handle, out_handle, positive_set):
         """
@@ -65,7 +76,29 @@ class ZeroLinker(RankingAlgorithm):
                         tokens[0] + "\t" +
                         tokens[1] + "\t" + 
                         "1.0" + "\t" +
-                        tokens[3]  + "\n")
+                        tokens[3].rstrip()  + "\n")
+                else:
+                    out_handle.write(line)
+
+
+    def give_pathway_negatives_high_weight( 
+        self, in_handle, out_handle, positive_set):
+        """
+        """
+
+        for line in in_handle:
+            if pl_parse.is_comment_line(line):
+                out_handle.write(line)
+            else:
+                # Tokens: tail, head, weight, type
+                tokens = pl_parse.tokenize(line)
+                edge = (tokens[0], tokens[1])
+                if edge in positive_set:
+                    out_handle.write(
+                        tokens[0] + "\t" +
+                        tokens[1] + "\t" + 
+                        "0.000000001" + "\t" +
+                        tokens[3].rstrip()  + "\n")
                 else:
                     out_handle.write(line)
 
@@ -83,11 +116,11 @@ class ZeroLinker(RankingAlgorithm):
 
 
     def get_name(self):
-        return "zerolinker"
+        return "ZeroLinkerLabelNegatives"
 
 
     def get_descriptive_name(self):
-        return "zerolinker, k=%d" % self.k
+        return "ZeroLinkerLabelNegatives, k=%d" % self.k
 
 
     def get_output_file(self):
