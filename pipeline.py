@@ -477,7 +477,6 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             folds.append((train, test))
                 
             print("||||||||||||||||||||||||||||||||||||||||||")
-            print("training edges: " + str(train))
 
             print("train: %d" % len(train))
             print("test: %d" % len(test))
@@ -486,29 +485,78 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
 
 
     def create_negative_folds(self): 
-        interactome_edges = set((x, y) 
-            for x, y, line in self.interactome.get_interactome_edges())
+        interactome_net = None
 
+        with self.interactome.path.open('r') as f:
+            interactome_net = pl.readNetworkFile(f)
+        
         pathway_edges = self.pathway.get_pathway_obj().get_edges(data=False)
         pathway_edges = set(pathway_edges)
 
-        negatives = list(interactome_edges.difference(pathway_edges)) 
+        interactome_edges = set((x, y) 
+            for x, y, line in self.interactome.get_interactome_edges())
+
+        # Make it so only negative edges remain
+        for edge in pathway_edges:
+            if edge in interactome_edges:
+                interactome_net.remove_edge(edge[0], edge[1])
+        
+        # Remove nodes that have no edges
+        for node in interactome_net.nodes():
+            if interactome_net.degree(node) == 0:
+                interactome_net.remove_node(node)
+
+        nodes = interactome_net.nodes()
+        original_edges = set(interactome_net.edges())
 
         rand_inits = range(self.itr)
 
         folds = []
 
         for rand in rand_inits:
-            negatives.sort(key = lambda edge:(edge[0], edge[1]))
-            random.Random(rand).shuffle(negatives)
+            # First, sort the nodes to make sure they are in the same order.
+            # Then, randomly shuffle them using a seed
+            nodes.sort()
+            random.Random(rand).shuffle(nodes)
 
-            num_to_keep = int(self.percent_edges * len(negatives))
+            # Get the number of nodes to keep
+            num_to_keep = int(self.percent_nodes * len(nodes))
             
-            edges_to_keep = negatives[:num_to_keep]
-            edges_to_delete = negatives[num_to_keep:]
+            # Partition the list
+            nodes_to_keep = nodes[:num_to_keep]
+            nodes_to_delete = nodes[num_to_keep:]
 
-            folds.append((edges_to_keep, edges_to_delete))
+            print("to keep: %d" % len(nodes_to_keep))
+            print("to delete: %d" % len(nodes_to_delete))
 
+            # Create a temporary copy of the interactome for convenience
+            temp_net = interactome_net.copy()
+
+            # Delete nodes from the temporary interactome
+            for node in nodes_to_delete:
+                temp_net.remove_node(node)
+
+            # Random deletion of pathway edges as well
+            random.seed(0)
+            train = list(temp_net.edges())
+            train.sort(key=lambda edge: (edge[0], edge[1]))
+
+            for edge in train:
+                toss = random.uniform(0, 1)
+                if toss > self.percent_edges:
+                    temp_net.remove_edge(edge[0], edge[1])
+
+            # Create a fold using the resulting lists of edges
+            train = temp_net.edges()
+            test = list(original_edges - set(train))
+            folds.append((train, test))
+                
+            print("{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}{}")
+
+            print("train: %d" % len(train))
+            print("test: %d" % len(test))
+
+        
         return folds
         
         
