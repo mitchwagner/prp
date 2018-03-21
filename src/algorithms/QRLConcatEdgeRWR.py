@@ -105,13 +105,13 @@ class QRLConcatEdgeRWR(RankingAlgorithm):
             else:
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
-
+            
         # TODO: Find better names for these
-        multiplied = [(
-            edge[0], 
-            edge[1], 
-            fluxes_weighted[(edge[0], edge[1])])
-            for edge in net.edges()]
+        unknown_edges = set(net.edges()).difference(set(reconstruction_input.training_negatives).union(set(reconstruction_input.training_edges)))
+        multiplied = []
+        for edge in unknown_edges:
+                multiplied.append([edge[0],edge[1], fluxes_weighted[(edge[0], edge[1])]])
+                    
 
         # Sort the list of edges by their ultimate flux weight 
         multiplied.sort(key=lambda x: x[2], reverse=True)
@@ -138,6 +138,25 @@ class QRLConcatEdgeRWR(RankingAlgorithm):
             reconstruction_input.label_interactome_file(
                 in_file, out_file, sets, default="n")
         print("Done labeling")
+        
+        new_labeled_interactome = Path(
+        self.get_full_output_directory(
+            reconstruction_input.output_dir),
+        "new-labeled-interactome.txt")
+
+        with labeled_interactome.open('r') as f1,\
+             new_labeled_interactome.open('w') as f2:
+                for line in f1:
+                    if not line.startswith("#"):
+                        toks = line.split("\t")
+                        f2.write("\t".join([
+                            toks[0],
+                            toks[1],
+                            #str(difference[(toks[0], toks[1])]),
+                            str(fluxes_weighted[(toks[0], toks[1])]),
+                            toks[3],
+                            toks[4]]
+                            ))
 
         '''
         # Sort the list of final scores 
@@ -182,7 +201,7 @@ class QRLConcatEdgeRWR(RankingAlgorithm):
                 "cut",
                 "-f", 
                 "1,2,3,5",
-                str(labeled_interactome)],
+                str(new_labeled_interactome)],
                 stdout=outfile
                 )
             
@@ -203,7 +222,7 @@ class QRLConcatEdgeRWR(RankingAlgorithm):
             dfa_prefix_rlc.mkdir(parents=True, exist_ok=True)
 
             subprocess.call([
-                "venv-regpathlinker/bin/python",
+                "/home/adyprat/anaconda2/envs/venv-regpathlinker/bin/python",
                 "src/external/regpathlinker/RegexToGraph.py",
                 str(rlc),
                 str(dfa_prefix_rlc)]
