@@ -75,6 +75,7 @@ import src.algorithms.QRLEdgesViaRWRFlux as QRLEdgesViaRWRFlux
 import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
 
 import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
+import src.algorithms.GeneralizedShortcutsSSViaRWRFlux as GeneralizedShortcutsSSViaRWRFlux
 
 import src.algorithms.QRLConcatEdgeRWR as QRLConcatEdgeRWR
 import src.algorithms.ZeroLinkerLabelNegatives as ZeroLinkerLabelNegatives 
@@ -1782,8 +1783,8 @@ class Pipeline(object):
                 #        collection, 
                 #        self.input_settings.algorithms, 
                 #        {"num_folds":2}))
-                for j in [0.8]:
-                    for k in [0.4, 0.6, 0.8]:
+                for j in [0.6]:
+                    for k in [0.6]:
                         evaluators.append(
                             NodeEdgeWithholdingEvaluator(
                                 interactome, 
@@ -1791,7 +1792,7 @@ class Pipeline(object):
                                 self.input_settings.algorithms, 
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
-                                 "iterations": 2}))
+                                 "iterations": 1}))
 
         return evaluators
 
@@ -3106,6 +3107,7 @@ RANKING_ALGORITHMS = {
     "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
     "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
+    "GeneralizedShortcutsSSViaRWRFlux" : GeneralizedShortcutsSSViaRWRFlux.GeneralizedShortcutsSSViaRWRFlux,
     "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
     "QRLConcatEdgeRWR" : QRLConcatEdgeRWR.QRLConcatEdgeRWR,

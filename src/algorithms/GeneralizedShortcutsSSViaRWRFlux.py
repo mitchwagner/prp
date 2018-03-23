@@ -8,7 +8,7 @@ from .RankingAlgorithm import PathwayReconstructionInput
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
-class ShortcutsSSViaRWRFlux(RankingAlgorithm):
+class GeneralizedShortcutsSSViaRWRFlux(RankingAlgorithm):
     def __init__(self, params):
         self.k = params["k"]
         self.alpha = params["alpha"]
@@ -170,11 +170,11 @@ class ShortcutsSSViaRWRFlux(RankingAlgorithm):
 
 
     def get_name(self):
-        return "ShortcutsSSViaRWRFlux"
+        return "GeneralizedShortcutsSSViaRWRFlux"
 
 
     def get_descriptive_name(self):
-        return "ShortcutsSSViaRWRFlux, k=%d, alpha=%f, q =%f" % (self.k, self.alpha, self.q)
+        return "GeneralizedShortcutsSSViaRWRFlux, k=%d, alpha=%f, q =%f" % (self.k, self.alpha, self.q)
 
 
     def get_output_file(self):
