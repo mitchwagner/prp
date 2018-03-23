@@ -17,8 +17,8 @@ from typing import Dict
 import random
 import numpy as np
 
-from graphspace_python.graphs.classes.gsgraph import GSGraph
-from graphspace_python.api.client import GraphSpace
+#from graphspace_python.graphs.classes.gsgraph import GSGraph
+#from graphspace_python.api.client import GraphSpace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -1782,8 +1782,8 @@ class Pipeline(object):
                 #        collection, 
                 #        self.input_settings.algorithms, 
                 #        {"num_folds":2}))
-                for j in [0.2, 0.4, 0.6, 0.8]:
-                    for k in [0.2, 0.4, 0.6, 0.8]:
+                for j in [0.8]:
+                    for k in [0.4, 0.6, 0.8]:
                         evaluators.append(
                             NodeEdgeWithholdingEvaluator(
                                 interactome, 

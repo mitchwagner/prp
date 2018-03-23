@@ -129,6 +129,7 @@ class ShortcutsSSViaRWRFlux(RankingAlgorithm):
              self.label_interactome_file(in_file, out_file, provided_edges)
 
         subprocess.call([ "python", "src/external/shortcuts-ss/master-script.py", 
+            "--genShortcuts",
             "-k", str(self.k),
             "--alpha", str(self.alpha),
             "--output",
