@@ -124,9 +124,9 @@ class ShortcutsSSViaRWRFlux(RankingAlgorithm):
         # 6) Run Shortcuts on the resulting interactome
 
         #######################################################################
-        with cut_labeled_interactome.open('r') as in_file,\
-                labeled_interactome.open('w') as out_file:
-             self.label_interactome_file(in_file, out_file, provided_edges)
+        #with cut_labeled_interactome.open('r') as in_file,\
+        #        labeled_interactome.open('w') as out_file:
+        #     self.label_interactome_file(in_file, out_file, provided_edges)
 
         subprocess.call([ "python", "src/external/shortcuts-ss/master-script.py", 
             "-k", str(self.k),
@@ -135,7 +135,7 @@ class ShortcutsSSViaRWRFlux(RankingAlgorithm):
             os.path.join(str(Path(
                 reconstruction_input.output_dir, 
                 self.get_output_directory())), ""),
-            str(labeled_interactome),
+            str(new_labeled_interactome),
             str(reconstruction_input.pathway_nodes_file)
             ])
 
