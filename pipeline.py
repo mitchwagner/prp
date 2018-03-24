@@ -20,8 +20,8 @@ import scipy as sp
 
 import concurrent.futures
 
-from graphspace_python.graphs.classes.gsgraph import GSGraph
-from graphspace_python.api.client import GraphSpace
+#from graphspace_python.graphs.classes.gsgraph import GSGraph
+#from graphspace_python.api.client import GraphSpace
 
 import matplotlib
 matplotlib.use('Agg')
@@ -79,6 +79,7 @@ import src.algorithms.QRLEdgesViaRWRFlux as QRLEdgesViaRWRFlux
 import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
 
 import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
+import src.algorithms.GeneralizedShortcutsSSViaRWRFlux as GeneralizedShortcutsSSViaRWRFlux
 
 import src.algorithms.QRLConcatEdgeRWR as QRLConcatEdgeRWR
 import src.algorithms.ZeroLinkerLabelNegatives as ZeroLinkerLabelNegatives 
@@ -2131,7 +2132,7 @@ class Pipeline(object):
                                 self.input_settings.algorithms, 
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
-                                 "iterations": 2}))
+                                 "iterations": 1}))
 
         return evaluators
 
@@ -3452,6 +3453,7 @@ RANKING_ALGORITHMS = {
     "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
     "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
+    "GeneralizedShortcutsSSViaRWRFlux" : GeneralizedShortcutsSSViaRWRFlux.GeneralizedShortcutsSSViaRWRFlux,
     "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
     "QRLConcatEdgeRWR" : QRLConcatEdgeRWR.QRLConcatEdgeRWR,
