@@ -210,7 +210,7 @@ class GeneralizedShortcutsSSViaRWRFlux(RankingAlgorithm):
 
 
     def get_descriptive_name(self):
-        return "GeneralizedShortcutsSSViaRWRFlux, k=%d, alpha=%f, q =%f" % (self.k, self.alpha, self.q)
+        return "GeneralizedShortcutsSSViaRWRFlux, k=%d, alpha=%f, q=%f" % (self.k, self.alpha, self.q)
 
 
     def get_output_file(self):
@@ -218,5 +218,5 @@ class GeneralizedShortcutsSSViaRWRFlux(RankingAlgorithm):
 
 
     def get_output_directory(self):
-        return Path(self.get_name(), "k_%d_alpha_%f-nodes" % 
-            (self.k, self.alpha))
+        return Path(self.get_name(), "k-%d-alpha-%f-q-%f" % 
+            (self.k, self.alpha, self.q))
