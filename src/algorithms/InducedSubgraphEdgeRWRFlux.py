@@ -3,7 +3,7 @@ import sys
 import shutil
 import subprocess
 from pathlib import Path
-
+import networkx as nx
 from typing import Dict
 
 from .RankingAlgorithm import RankingAlgorithm
@@ -25,7 +25,36 @@ class InducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     def __init__(self, params:Dict):
         self.q = params["q"]
 
+    def egoSubgraph(self, G, PGraph, radius = 1):
+        '''
+        A modified version of ego graph. For a given subgraph PGraph,
+        adds nodes/edges from a directed graph G that are "radius" number of edges away.
+        The ego graph returns only "out" neighbors of a given node in G.
+        radius = 0 is the Induced Subgraph from G for the nodes in PGraph
+        Works correctly only for radius = 1 because of adding only the out neighbors.
+        ToDo: Extend it to work beyond radius 1 by computing it on G and G.reverse().
+        '''
+        ExtendedSubgraph = nx.compose(G.subgraph(list(PGraph.nodes())),PGraph)
+        i = 1
+        while (i<=radius):
+            i += 1
+            NodeList = ExtendedSubgraph.nodes()
+            for node in NodeList:
+                for pred in G.predecessors(node):
+                    edge_dict = G.get_edge_data(pred,node)
+                    #if edge_dict['label'] == 'x':
+                        #print(pred,node,G.get_edge_data(pred,node))
+                    ExtendedSubgraph.add_edge(pred,node,attr_dict=G.get_edge_data(pred,node))
 
+                for succ in G.successors(node):
+                    edge_dict = G.get_edge_data(node,succ)
+                    #if edge_dict['label'] == 'x':
+                    ExtendedSubgraph.add_edge(node,succ,attr_dict=G.get_edge_data(node,succ))
+
+                #print(nx.ego_graph(G, node, radius, undirected=True).edges())
+                #ExtendedSubgraph = nx.compose(ExtendedSubgraph, nx.ego_graph(G, node, radius, undirected=True))
+        print("Done generating egoSubgraph")
+        return ExtendedSubgraph
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
@@ -98,13 +127,14 @@ class InducedSubgraphEdgeRWRFlux(RankingAlgorithm):
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
         induced_subgraph = self.get_induced_subgraph(reconstruction_input)
+        egoSub = self.egoSubgraph(net,induced_subgraph, 3)
         #for edge in induced_subgraph
         # TODO: Find better names for these
         multiplied = [(
             edge[0], 
             edge[1], 
             fluxes_weighted[(edge[0], edge[1])])
-            for edge in induced_subgraph.edges()]
+            for edge in egoSub.edges()]
 
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))
