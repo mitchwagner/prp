@@ -46,6 +46,9 @@ import src.external.utils.pathway.pathway_parse as pathway_parse
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
 import src.algorithms.PathLinker as PathLinker
 import src.algorithms.InducedSubgraph as InducedSubgraph
+import src.algorithms.GenInducedSubgraph as GenInducedSubgraph
+
+
 import src.algorithms.InducedSubgraphRanked as InducedSubgraphRanked
 import src.algorithms.PCSF as PCSF
 import src.algorithms.QuickRegLinker as QuickRegLinker
@@ -3450,6 +3453,8 @@ RANKING_ALGORITHMS = {
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
     "InducedSubgraphEdgeRWRFlux": InducedSubgraphEdgeRWRFlux.InducedSubgraphEdgeRWRFlux,
     "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
+    "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
+
     "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
     "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
