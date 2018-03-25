@@ -124,11 +124,11 @@ input_settings:
         #  params:
         #    k: [1000]
 
-        - name: "ZeroQuickLinker"
-          params: {}
+        #- name: "ZeroQuickLinker"
+        #  params: {}
 
-        - name: "ZeroQuickLinkerLabelNegatives"
-          params: {}
+        #- name: "ZeroQuickLinkerLabelNegatives"
+        #  params: {}
 
         #- name: "pcsf"
         #  params:
