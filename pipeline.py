@@ -76,7 +76,10 @@ import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted
 import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
 
 import src.algorithms.InducedSubgraphRWRFlux as InducedSubgraphRWRFlux
-import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWRFlux
+#import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWRFlux
+import src.algorithms.GeneralizedInducedSubgraphEdgeRWRFlux as \
+    GeneralizedInducedSubgraphEdgeRWRFlux
+
 
 import src.algorithms.QRLEdgesViaRWRFlux as QRLEdgesViaRWRFlux
 import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
@@ -1437,6 +1440,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
         #ax.set_xticklabels(['']+labels)
         #ax.set_yticklabels(['']+labels)
+        
+        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
 
         fig.savefig(str(vis_file_pdf), bbox_inches='tight')
         fig.savefig(str(vis_file_png), bbox_inches='tight')
@@ -2135,7 +2140,7 @@ class Pipeline(object):
                                 self.input_settings.algorithms, 
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
-                                 "iterations": 1}))
+                                 "iterations": 10}))
 
         return evaluators
 
@@ -2147,14 +2152,12 @@ class Pipeline(object):
 
         base_output_dir = Path("outputs")
 
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
         for evaluator in self.evaluators:
-            evaluator.run(base_output_dir, self.purge_results)
-            #executor.submit(evaluator.run, base_output_dir, self.purge_results)
-                #executor.map(
-                #    evaluator.run, base_output_dir, self.purge_results)
+            # evaluator.run(base_output_dir, self.purge_results)
+            executor.submit(evaluator.run, base_output_dir, self.purge_results)
 
-        #executor.shutdown(wait=True)
+        executor.shutdown(wait=True)
 
    
     def paths_based_folds_analysis_wrapper(self):
@@ -3451,7 +3454,9 @@ RANKING_ALGORITHMS = {
         QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
     "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
-    "InducedSubgraphEdgeRWRFlux": InducedSubgraphEdgeRWRFlux.InducedSubgraphEdgeRWRFlux,
+    #"InducedSubgraphEdgeRWRFlux": InducedSubgraphEdgeRWRFlux.InducedSubgraphEdgeRWRFlux,
+    "GeneralizedInducedSubgraphEdgeRWRFlux": 
+        GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
     "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
     "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
 
