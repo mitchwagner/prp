@@ -25,6 +25,7 @@ class GenInducedSubgraph(RankingAlgorithm):
     def __init__(self, params:Dict):
         self.q = 0
 
+
     def egoSubgraph(self, G, PGraph, radius = 1):
         '''
         A modified version of ego graph. For a given subgraph PGraph,

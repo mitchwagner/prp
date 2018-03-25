@@ -209,4 +209,4 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     def get_output_directory(self) -> Path:
         return Path(    
             self.get_name(), 
-            "q-%s" % (self.q))
+            "q-%f" % (self.q))

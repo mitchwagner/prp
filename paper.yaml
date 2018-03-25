@@ -52,20 +52,20 @@ input_settings:
         - name: "netpath-s-t-pruned"
           path: ["netpath-s-t-pruned", "pathways"]
           pathways:
-            - "BDNF"
-            - "EGFR1"
-            - "IL1"
-            - "IL2"
-            - "IL3"
-            - "IL6"
-            - "IL-7"
-            - "KitReceptor"
-            - "Leptin"
-            - "Prolactin"
-            - "RANKL"
-            - "TCR"
-            - "TGF_beta_Receptor"
-            - "TNFalpha"
+            #- "BDNF"
+            #- "EGFR1"
+            #- "IL1"
+            #- "IL2"
+            #- "IL3"
+            #- "IL6"
+            #- "IL-7"
+            #- "KitReceptor"
+            #- "Leptin"
+            #- "Prolactin"
+            #- "RANKL"
+            #- "TCR"
+            #- "TGF_beta_Receptor"
+            #- "TNFalpha"
             - "Wnt"
 
     # Denotes a list of algorithms to run. Each has the following parameters: 
@@ -77,10 +77,12 @@ input_settings:
     algorithms:
 
         # Need to fix!!
-        # - name: "ZeroQuickLinkerLabelNegatives"
-        #  params: {}
+        - name: "ZeroQuickLinkerLabelNegatives"
+          params: {}
 
-        # NEED ZeroQuickLinkerLabelNegatives on ERWR
+        - name: "ZeroQuickLinkerLabelNegativesEdgeRWR"
+          params:
+            q: [.5]
 
         - name: "pcsf"
           params:
@@ -90,21 +92,33 @@ input_settings:
         #    prize: [1, 2, 5, 10, 100]
 
         # NEED PCSF ON ERWR
-        
-        # NEED GENERALIZED INDUCED SUBGRAPH
+       
+        - name: "GenInducedSubgraph"
+          params: {}
+
+        - name: "GeneralizedInducedSubgraphEdgeRWRFlux"
+          params:
+            q: [.5]
 
         - name: "GeneralizedShortcutsSSViaRWRFlux"
           params:
-            alpha: 1, 1.2
-            k: 500
-            q: .5
+            alpha: [1.0, 1.2]
+            k: [500]
+            q: [.5]
+
+        # NEED GENERALIZED SHORTCUTS ON ORIGINAL INTERACTOME
+
+        - name: "QuickRegLinkerConcatLabelNegatives"
+          params:
+            rlcs:
+                - ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
 
 
-        # NEED GENERALIZED SHORTCUTS 
-        # NEED GENERALIZED SHORTCUTS ON ERWR
-
-        # NEED QUICKLINKER IGNORE FOLD NEGATIVES CONCAT
-        # NEED QUICKLINKER IGNORE FOLD NEGATIVES CONCAT ON ERWR 
+        - name: "QuickRegLinkerConcatLabelNegativesEdgeRWR"
+          params:
+            rlcs:
+                - ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
+            q: [.5]
 
 
 # Output Settings: initialize base output folder names

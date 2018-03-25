@@ -65,6 +65,9 @@ import src.algorithms.ZeroQuickLinker as ZeroQuickLinker
 import src.algorithms.ZeroQuickLinkerLabelNegatives as \
     ZeroQuickLinkerLabelNegatives
 
+import src.algorithms.ZeroQuickLinkerLabelNegativesEdgeRWR as \
+    ZeroQuickLinkerLabelNegativesEdgeRWR
+
 import src.algorithms.Affinity as Affinity
 import src.algorithms.QRLMultiplyAffinity as QuickAffinity
 import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
@@ -89,6 +92,12 @@ import src.algorithms.GeneralizedShortcutsSSViaRWRFlux as GeneralizedShortcutsSS
 
 import src.algorithms.QRLConcatEdgeRWR as QRLConcatEdgeRWR
 import src.algorithms.ZeroLinkerLabelNegatives as ZeroLinkerLabelNegatives 
+
+import src.algorithms.QuickRegLinkerConcatLabelNegativesEdgeRWR as \
+    QRLConcatNegativesERWR 
+
+import src.algorithms.QuickRegLinkerConcatLabelNegatives as \
+    QRLConcatNegatives
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -718,6 +727,8 @@ class AlgorithmEvaluator(Evaluator):
         '''
         Run each algorithm.
         '''
+
+        print(self.algorithms)
 
         fold_creators = self.get_fold_creators()
 
@@ -1372,7 +1383,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
                 median1 = np.median(alg1_list)
                 median2 = np.median(alg2_list)
-                
+
                 # Greater and significant: green
                 # Lesser and significant: red
                 # Not significant: black
@@ -1555,6 +1566,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     self.options["percent_edges_to_keep"], 
                     self.options["iterations"]),
                 "average-precision.pdf")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
 
             labels = []
             results = []
@@ -2131,6 +2144,7 @@ class Pipeline(object):
                 #        collection, 
                 #        self.input_settings.algorithms, 
                 #        {"num_folds":2}))
+                '''
                 for j in [0.8, 0.6, 0.4, 0.2]:
                     for k in [0.8, 0.6, 0.4, 0.2]:
                         evaluators.append(
@@ -2141,6 +2155,17 @@ class Pipeline(object):
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
                                  "iterations": 10}))
+                '''
+                for j in [0.9]:
+                    for k in [0.9]:
+                        evaluators.append(
+                            NodeEdgeWithholdingEvaluator(
+                                interactome, 
+                                collection, 
+                                self.input_settings.algorithms, 
+                                {"percent_nodes_to_keep": j, 
+                                 "percent_edges_to_keep": k,
+                                 "iterations": 1}))
 
         return evaluators
 
@@ -2152,12 +2177,12 @@ class Pipeline(object):
 
         base_output_dir = Path("outputs")
 
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+        #executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         for evaluator in self.evaluators:
-            # evaluator.run(base_output_dir, self.purge_results)
-            executor.submit(evaluator.run, base_output_dir, self.purge_results)
+            evaluator.run(base_output_dir, self.purge_results)
+            #executor.submit(evaluator.run, base_output_dir, self.purge_results)
 
-        executor.shutdown(wait=True)
+        #executor.shutdown(wait=True)
 
    
     def paths_based_folds_analysis_wrapper(self):
@@ -3454,7 +3479,6 @@ RANKING_ALGORITHMS = {
         QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
     "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
-    #"InducedSubgraphEdgeRWRFlux": InducedSubgraphEdgeRWRFlux.InducedSubgraphEdgeRWRFlux,
     "GeneralizedInducedSubgraphEdgeRWRFlux": 
         GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
     "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
@@ -3470,6 +3494,12 @@ RANKING_ALGORITHMS = {
     "ZeroQuickLinker" : ZeroQuickLinker.ZeroQuickLinker,
     "ZeroQuickLinkerLabelNegatives" : 
         ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
+    "ZeroQuickLinkerLabelNegativesEdgeRWR":
+        ZeroQuickLinkerLabelNegativesEdgeRWR.ZeroQuickLinkerLabelNegativesEdgeRWR,
+    "QuickRegLinkerConcatLabelNegativesEdgeRWR":
+        QRLConcatNegativesERWR.QuickRegLinkerConcatLabelNegativesEdgeRWR,
+    "QuickRegLinkerConcatLabelNegatives":
+        QRLConcatNegatives.QuickRegLinkerConcatLabelNegatives,
     }
 
 

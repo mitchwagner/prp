@@ -90,7 +90,7 @@ class PCSF(RankingAlgorithm):
         # Add a rank to PCSF output
         with outfile.open('r') as f1, desired.open('w') as f2:
             for line in f1:
-                f2.write(line.rstrip() + "\t" + "1\n")
+                f2.write(line.rstrip() + "\t" + "1" + "\t" + "1\n")
 
 
     def get_name(self):
