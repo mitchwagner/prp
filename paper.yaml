@@ -106,7 +106,10 @@ input_settings:
             k: [500]
             q: [.5]
 
-        # NEED GENERALIZED SHORTCUTS ON ORIGINAL INTERACTOME
+        - name: "GeneralizedShortcuts"
+          params:
+            alpha: [1.0, 1.2]
+            k: [500]
 
         - name: "QuickRegLinkerConcatLabelNegatives"
           params:

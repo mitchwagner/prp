@@ -36,7 +36,7 @@ class GeneralizedShortcuts(RankingAlgorithm):
         cut_labeled_interactome = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
-            "labeled-interactome.txt")
+            "cut-labeled-interactome.txt")
 
         with cut_labeled_interactome.open("w") as outfile:
             subprocess.call([
@@ -62,7 +62,7 @@ class GeneralizedShortcuts(RankingAlgorithm):
             os.path.join(str(Path(
                 reconstruction_input.output_dir, 
                 self.get_output_directory())), ""),
-            str(new_labeled_interactome),
+            str(cut_labeled_interactome),
             str(reconstruction_input.pathway_nodes_file)
             ])
 
@@ -96,11 +96,11 @@ class GeneralizedShortcuts(RankingAlgorithm):
 
 
     def get_name(self):
-        return "GeneralizedShortcutsSSViaRWRFlux"
+        return "GeneralizedShortcuts"
 
 
     def get_descriptive_name(self):
-        return "GeneralizedShortcutsSSViaRWRFlux, k=%d, alpha=%f" % (self.k, self.alpha, self.q)
+        return "GeneralizedShortcuts, k=%d, alpha=%f" % (self.k, self.alpha)
 
 
     def get_output_file(self):

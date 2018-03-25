@@ -99,6 +99,8 @@ import src.algorithms.QuickRegLinkerConcatLabelNegativesEdgeRWR as \
 import src.algorithms.QuickRegLinkerConcatLabelNegatives as \
     QRLConcatNegatives
 
+import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
+
 # TODO: Explicit write-up of what our edge files and interactome files are
 
 # TODO: Looks like my assumption that nodes have to be in the edges file is
@@ -1370,7 +1372,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 name2 = algorithm2.get_descriptive_name()
 
                 if (name1 == name2):
-                    matrix[i].append(2)
+                    matrix[i].append(0)
                     continue
 
                 alg1_list = algorithm_map[name1]
@@ -1384,23 +1386,25 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 median1 = np.median(alg1_list)
                 median2 = np.median(alg2_list)
 
+                print("ugh...")
+                print("p-val " + str(p_val))
+                print(median1)
+                print(median2)
+
                 # Greater and significant: green
                 # Lesser and significant: red
                 # Not significant: black
                 # Colormap defined below
                 if (p_val < corrected_alpha):
                     if median1 > median2: 
-                        matrix[i].append(0) 
+                        matrix[i].append(2) 
                     else:
                         matrix[i].append(1)
                 else:
-                    matrix[i].append(2)
+                    matrix[i].append(0)
 
-            
-                #print("Alg %s vs. Alg %s: Wilcoxon stat: %f p: %f" % (
-                #    name1, name2, stat, p_val))
 
-        fig, ax = plt.subplots() #precrec.init_precision_recall_figure()
+        fig, ax = plt.subplots()
 
         ax.set_title(
             "Wilcoxon Rank Sum Test"
@@ -1441,7 +1445,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         array = np.array(matrix)
         print(array)
 
-        cmap = colors.ListedColormap([[0, 1, 0], [1, 0 ,0], [0, 0, 0]])
+        cmap = colors.ListedColormap([[0, 0, 0], [1, 0 ,0], [0, 1, 0]])
         ax.matshow(array, cmap=cmap)
         
         plt.xticks(range(0, len(array)), labels, rotation="vertical")
@@ -3500,6 +3504,7 @@ RANKING_ALGORITHMS = {
         QRLConcatNegativesERWR.QuickRegLinkerConcatLabelNegativesEdgeRWR,
     "QuickRegLinkerConcatLabelNegatives":
         QRLConcatNegatives.QuickRegLinkerConcatLabelNegatives,
+    "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
     }
 
 
