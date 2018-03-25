@@ -13,7 +13,7 @@ import src.external.pathlinker.PageRank as pr
 import src.external.pathlinker.parse as pl_parse
 
 
-class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
+class GenInducedSubgraph(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
@@ -23,7 +23,7 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     '''
 
     def __init__(self, params:Dict):
-        self.q = params["q"]
+        self.q = 0
 
     def egoSubgraph(self, G, PGraph, radius = 1):
         '''
@@ -53,64 +53,31 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
 
                 #print(nx.ego_graph(G, node, radius, undirected=True).edges())
                 #ExtendedSubgraph = nx.compose(ExtendedSubgraph, nx.ego_graph(G, node, radius, undirected=True))
-        print("Done generating egoSubgraph ", radius)
+        print("Done generating egoSubgraph", radius)
         return ExtendedSubgraph
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
 
+        labeled_interactome = Path(
+            self.get_full_output_directory(
+                reconstruction_input.output_dir),
+            "labeled-interactome.txt")
+
+        with reconstruction_input.interactome.open('r') as in_file,\
+                labeled_interactome.open('w') as out_file:
+
+            sets = [("p", provided_edges)]
+            
+            reconstruction_input.label_interactome_file(
+                in_file, out_file, sets, default="n")
+
+
         # Read in the interactome
         net = None
-        netCopy = None
         with reconstruction_input.interactome.open('r') as f:
             net = pl.readNetworkFile(f)
 
-        with reconstruction_input.interactome.open('r') as f:
-            netCopy = pl.readNetworkFile(f)
-
-        # Add dummy nodes for every node in the "head" of a p-labeled edge
-        TempNodes = set([])
-        for edge in provided_edges:
-            TempNodes.add(str(edge[0]+"_temp"))
-            netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
-
-        # Restart to newly added temporary nodes
-        #weights = {node:1 for node in TempNodes}
-        weights = {} 
-        for edge in provided_edges:
-            # Default value of 0
-            weights[str(edge[0]+"_temp")] = weights.get(str(edge[0]+"_temp"), 0) + 1
-
-
-        # Set a minimum edge weight
-        for edge in net.edges(data=True):
-            if edge[2]["weight"] == 0:
-                edge[2]["weight"] = sys.float_info.min
-
-        # Set a minimum edge weight
-        for edge in netCopy.edges(data=True):
-            if edge[2]["weight"] == 0:
-                edge[2]["weight"] = sys.float_info.min
-    
-        # 1) PageRank using weighted restart set
-        pagerank_scores_weighted = pr.pagerank(
-            netCopy, weights=weights, q=float(self.q))
-
-        pl.calculateFluxEdgeWeights(netCopy, pagerank_scores_weighted)
-                
-        fluxes_weighted = {}
-        # Add edd fluxes computed from TempNodes to original head nodes
-        # If head is not in TempNodes, use normal ksp_weight
-        # If
-        for edge in netCopy.edges():
-            attr_dict=netCopy.get_edge_data(edge[0],edge[1])
-            if edge[0] in TempNodes:
-                attr_dict_original=netCopy.get_edge_data(edge[0][:-5],edge[1])
-                fluxes_weighted[(edge[0][:-5], edge[1])] = attr_dict_original["ksp_weight"]+attr_dict["ksp_weight"]
-            elif (edge[0],edge[1]) in provided_edges:
-                continue # This edge has already been added, do not overwrite it.
-            else:
-                fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
         induced_subgraph = self.get_induced_subgraph(reconstruction_input)
         #for edge in induced_subgraph
@@ -124,31 +91,33 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
         seen_edges = []
         for edge in induced_subgraph.edges():
             seen_edges.append((edge[0], edge[1]))
+            eData = net.get_edge_data(edge[0], edge[1])
             multiplied.append((edge[0], edge[1], 
-            3+fluxes_weighted[(edge[0], edge[1])]))
+            3+eData['weight']))
                               
         egoSub = self.egoSubgraph(net,induced_subgraph, 1)
         for edge in egoSub.edges():
             if edge not in seen_edges:
                 seen_edges.append((edge[0], edge[1]))
+                eData = net.get_edge_data(edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
-                2+fluxes_weighted[(edge[0], edge[1])]))
+                2+eData['weight']))
 
         egoSub = self.egoSubgraph(net,induced_subgraph, 2)
         for edge in egoSub.edges():
             if edge not in seen_edges:
                 seen_edges.append((edge[0], edge[1]))
+                eData = net.get_edge_data(edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
-                1+fluxes_weighted[(edge[0], edge[1])]))
-
+                1+eData['weight']))
         egoSub = self.egoSubgraph(net,induced_subgraph, 3)
         for edge in egoSub.edges():
             if edge not in seen_edges:
                 seen_edges.append((edge[0], edge[1]))
+                eData = net.get_edge_data(edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
-                fluxes_weighted[(edge[0], edge[1])]))
-
-                                  
+                0+eData['weight']))
+                
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))
         multiplied_only.sort(reverse=True)
@@ -195,11 +164,11 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
         None
 
     def get_name(self) -> str:
-        return "InducedSubgraphEdgeRWRFlux"
+        return "GenInducedSubgraph"
 
 
     def get_descriptive_name(self) -> str:
-        return "InducedSubgraphEdgeRWRFlux, q=%s" % (self.q)
+        return "GenInducedSubgraph"
 
 
     def get_output_file(self) -> str:
@@ -208,5 +177,4 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
 
     def get_output_directory(self) -> Path:
         return Path(    
-            self.get_name(), 
-            "q-%s" % (self.q))
+            self.get_name()) 
