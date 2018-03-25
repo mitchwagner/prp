@@ -16,8 +16,9 @@ class PCSF(RankingAlgorithm):
     def run(self, reconstruction_input):
         # Zero out the interactome
         provided_edges = None
-        with reconstruction_input.pathway_edges_file.open('r') as f:
-            provided_edges = list(pl_parse.get_edge_set(f))
+        #with reconstruction_input.pathway_edges_file.open('r') as f:
+        provided_edges = reconstruction_input.training_edges
+        neg_edges = reconstruction_input.training_negatives
 
         zero_interactome = Path(
             self.get_full_output_directory(
@@ -28,7 +29,7 @@ class PCSF(RankingAlgorithm):
                 zero_interactome.open('w') as out_file:
 
             self.give_pathway_positives_zero_weight(
-                in_file, out_file, provided_edges)
+                in_file, out_file, provided_edges, neg_edges)
 
         # Run PCSF 
             
@@ -46,11 +47,12 @@ class PCSF(RankingAlgorithm):
 
 
     def give_pathway_positives_zero_weight( 
-        self, in_handle, out_handle, positive_set):
+        self, in_handle, out_handle, positive_set, negative_set):
         """
         Read in one of our interactomes files and give a weight of 1 (cost of
         0) to every edge that appears in the positive set, overriding 
-        the edge's original weight in our interactome.
+        the edge's original weight in our interactome. Also gives a weight of 0 
+        (cost of 1) for negative edges.
         """
 
         for line in in_handle:
@@ -65,6 +67,12 @@ class PCSF(RankingAlgorithm):
                         tokens[0] + "\t" +
                         tokens[1] + "\t" + 
                         "1.0" + "\t" +
+                        tokens[3])
+                elif edge in negative_set:
+                    out_handle.write(
+                        tokens[0] + "\t" +
+                        tokens[1] + "\t" + 
+                        "0.00001" + "\t" + #smallest weight allowed in PCSF_weighted.py
                         tokens[3])
                 else:
                     out_handle.write(line)
