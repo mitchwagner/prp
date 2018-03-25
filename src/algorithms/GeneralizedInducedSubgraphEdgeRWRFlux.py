@@ -13,7 +13,7 @@ import src.external.pathlinker.PageRank as pr
 import src.external.pathlinker.parse as pl_parse
 
 
-class InducedSubgraphEdgeRWRFlux(RankingAlgorithm):
+class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
@@ -58,20 +58,6 @@ class InducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
-
-        labeled_interactome = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "labeled-interactome.txt")
-
-        with reconstruction_input.interactome.open('r') as in_file,\
-                labeled_interactome.open('w') as out_file:
-
-            sets = [("p", provided_edges)]
-            
-            reconstruction_input.label_interactome_file(
-                in_file, out_file, sets, default="n")
-
 
         # Read in the interactome
         net = None
