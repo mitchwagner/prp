@@ -89,9 +89,9 @@ class GenInducedSubgraph(RankingAlgorithm):
         #    3+fluxes_weighted[(edge[0], edge[1])])
         #    for edge in induced_subgraph.edges()]
         multiplied = []
-        seen_edges = []
+        seen_edges = set()
         for edge in induced_subgraph.edges():
-            seen_edges.append((edge[0], edge[1]))
+            seen_edges.add((edge[0], edge[1]))
             eData = net.get_edge_data(edge[0], edge[1])
             multiplied.append((edge[0], edge[1], 
             3+eData['weight']))
@@ -99,7 +99,7 @@ class GenInducedSubgraph(RankingAlgorithm):
         egoSub = self.egoSubgraph(net,induced_subgraph, 1)
         for edge in egoSub.edges():
             if edge not in seen_edges:
-                seen_edges.append((edge[0], edge[1]))
+                seen_edges.add((edge[0], edge[1]))
                 eData = net.get_edge_data(edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
                 2+eData['weight']))
@@ -107,17 +107,17 @@ class GenInducedSubgraph(RankingAlgorithm):
         egoSub = self.egoSubgraph(net,induced_subgraph, 2)
         for edge in egoSub.edges():
             if edge not in seen_edges:
-                seen_edges.append((edge[0], edge[1]))
+                #seen_edges.add((edge[0], edge[1]))
                 eData = net.get_edge_data(edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
                 1+eData['weight']))
-        egoSub = self.egoSubgraph(net,induced_subgraph, 3)
-        for edge in egoSub.edges():
-            if edge not in seen_edges:
-                seen_edges.append((edge[0], edge[1]))
-                eData = net.get_edge_data(edge[0], edge[1])
-                multiplied.append((edge[0], edge[1], 
-                0+eData['weight']))
+        #egoSub = self.egoSubgraph(net,induced_subgraph, 3)
+        #for edge in egoSub.edges():
+        #    if edge not in seen_edges:
+        #        seen_edges.append((edge[0], edge[1]))
+        #        eData = net.get_edge_data(edge[0], edge[1])
+        #        multiplied.append((edge[0], edge[1], 
+        #        0+eData['weight']))
                 
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))

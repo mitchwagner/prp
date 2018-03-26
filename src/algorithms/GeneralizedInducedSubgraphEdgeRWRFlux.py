@@ -121,32 +121,32 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
         #    3+fluxes_weighted[(edge[0], edge[1])])
         #    for edge in induced_subgraph.edges()]
         multiplied = []
-        seen_edges = []
+        seen_edges = set()
         for edge in induced_subgraph.edges():
-            seen_edges.append((edge[0], edge[1]))
+            seen_edges.add((edge[0], edge[1]))
             multiplied.append((edge[0], edge[1], 
             3+fluxes_weighted[(edge[0], edge[1])]))
                               
         egoSub = self.egoSubgraph(net,induced_subgraph, 1)
         for edge in egoSub.edges():
             if edge not in seen_edges:
-                seen_edges.append((edge[0], edge[1]))
+                seen_edges.add((edge[0], edge[1]))
                 multiplied.append((edge[0], edge[1], 
                 2+fluxes_weighted[(edge[0], edge[1])]))
 
         egoSub = self.egoSubgraph(net,induced_subgraph, 2)
         for edge in egoSub.edges():
             if edge not in seen_edges:
-                seen_edges.append((edge[0], edge[1]))
+                #seen_edges.append((edge[0], edge[1]))
                 multiplied.append((edge[0], edge[1], 
                 1+fluxes_weighted[(edge[0], edge[1])]))
 
-        egoSub = self.egoSubgraph(net,induced_subgraph, 3)
-        for edge in egoSub.edges():
-            if edge not in seen_edges:
-                seen_edges.append((edge[0], edge[1]))
-                multiplied.append((edge[0], edge[1], 
-                fluxes_weighted[(edge[0], edge[1])]))
+        #egoSub = self.egoSubgraph(net,induced_subgraph, 3)
+        #for edge in egoSub.edges():
+        #    if edge not in seen_edges:
+        #        seen_edges.append((edge[0], edge[1]))
+        #        multiplied.append((edge[0], edge[1], 
+        #        fluxes_weighted[(edge[0], edge[1])]))
 
                                   
         # Sort the list of final scores 
