@@ -476,8 +476,6 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             for node in nodes_to_delete:
                 temp_net.remove_node(node)
 
-
-
             # Random deletion of pathway edges as well
             random.seed(0)
             train = list(temp_net.edges())
@@ -841,8 +839,10 @@ class AlgorithmEvaluator(Evaluator):
 
         print("Running reconstructions...")
         self.run_reconstructions(reconstruction_dir)
-        print("Finished running")
-
+        print("Finished running reconstructions!")
+        
+        print("Everything else is commented out!")
+        '''
         print("Evaluating reconstructions...")
         self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
         print("Finished evaluating")
@@ -850,6 +850,7 @@ class AlgorithmEvaluator(Evaluator):
         print("Plotting results...")
         self.plot_results(evaluation_dir, visualization_dir)
         print("Finished plotting")
+        '''
 
 
 class EdgeWithholdingEvaluator(AlgorithmEvaluator): 
@@ -2148,9 +2149,8 @@ class Pipeline(object):
                 #        collection, 
                 #        self.input_settings.algorithms, 
                 #        {"num_folds":2}))
-                '''
-                for j in [0.8, 0.6, 0.4, 0.2]:
-                    for k in [0.8, 0.6, 0.4, 0.2]:
+                for j in [0.8, 0.6, 0.4,]:
+                    for k in [0.8, 0.6, 0.4,]:
                         evaluators.append(
                             NodeEdgeWithholdingEvaluator(
                                 interactome, 
@@ -2170,6 +2170,7 @@ class Pipeline(object):
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
                                  "iterations": 1}))
+                '''
 
         return evaluators
 
@@ -2181,12 +2182,25 @@ class Pipeline(object):
 
         base_output_dir = Path("outputs")
 
-        #executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-        for evaluator in self.evaluators:
-            evaluator.run(base_output_dir, self.purge_results)
-            #executor.submit(evaluator.run, base_output_dir, self.purge_results)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+        futures = [
+            executor.submit(
+                evaluator.run, base_output_dir, self.purge_results)
+            for evaluator in self.evaluators]
+        
+        # https://stackoverflow.com/questions/35711160/detect-failed-tasks-in-concurrent-futures
+        # Re-raise exception if produced
+        for future in concurrent.futures.as_completed(futures):
+            future.result() 
 
-        #executor.shutdown(wait=True)
+        executor.shutdown(wait=True)
+
+        '''
+        for evaluator in self.evaluators:
+            #evaluator.run(base_output_dir, self.purge_results)
+            #executor.submit(evaluator.run, base_output_dir, self.purge_results)
+        executor.shutdown(wait=True)
+        '''
 
    
     def paths_based_folds_analysis_wrapper(self):
