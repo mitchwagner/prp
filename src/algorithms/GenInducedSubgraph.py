@@ -11,6 +11,7 @@ from .RankingAlgorithm import PathwayReconstructionInput
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
+import src.external.utils.pathway.pathway_parse as pathway_parse
 
 
 class GenInducedSubgraph(RankingAlgorithm):
@@ -80,7 +81,28 @@ class GenInducedSubgraph(RankingAlgorithm):
             net = pl.readNetworkFile(f)
 
             
-        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
+                
+        # Create network object from the pathway 
+        nodes_file = reconstruction_input.pathway_nodes_file
+        edges_file = reconstruction_input.all_edges_file
+        
+        pathway_obj = None
+
+        with nodes_file.open('r') as nf, \
+            edges_file.open('r') as ef:                                                                       
+            pathway_obj = pathway_parse.parse_csbdb_pathway_file(ef, nf,extra_edge_cols=["weight"])  
+             
+        # Get sources and targets 
+        sources = pathway_obj.get_receptors(data=False)
+        targets = pathway_obj.get_tfs(data=False)
+        nodes = set()
+        for edge in reconstruction_input.training_edges:
+            nodes.add(edge[0])
+            nodes.add(edge[1])
+        
+        induced_subgraph = net.subgraph(nodes.union(sources,targets))
+        print(nodes.union(sources,targets), nodes, sources,targets)
+        
         #for edge in induced_subgraph
         # TODO: Find better names for these
         #multiplied = [(

@@ -1,3 +1,4 @@
+
 import os
 import sys
 import shutil
@@ -11,13 +12,13 @@ from .RankingAlgorithm import PathwayReconstructionInput
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
+import src.external.utils.pathway.pathway_parse as pathway_parse
 
 
 class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
-
     Combine with Quick(Reg)Linker by finding paths using flux as edge weight,
     or else multiplying QuickLinker scores by flux scores.
     '''
@@ -112,43 +113,29 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
             else:
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
-        induced_subgraph = self.get_induced_subgraph(reconstruction_input)
+        #induced_subgraph = self.get_induced_subgraph(reconstruction_input)
 
         
         # Create network object from the pathway 
-        nodes_file = pathway_reconstruction_input.pathway_nodes_file
-        edges_file = pathway_reconstruction_input.all_edges_file
-
+        nodes_file = reconstruction_input.pathway_nodes_file
+        edges_file = reconstruction_input.all_edges_file
+        
         pathway_obj = None
 
-        with nodes_file.open('r') as nf, \                               
-                edges_file.open('r') as ef:                              
-                                                                                    
-            pathway_obj = pathway_parse.parse_csbdb_pathway_file(ef, nf,                   
-                extra_edge_cols=["weight"])  
+        with nodes_file.open('r') as nf, \
+            edges_file.open('r') as ef:                                                                       
+            pathway_obj = pathway_parse.parse_csbdb_pathway_file(ef, nf,extra_edge_cols=["weight"])  
              
         # Get sources and targets 
         sources = pathway_obj.get_receptors(data=False)
         targets = pathway_obj.get_tfs(data=False)
-
-
-        # Figure out what edges to add
-        edges = pathway_obj.get_edges(data=False)
-               
-        edges_to_add = set()
-        for edge in edges:
-            for source in sources:
-                if edge[0] == source or edge[1] == source:
-                    edges_to_add.add(edge)  
-            for target in targets :
-                if edge[0] == target or edge[1] == target:
-                    edges_to_add.add(edge)  
-               
-        # Add edges to the induced subgraph
-        for edge in edges_to_add:
-            induced_subgraph.add_edge(edge[0], edge[1])
+        nodes = set()
+        for edge in reconstruction_input.training_edges:
+            nodes.add(edge[0])
+            nodes.add(edge[1])
         
-
+        induced_subgraph = net.subgraph(nodes.union(sources,targets))
+        #print(nodes.union(sources,targets), nodes, sources,targets)
 
         #for edge in induced_subgraph
         # TODO: Find better names for these
