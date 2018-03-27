@@ -44,23 +44,56 @@ class ShortcutsSSViaRWRFlux(RankingAlgorithm):
 
         # Read in the interactome
         net = None
+        netCopy = None
         with reconstruction_input.interactome.open('r') as f:
             net = pl.readNetworkFile(f)
+
+        with reconstruction_input.interactome.open('r') as f:
+            netCopy = pl.readNetworkFile(f)
+
+        # Add dummy nodes for every node in the "head" of a p-labeled edge
+        TempNodes = set([])
+        for edge in provided_edges:
+            TempNodes.add(str(edge[0]+"_temp"))
+            netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
+
+        # Restart to newly added temporary nodes
+        #weights = {node:1 for node in TempNodes}
+        weights = {} 
+        for edge in provided_edges:
+            # Default value of 0
+            weights[str(edge[0]+"_temp")] = weights.get(str(edge[0]+"_temp"), 0) + 1
+
 
         # Set a minimum edge weight
         for edge in net.edges(data=True):
             if edge[2]["weight"] == 0:
                 edge[2]["weight"] = sys.float_info.min
+
+        # Set a minimum edge weight
+        for edge in netCopy.edges(data=True):
+            if edge[2]["weight"] == 0:
+                edge[2]["weight"] = sys.float_info.min
     
         # 1) PageRank using weighted restart set
         pagerank_scores_weighted = pr.pagerank(
-            net, weights=weights, q=float(self.q))
+            netCopy, weights=weights, q=float(self.q))
 
-        pl.calculateFluxEdgeWeights(net, pagerank_scores_weighted)
-
-        fluxes_weighted = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
-            for edge in net.edges(data=True)}
-        
+        pl.calculateFluxEdgeWeights(netCopy, pagerank_scores_weighted)
+                
+        fluxes_weighted = {}
+        # Add edd fluxes computed from TempNodes to original head nodes
+        # If head is not in TempNodes, use normal ksp_weight
+        # If
+        for edge in netCopy.edges():
+            attr_dict=netCopy.get_edge_data(edge[0],edge[1])
+            if edge[0] in TempNodes:
+                attr_dict_original=netCopy.get_edge_data(edge[0][:-5],edge[1])
+                fluxes_weighted[(edge[0][:-5], edge[1])] = attr_dict_original["ksp_weight"]+attr_dict["ksp_weight"]
+            elif (edge[0],edge[1]) in provided_edges:
+                continue # This edge has already been added, do not overwrite it.
+            else:
+                fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
         # 2) PageRank without weighted restart set
         #pagerank_scores = pr.pagerank(net, q=float(self.q))
 
