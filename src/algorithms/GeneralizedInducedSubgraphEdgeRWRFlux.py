@@ -113,6 +113,43 @@ class GeneralizedInducedSubgraphEdgeRWRFlux(RankingAlgorithm):
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
             
         induced_subgraph = self.get_induced_subgraph(reconstruction_input)
+
+        
+        # Create network object from the pathway 
+        nodes_file = pathway_reconstruction_input.pathway_nodes_file
+        edges_file = pathway_reconstruction_input.all_edges_file
+
+        pathway_obj = None
+
+        with nodes_file.open('r') as nf, \                               
+                edges_file.open('r') as ef:                              
+                                                                                    
+            pathway_obj = pathway_parse.parse_csbdb_pathway_file(ef, nf,                   
+                extra_edge_cols=["weight"])  
+             
+        # Get sources and targets 
+        sources = pathway_obj.get_receptors(data=False)
+        targets = pathway_obj.get_tfs(data=False)
+
+
+        # Figure out what edges to add
+        edges = pathway_obj.get_edges(data=False)
+               
+        edges_to_add = set()
+        for edge in edges:
+            for source in sources:
+                if edge[0] == source or edge[1] == source:
+                    edges_to_add.add(edge)  
+            for target in targets :
+                if edge[0] == target or edge[1] == target:
+                    edges_to_add.add(edge)  
+               
+        # Add edges to the induced subgraph
+        for edge in edges_to_add:
+            induced_subgraph.add_edge(edge[0], edge[1])
+        
+
+
         #for edge in induced_subgraph
         # TODO: Find better names for these
         #multiplied = [(
