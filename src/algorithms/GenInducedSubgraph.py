@@ -101,7 +101,7 @@ class GenInducedSubgraph(RankingAlgorithm):
             nodes.add(edge[1])
         
         induced_subgraph = net.subgraph(nodes.union(sources,targets))
-        print(nodes.union(sources,targets), nodes, sources,targets)
+        #print(nodes.union(sources,targets), nodes, sources,targets)
         
         #for edge in induced_subgraph
         # TODO: Find better names for these
