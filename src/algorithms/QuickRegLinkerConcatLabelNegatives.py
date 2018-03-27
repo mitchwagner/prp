@@ -129,6 +129,7 @@ class QuickRegLinkerConcatLabelNegatives(RankingAlgorithm):
             results.append(result)
 
         # Get the last rank in each regex result
+        results = [result for result in results if len(result) > 0]
         x = [result[-1][2] for result in results]
         print(x)
         
