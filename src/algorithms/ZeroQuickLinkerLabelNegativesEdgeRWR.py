@@ -83,7 +83,6 @@ class ZeroQuickLinkerLabelNegativesEdgeRWR(RankingAlgorithm):
         with reconstruction_input.interactome.open('r') as in_file,\
                 zero_interactome.open('w') as out_file:
 
-
             self.reweight_interactome(
                 in_file, out_file, provided_edges, negatives, fluxes_weighted)
             
@@ -115,6 +114,14 @@ class ZeroQuickLinkerLabelNegativesEdgeRWR(RankingAlgorithm):
         the edge's original weight in our interactome.
         """
 
+        edge_label_map = {}
+
+        for p in positives:
+            edge_label_map[p] = "1.0"
+
+        for n in negatives:
+            edge_label_map[n] = str(sys.float_info.min)
+
         for line in in_handle:
             if pl_parse.is_comment_line(line):
                 out_handle.write(line)
@@ -122,24 +129,17 @@ class ZeroQuickLinkerLabelNegativesEdgeRWR(RankingAlgorithm):
                 # Tokens: tail, head, weight, type
                 tokens = pl_parse.tokenize(line)
                 edge = (tokens[0], tokens[1])
-                if edge in positives:
+
+                label = edge_label_map.get(edge, None)
+
+                if label != None:
                     out_handle.write(
                         tokens[0] + "\t" +
                         tokens[1] + "\t" + 
-                        "1.0" + "\t" +
+                        label + "\t" +
                         tokens[3].rstrip()  + "\n")
-                elif edge in negatives: 
-                    out_handle.write(
-                        tokens[0] + "\t" +
-                        tokens[1] + "\t" + 
-                        str(sys.float_info.min) + "\t" +
-                        tokens[3].rstrip() + "\n")
                 else:
-                    out_handle.write(
-                        tokens[0] + "\t" +
-                        tokens[1] + "\t" + 
-                        str(fluxes_weighted[(tokens[0], tokens[1])]) + "\t" +
-                        tokens[3].rstrip() + "\n")
+                    out_handle.write(line)
 
 
     def conform_output(self, output_dir):
