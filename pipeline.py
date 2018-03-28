@@ -103,8 +103,8 @@ import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts
 import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
 import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
-import src.algorithms.QRLMultiplyConcatOriginal as QRLMultiplyConcatOriginal 
-import src.algorithms.QRLMultiplyConcatEdgeRWR as QRLMultiplyConcatEdgeRWR
+import src.algorithms.QRLMultiplyConcatOriginalv2 as QRLMultiplyConcatOriginal 
+import src.algorithms.QRLMultiplyConcatEdgeRWRv2 as QRLMultiplyConcatEdgeRWR
 
 
 
@@ -1558,11 +1558,177 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
         # TODO I messed up the flow of things here by plotting and 
         # evaluating in a single function. This is hard-coded to save time
-        self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
+        #self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
+        #    Path(evaluation_dir.parent, "visualization"))
+
+        self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
             Path(evaluation_dir.parent, "visualization"))
+
+        # WE TRUST YOU 
+        exit()
 
         self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
         self.aggregate_pr_over_pathways(evaluation_dir)
+
+
+    def s_t_paths_analysis(
+            self, reconstruction_dir=Path(), evaluation_dir=Path(),
+            visualization_dir=Path()):
+        
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+
+            # Start with the p-graph
+            train_folds = fc.get_train_folds()
+            test_folds = fc.get_test_folds()
+
+            fig, ax = plt.subplots()
+
+            ax.set_title(
+                "Fraction s-t pairs Connected vs. Rank"
+                + self.interactome.name + " "
+                + self.pathway_collection.name + "\n"
+                + "Node Percent Kept: " + str(
+                    self.options["percent_nodes_to_keep"]) + " "
+                + "Edge Percent Kept: " + str(
+                    self.options["percent_edges_to_keep"]) + " " 
+                + "Iterations: " + str(
+                    self.options["iterations"]))
+
+            ax.set_xlabel("Rank")
+            ax.set_ylabel("Fraction s-t Pairs Connected")
+
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
+                "st-pairs.png")
+
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
+                "st-pairs.pdf")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+
+                rank_st_path_points = [] 
+
+                for (train_fold, test_fold) in zip(train_folds, test_folds):
+                    points = []
+
+
+                    # 1) Get the list of edges for the algorithm               
+
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        reconstruction_file.touch()
+        
+                    # 2) Read the list of edges in by rank
+                    fold_predictions = None
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+
+                    # 3) Read the lists of sources and targets
+
+                    pathway_obj = pathway.get_pathway_obj()
+
+                    sources = pathway_obj.get_receptors(data=False)
+                    targets = pathway_obj.get_tfs(data=False)
+
+                    
+                    # 4) Construct the base graph
+
+                    base_graph = nx.DiGraph()
+
+                    for source in sources:
+                        base_graph.add_node(source)
+
+                    for target in targets:
+                        base_graph.add_node(target)
+
+                    for edge in set(train_fold[0]):
+                        base_graph.add_edge(edge[0], edge[1])
+
+                    # 5) For reach rank...
+                    for i, rank in enumerate(fold_predictions):
+                        # 5) Add the edges with the rank to the graph
+                        for edge in rank:
+                            base_graph.add_edge(edge)
+
+                        # 6) For each source/target pair, try to find a path
+
+                        path_sum = 0
+                        
+                        for source in sources:
+                            found = nx.single_source_shortest_path(
+                                base_graph, source)
+
+                            # 7) Sum the number of sucesses
+                            for target in targets:
+                                if target in found:
+                                    path_sum += 1
+                       
+                        
+                        total_possible = len(sources) * len(targets)
+                        frac = float(path_sum) / float(total_possible)
+                           
+                        # 8) Create a tuple (rank, sum)
+                        tup = (i, frac)
+
+                    # 9) Append tuple to a list
+                    points.append(tup)
+                
+                # 10) Append list to overall list
+                rank_st_path_points.append(points)
+
+                for i, ls in enumerate(rank_st_path_points):
+                    xs = [point[0] for point in ls]
+                    ys = [point[1] for point in ls]
+
+                    label = algorithm.get_descriptive_name() + str(i)
+                    ax.plot(xs, ys, label=label)
+
+            ax.legend(loc='upper center')
+                
+            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+            fig.savefig(str(vis_file_png), bbox_inches='tight')
+             
 
 
     def calculate_avg_pr_per_fold(
@@ -1631,18 +1797,18 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                             fold_predictions, positives, negatives)
                     
                     # TODO: This is taking a very long time.
-                    weighted_avg = precrec.compute_average_precision(points)
-                    print("WEIGHTED_AVG: %f" % weighted_avg)
+                    auc = precrec.compute_average_precision(points)
+                    #print("WEIGHTED_AVG: %f" % weighted_avg)
 
                     new_outfile = Path(
                         pr_output_dir, 
                         algorithm.get_output_directory(),
-                        "average-precision.txt") 
+                        "auc.txt") 
 
                     new_outfile.parent.mkdir(parents=True, exist_ok=True)
 
                     with new_outfile.open("w") as f: 
-                        f.write(str(weighted_avg))
+                        f.write(str(auc))
 
 
     def calculate_and_plot_wilcoxon(
@@ -1699,7 +1865,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     avg_avg_prec_file = Path(
                         avg_avg_prec_dir, 
                         algorithm.get_output_directory(),
-                        "average-precision.txt") 
+                        "auc.txt") 
 
                     point = None
                     with avg_avg_prec_file.open('r') as f:
@@ -1853,7 +2019,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         fig, ax = precrec.init_precision_recall_figure()
 
         ax.set_title(
-            "Average Precision by Algorithm "
+            "AUC by Algorithm "
             + self.interactome.name + " "
             + self.pathway_collection.name + "\n"
             + "Node Percent Kept: " + str(
@@ -1863,7 +2029,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             + "Iterations: " + str(
                 self.options["iterations"]))
 
-        ax.set_xlabel("Average Precision")
+        ax.set_xlabel("AUC")
         ax.set_ylabel("Algorithm")
 
         vis_file_png = Path(
@@ -1875,7 +2041,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 self.options["percent_nodes_to_keep"], 
                 self.options["percent_edges_to_keep"], 
                 self.options["iterations"]),
-            "average-precision.png")
+            "auc.png")
 
         vis_file_pdf = Path(
             visualization_dir,
@@ -1886,7 +2052,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 self.options["percent_nodes_to_keep"], 
                 self.options["percent_edges_to_keep"], 
                 self.options["iterations"]),
-            "average-precision.pdf")
+            "auc.pdf")
 
         ax.boxplot(results, labels=labels, vert=False)
 
@@ -1906,7 +2072,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
-                "Average Precision by Algorithm (%s)" % pathway.name
+                "AUC by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
                 + self.pathway_collection.name + "\n"
                 + "Node Percent Kept: " + str(
@@ -1916,7 +2082,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 + "Iterations: " + str(
                     self.options["iterations"]))
 
-            ax.set_xlabel("Average Precision")
+            ax.set_xlabel("AUC")
             ax.set_ylabel("Algorithm")
 
             vis_file_png = Path(
@@ -1929,7 +2095,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     self.options["percent_nodes_to_keep"], 
                     self.options["percent_edges_to_keep"], 
                     self.options["iterations"]),
-                "average-precision.png")
+                "auc.png")
 
             vis_file_pdf = Path(
                 visualization_dir,
@@ -1941,7 +2107,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     self.options["percent_nodes_to_keep"], 
                     self.options["percent_edges_to_keep"], 
                     self.options["iterations"]),
-                "average-precision.pdf")
+                "auc.pdf")
 
             vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
 
@@ -2512,7 +2678,6 @@ class Pipeline(object):
         Define the set of evaluators the pipeline will use in analysis
         '''
         evaluators = []
-
         for interactome in self.input_settings.interactomes:
             for collection in self.input_settings.pathway_collections:
                 '''
@@ -2522,6 +2687,17 @@ class Pipeline(object):
                         collection, 
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
+                '''
+                for j in [0.8]:
+                    for k in [0.8]:
+                        evaluators.append(
+                            NodeEdgeWithholdingEvaluator(
+                                interactome, 
+                                collection, 
+                                self.input_settings.algorithms, 
+                                {"percent_nodes_to_keep": j, 
+                                 "percent_edges_to_keep": k,
+                                 "iterations": 2}))
                 '''
                 for j in [0.8, 0.6, 0.4,]:
                     for k in [0.8, 0.6, 0.4,]:
@@ -2533,6 +2709,7 @@ class Pipeline(object):
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
                                  "iterations": 2}))
+                '''
 
         return evaluators
 
