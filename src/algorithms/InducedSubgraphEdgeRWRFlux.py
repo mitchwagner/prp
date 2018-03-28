@@ -11,7 +11,7 @@ from .RankingAlgorithm import PathwayReconstructionInput
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
-
+import src.external.utils.pathway.pathway_parse as pathway_parse
 
 class InducedSubgraphEdgeRWR(RankingAlgorithm):
     '''

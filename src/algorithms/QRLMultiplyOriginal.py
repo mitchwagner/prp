@@ -25,7 +25,6 @@ class QRLMultiplyOriginal(RankingAlgorithm):
     def __init__(self, params:Dict):
         self.rlc_abbr = params["rlc"][0]
         self.rlc = params["rlc"][1]
-        self.q = params["q"]
 
 
     def run(self, reconstruction_input: PathwayReconstructionInput):
