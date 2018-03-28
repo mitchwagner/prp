@@ -72,7 +72,6 @@ import src.algorithms.Affinity as Affinity
 import src.algorithms.QRLMultiplyAffinity as QuickAffinity
 import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
 import src.algorithms.QRLMultiplyInducedSubgraphFlux as QRLMultiplyInduced
-import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
 import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced 
 import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
@@ -102,6 +101,7 @@ import src.algorithms.QuickRegLinkerConcatLabelNegatives as \
 import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
 
 import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
+import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -3499,6 +3499,8 @@ RANKING_ALGORITHMS = {
         QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
     "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
+    "QRLMultiplyOriginal":QRLMultiplyOriginal.QRLMultiplyOriginal,
+
     "GeneralizedInducedSubgraphEdgeRWRFlux": 
         GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
     "InducedSubgraphEdgeRWR": InducedSubgraphEdgeRWR.InducedSubgraphEdgeRWR,
