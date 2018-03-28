@@ -33,6 +33,7 @@ class GeneralizedShortcuts(RankingAlgorithm):
                 in_file, out_file, sets, default="x")
 
         #######################################################################
+        '''
         cut_labeled_interactome = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
@@ -46,7 +47,7 @@ class GeneralizedShortcuts(RankingAlgorithm):
                 str(labeled_interactome)],
                 stdout=outfile
                 )
-
+        '''
         # 6) Run Shortcuts on the resulting interactome
 
         #######################################################################
@@ -62,7 +63,7 @@ class GeneralizedShortcuts(RankingAlgorithm):
             os.path.join(str(Path(
                 reconstruction_input.output_dir, 
                 self.get_output_directory())), ""),
-            str(cut_labeled_interactome),
+            str(labeled_interactome),
             str(reconstruction_input.pathway_nodes_file)
             ])
 
