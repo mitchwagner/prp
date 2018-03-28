@@ -78,7 +78,7 @@ import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced
 import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
 import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
 
-import src.algorithms.InducedSubgraphRWRFlux as InducedSubgraphRWRFlux
+import src.algorithms.InducedSubgraphEdgeRWR as InducedSubgraphEdgeRWR
 #import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWRFlux
 import src.algorithms.GeneralizedInducedSubgraphEdgeRWRFlux as \
     GeneralizedInducedSubgraphEdgeRWRFlux
@@ -3499,7 +3499,7 @@ RANKING_ALGORITHMS = {
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
     "GeneralizedInducedSubgraphEdgeRWRFlux": 
         GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
-    "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
+    "InducedSubgraphEdgeRWR": InducedSubgraphEdgeRWR.InducedSubgraphEdgeRWR,
     "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
 
     "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
