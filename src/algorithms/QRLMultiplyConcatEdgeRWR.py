@@ -234,7 +234,7 @@ class QRLMultiplyConcatEdgeRWR(RankingAlgorithm):
 
 
     def get_output_file(self):
-        return "output-projection.txt"
+        return "final.txt"
 
 
     def get_output_directory(self):
