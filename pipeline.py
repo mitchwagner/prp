@@ -103,8 +103,8 @@ import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts
 import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
 import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
-import src.algorithms.QRLMultiplyConcatOriginal as QRLMultiplyConcatOriginal 
-import src.algorithms.QRLMultiplyConcatEdgeRWR as QRLMultiplyConcatEdgeRWR
+import src.algorithms.QRLMultiplyConcatOriginalv2 as QRLMultiplyConcatOriginal 
+import src.algorithms.QRLMultiplyConcatEdgeRWRv2 as QRLMultiplyConcatEdgeRWR
 
 
 
