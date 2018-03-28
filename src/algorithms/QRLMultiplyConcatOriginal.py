@@ -20,7 +20,6 @@ class QRLMultiplyConcatOriginal(RankingAlgorithm):
     the order they are provided are enforced.
     
     Ranks edges based on iteractome edge weights instead of path lengths.
-
     '''
     def __init__(self, params):
         self.rlc_abbr = params["rlcs"][0]
@@ -28,14 +27,6 @@ class QRLMultiplyConcatOriginal(RankingAlgorithm):
 
 
     def run(self, reconstruction_input):
-        # 1) Label interactome
-        # 2) Cut the unnecessary column out
-        # 3) Source Python2 venv
-        # 4) Call Aditya's code to generate DFA graph
-        # 5) Run the compiled Java binary
-        
-        #######################################################################
-        # 1)
         provided_edges = reconstruction_input.training_edges 
         negatives = reconstruction_input.training_negatives
 
@@ -189,7 +180,7 @@ class QRLMultiplyConcatOriginal(RankingAlgorithm):
 
 
     def get_output_file(self):
-        return "output-projection.txt"
+        return "final.txt"
 
 
     def get_output_directory(self):
