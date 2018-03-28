@@ -122,8 +122,8 @@ class QRLMultiplyOriginal(RankingAlgorithm):
         weights = {}
 
         for edge in net.edges(data=True):
-            print(edge[2]["weight"])
-            weights[(edge[0], edge[1])] = edge[2]
+            #print(edge[2]["weight"])
+            weights[(edge[0], edge[1])] = edge[2]["weight"]
 
         
         # TODO: Find better names for these
@@ -183,7 +183,7 @@ class QRLMultiplyOriginal(RankingAlgorithm):
 
 
     def get_descriptive_name(self) -> str:
-        return "QRLMultiplyOriginal, q=%s, rlc=%s" % (self.q, self.rlc_abbr)
+        return "QRLMultiplyOriginal, rlc=%s" % (self.rlc_abbr)
 
 
     def get_output_file(self) -> str:
@@ -193,4 +193,4 @@ class QRLMultiplyOriginal(RankingAlgorithm):
     def get_output_directory(self) -> Path:
         return Path(    
             self.get_name(), 
-            "q-%s-rlc-%s" % (self.q, self.rlc_abbr))
+            "rlc-%s" % (self.rlc_abbr))

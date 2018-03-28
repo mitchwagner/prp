@@ -103,6 +103,11 @@ import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts
 import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
 import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
+import src.algorithms.QRLMultiplyConcatOriginal as QRLMultiplyConcatOriginal 
+import src.algorithms.QRLMultiplyConcatEdgeRWR as QRLMultiplyConcatEdgeRWR
+
+
+
 # TODO: Explicit write-up of what our edge files and interactome files are
 
 # TODO: Looks like my assumption that nodes have to be in the edges file is
@@ -3523,7 +3528,10 @@ RANKING_ALGORITHMS = {
     "QuickRegLinkerConcatLabelNegatives":
         QRLConcatNegatives.QuickRegLinkerConcatLabelNegatives,
     "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
-    "QRLMultiplyOriginal":  QRLMultiplyOriginal.QRLMultiplyOriginal
+    "QRLMultiplyOriginal":  QRLMultiplyOriginal.QRLMultiplyOriginal,
+    
+    "QRLMultiplyConcatOriginal":  QRLMultiplyConcatOriginal.QRLMultiplyConcatOriginal,
+    "QRLMultiplyConcatEdgeRWR":  QRLMultiplyConcatEdgeRWR.QRLMultiplyConcatEdgeRWR
     }
 
 
