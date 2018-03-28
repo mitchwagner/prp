@@ -201,14 +201,12 @@ class QRLMultiplyEdgeRWRFlux(RankingAlgorithm):
 
         # Write out final output file
         with output_file.open('w') as f:
-            for i, tup in enumerate(
-                sorted(multiplied, key=lambda x: x[2], reverse=True)):
-                if i < 15000:
-                    f.write("\t".join([
-                        tup[0],
-                        tup[1],
-                        str(rank_map[tup[2]]),
-                        str(tup[2]) + "\n"]))
+            for tup in sorted(multiplied, key=lambda x: x[2], reverse=True):
+                f.write("\t".join([
+                    tup[0],
+                    tup[1],
+                    str(rank_map[tup[2]]),
+                    str(tup[2]) + "\n"]))
 
 
     def get_induced_subgraph(self, reconstruction_input):
