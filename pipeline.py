@@ -101,6 +101,8 @@ import src.algorithms.QuickRegLinkerConcatLabelNegatives as \
 
 import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
 
+import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
+
 # TODO: Explicit write-up of what our edge files and interactome files are
 
 # TODO: Looks like my assumption that nodes have to be in the edges file is
@@ -2182,7 +2184,7 @@ class Pipeline(object):
 
         base_output_dir = Path("outputs")
 
-        executor = concurrent.futures.ThreadPoolExecutor(max_workers=8)
+        executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         futures = [
             executor.submit(
                 evaluator.run, base_output_dir, self.purge_results)
@@ -3519,6 +3521,7 @@ RANKING_ALGORITHMS = {
     "QuickRegLinkerConcatLabelNegatives":
         QRLConcatNegatives.QuickRegLinkerConcatLabelNegatives,
     "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
+    "QRLMultiplyOriginal":  QRLMultiplyOriginal.QRLMultiplyOriginal
     }
 
 
