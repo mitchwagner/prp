@@ -851,11 +851,11 @@ class AlgorithmEvaluator(Evaluator):
         print("Everything else is commented out!")
         
         print("Evaluating reconstructions...")
-        self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
+        #self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
         print("Finished evaluating")
 
         print("Plotting results...")
-        self.plot_results(evaluation_dir, visualization_dir)
+        #self.plot_results(evaluation_dir, visualization_dir)
         print("Finished plotting")
         
 
@@ -2515,6 +2515,7 @@ class Pipeline(object):
 
         for interactome in self.input_settings.interactomes:
             for collection in self.input_settings.pathway_collections:
+                '''
                 evaluators.append(
                     EdgeWithholdingEvaluator(
                         interactome, 
@@ -2531,18 +2532,7 @@ class Pipeline(object):
                                 self.input_settings.algorithms, 
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
-                                 "iterations": 10}))
-                for j in [0.9]:
-                    for k in [0.9]:
-                        evaluators.append(
-                            NodeEdgeWithholdingEvaluator(
-                                interactome, 
-                                collection, 
-                                self.input_settings.algorithms, 
-                                {"percent_nodes_to_keep": j, 
-                                 "percent_edges_to_keep": k,
-                                 "iterations": 1}))
-                '''
+                                 "iterations": 2}))
 
         return evaluators
 
