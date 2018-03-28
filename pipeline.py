@@ -967,7 +967,7 @@ class EdgeWithholdingEvaluator(AlgorithmEvaluator):
                     new_outfile.parent.mkdir(parents=True, exist_ok=True)
 
                     with new_outfile.open("w") as f: 
-                        f.write(str(weighted_avg))
+                        f.write(str(auc))
 
 
     def calculate_and_plot_wilcoxon(
