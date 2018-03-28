@@ -72,14 +72,13 @@ import src.algorithms.Affinity as Affinity
 import src.algorithms.QRLMultiplyAffinity as QuickAffinity
 import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
 import src.algorithms.QRLMultiplyInducedSubgraphFlux as QRLMultiplyInduced
-import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
 import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced 
 import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
 import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
 
-import src.algorithms.InducedSubgraphRWRFlux as InducedSubgraphRWRFlux
-#import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWRFlux
+#import src.algorithms.InducedSubgraphEdgeRWR as InducedSubgraphEdgeRWR
+import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWR
 import src.algorithms.GeneralizedInducedSubgraphEdgeRWRFlux as \
     GeneralizedInducedSubgraphEdgeRWRFlux
 
@@ -102,6 +101,7 @@ import src.algorithms.QuickRegLinkerConcatLabelNegatives as \
 import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
 
 import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
+import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -844,7 +844,7 @@ class AlgorithmEvaluator(Evaluator):
         print("Finished running reconstructions!")
         
         print("Everything else is commented out!")
-        '''
+        
         print("Evaluating reconstructions...")
         self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
         print("Finished evaluating")
@@ -852,7 +852,7 @@ class AlgorithmEvaluator(Evaluator):
         print("Plotting results...")
         self.plot_results(evaluation_dir, visualization_dir)
         print("Finished plotting")
-        '''
+        
 
 
 class EdgeWithholdingEvaluator(AlgorithmEvaluator): 
@@ -2510,12 +2510,13 @@ class Pipeline(object):
 
         for interactome in self.input_settings.interactomes:
             for collection in self.input_settings.pathway_collections:
-                #evaluators.append(
-                #    EdgeWithholdingEvaluator(
-                #        interactome, 
-                #        collection, 
-                #        self.input_settings.algorithms, 
-                #        {"num_folds":2}))
+                evaluators.append(
+                    EdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"num_folds":2}))
+                '''
                 for j in [0.8, 0.6, 0.4,]:
                     for k in [0.8, 0.6, 0.4,]:
                         evaluators.append(
@@ -2526,7 +2527,6 @@ class Pipeline(object):
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
                                  "iterations": 10}))
-                '''
                 for j in [0.9]:
                     for k in [0.9]:
                         evaluators.append(
@@ -3864,9 +3864,11 @@ RANKING_ALGORITHMS = {
         QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
     "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
     "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
+    "QRLMultiplyOriginal":QRLMultiplyOriginal.QRLMultiplyOriginal,
+
     "GeneralizedInducedSubgraphEdgeRWRFlux": 
         GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
-    "InducedSubgraphRWRFlux": InducedSubgraphRWRFlux.InducedSubgraphRWRFlux,
+    "InducedSubgraphEdgeRWR": InducedSubgraphEdgeRWR.InducedSubgraphEdgeRWR,
     "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
 
     "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,

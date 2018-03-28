@@ -25,12 +25,12 @@ class QRLMultiplyOriginal(RankingAlgorithm):
     def __init__(self, params:Dict):
         self.rlc_abbr = params["rlc"][0]
         self.rlc = params["rlc"][1]
-        self.q = params["q"]
 
 
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
+        negatives = reconstruction_input.training_negatives
 
         labeled_interactome = Path(
             self.get_full_output_directory(
@@ -40,10 +40,12 @@ class QRLMultiplyOriginal(RankingAlgorithm):
         with reconstruction_input.interactome.open('r') as in_file,\
                 labeled_interactome.open('w') as out_file:
 
-            sets = [("p", provided_edges)]
-            
+            sets = [("p", provided_edges),
+                    ("n", negatives)]
+
             reconstruction_input.label_interactome_file(
-                in_file, out_file, sets, default="n")
+                in_file, out_file, sets, default="x")
+
 
         #######################################################################
         cut_labeled_interactome = Path(

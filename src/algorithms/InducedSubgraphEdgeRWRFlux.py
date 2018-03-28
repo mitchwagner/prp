@@ -11,7 +11,7 @@ from .RankingAlgorithm import PathwayReconstructionInput
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
-
+import src.external.utils.pathway.pathway_parse as pathway_parse
 
 class InducedSubgraphEdgeRWR(RankingAlgorithm):
     '''
@@ -152,12 +152,11 @@ class InducedSubgraphEdgeRWR(RankingAlgorithm):
         with output_file.open('w') as f:
             for i, tup in enumerate(
                 sorted(multiplied, key=lambda x: x[2], reverse=True)):
-                if i < 15000:
-                    f.write("\t".join([
-                        tup[0],
-                        tup[1],
-                        str(rank_map[tup[2]]),
-                        str(tup[2]) + "\n"]))
+                f.write("\t".join([
+                    tup[0],
+                    tup[1],
+                    str(rank_map[tup[2]]),
+                    str(tup[2]) + "\n"]))
 
 
     def get_induced_subgraph(self, reconstruction_input):
