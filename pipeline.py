@@ -450,6 +450,7 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         # Get the list of edges in the original pathway
         original_edges = set(get_net_from_pathway(pathway_obj).edges())
 
+
         # Create a consistent list of seeds for the random number generator 
         rand_inits = range(self.itr)
 
@@ -468,8 +469,9 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             nodes_to_keep = nodes[:num_to_keep]
             nodes_to_delete = nodes[num_to_keep:]
 
-            print("# positive nodes to keep: %d" % len(nodes_to_keep))
-            print("# positive nodes to delete: %d" % len(nodes_to_delete))
+            print("Original # of nodes: %d" % len(nodes))
+            print("    # positive nodes to keep: %d" % len(nodes_to_keep))
+            print("    # positive nodes to delete: %d" % len(nodes_to_delete))
 
 
             # Create a temporary version of the pathway and remove edges
@@ -497,8 +499,10 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             test = list(original_edges - set(train))
             folds.append((train, test))
                 
-            print("training positives count: %d" % len(train))
-            print("test positives count: %d" % len(test))
+            print("Original # of edges: %d" % len(original_edges))
+            print("    edges labeled 'p': %d" % len(train))
+            print("    edges labeled 'x': %d" % len(test))
+            print("<>")
 
         return folds
 
@@ -528,6 +532,7 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         nodes = interactome_net.nodes()
         original_edges = set(interactome_net.edges())
 
+
         rand_inits = range(self.itr)
 
         folds = []
@@ -545,8 +550,9 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             nodes_to_keep = nodes[:num_to_keep]
             nodes_to_delete = nodes[num_to_keep:]
 
-            print("# negative nodes to keep: %d" % len(nodes_to_keep))
-            print("# negative nodes to delete: %d" % len(nodes_to_delete))
+            #print("Original # Nodes: %d" % len(nodes))
+            #print("    # negative nodes to keep: %d" % len(nodes_to_keep))
+            #print("    # negative nodes to delete: %d" % len(nodes_to_delete))
 
             # Create a temporary copy of the interactome for convenience
             temp_net = interactome_net.copy()
@@ -570,8 +576,9 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             test = list(original_edges - set(train))
             folds.append((train, test))
                 
-            print("training negatives count: %d" % len(train))
-            print("test negatives count: %d" % len(test))
+            #print("Original # Edges: %d" % len(original_edges))
+            #print("    edges labeled 'p': %d" % len(train))
+            #print("    edges labeled 'x': %d" % len(test))
 
         
         return folds
@@ -642,7 +649,72 @@ class Evaluator(object):
         '''
         raise NotImplementedError()
 
+
+class RemovalEvaluator(Evaluator):
+
 #class DataSetEvaluator(Evaluator):
+    def __init__(
+            self, interactome, pathway_collection, algorithms, options={}):
+        '''
+        :param interactome: on-disk interactome object
+        :param pathway_collection: PathwayCollection object
+        :param algorithms: list of RankingAlgorithms
+        :param options: map of options for the evaluator
+        '''
+        self.interactome = interactome
+        self.pathway_collection = pathway_collection
+        self.algorithms = algorithms
+        self.options = options
+
+
+    def get_edge_cv_folds(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = EdgeWithholdingFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
+
+
+    def get_node_withholding_folds(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = NodeEdgeWithholdingFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
+
+    def run(self, *args, **kwargs):
+        '''
+        for pathway in self.pathway_collection.pathways:
+            cv_folds = self.get_edge_cv_folds(pathway)
+
+            print(pathway.name)
+            # Get the training folds
+            # Get the test folds
+        '''
+
+        for pathway in self.pathway_collection.pathways:
+            fc = self.get_node_withholding_folds(pathway)
+
+            print(
+                pathway.name, 
+                self.options["percent_nodes_to_keep"],
+                self.options["percent_edges_to_keep"])
+
+            print("-----------------------------------------------")
+            training_folds = fc.get_training_folds()
+            test_folds = fc.get_test_folds()
+            # Get the training folds
+            # Get the test folds
+            
+
+
+
 
 '''
 def pathway_edge_weight_histograms(self):
@@ -2797,16 +2869,32 @@ class Pipeline(object):
                          "iterations": 5}))
 
                 '''
-                for j in [0.8, 0.6, 0.4,]:
-                    for k in [0.8, 0.6, 0.4,]:
-                        evaluators.append(
-                            NodeEdgeWithholdingEvaluator(
-                                interactome, 
-                                collection, 
-                                self.input_settings.algorithms, 
-                                {"percent_nodes_to_keep": j, 
-                                 "percent_edges_to_keep": k,
-                                 "iterations": 2}))
+                evaluators.append(
+                    RemovalEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .8, 
+                         "percent_edges_to_keep": .8,
+                         "iterations": 5}))
+
+                evaluators.append(
+                    RemovalEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .6, 
+                         "percent_edges_to_keep": .6,
+                         "iterations": 5}))
+
+                evaluators.append(
+                    RemovalEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .4, 
+                         "percent_edges_to_keep": .4,
+                         "iterations": 5}))
                 '''
 
         return evaluators
