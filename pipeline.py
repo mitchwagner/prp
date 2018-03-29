@@ -107,7 +107,6 @@ import src.algorithms.QRLMultiplyConcatOriginalv2 as QRLMultiplyConcatOriginal
 import src.algorithms.QRLMultiplyConcatEdgeRWRv2 as QRLMultiplyConcatEdgeRWR
 
 
-
 # TODO: Explicit write-up of what our edge files and interactome files are
 
 # TODO: Looks like my assumption that nodes have to be in the edges file is
@@ -845,17 +844,17 @@ class AlgorithmEvaluator(Evaluator):
             + "    procedure: %s\n" % self.get_name())
 
         print("Running reconstructions...")
-        self.run_reconstructions(reconstruction_dir)
+        #self.run_reconstructions(reconstruction_dir)
         print("Finished running reconstructions!")
         
         print("Everything else is commented out!")
         
         print("Evaluating reconstructions...")
-        #self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
+        self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
         print("Finished evaluating")
 
         print("Plotting results...")
-        #self.plot_results(evaluation_dir, visualization_dir)
+        self.plot_results(evaluation_dir, visualization_dir)
         print("Finished plotting")
         
 
@@ -1764,7 +1763,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         '''
 
         print("----------------------------------------------------")
-        print("Calculating average precision over each fold")
+        print("Calculating AUPRC over each fold")
         print("----------------------------------------------------")
 
         fold_creators = self.get_fold_creators()
@@ -1817,9 +1816,13 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                         set([tup[0] for tup in s])
                         for s in fold_predictions]
 
+                    print("Calculating precision/recall points")
+                    t1 = time.time()
                     points = \
                         precrec.compute_precision_recall_curve_negatives_decimals(
                             fold_predictions, positives, negatives)
+                    t2 = time.time()
+                    print("Done! That took: ", t2 - t1)
                     
                     # TODO: This is taking a very long time.
                     auc = precrec.compute_average_precision(points)
@@ -2044,7 +2047,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         fig, ax = precrec.init_precision_recall_figure()
 
         ax.set_title(
-            "AUC by Algorithm "
+            "AUPRC by Algorithm "
             + self.interactome.name + " "
             + self.pathway_collection.name + "\n"
             + "Node Percent Kept: " + str(
@@ -2054,7 +2057,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             + "Iterations: " + str(
                 self.options["iterations"]))
 
-        ax.set_xlabel("AUC")
+        ax.set_xlabel("AUPRC")
         ax.set_ylabel("Algorithm")
 
         vis_file_png = Path(
@@ -2097,7 +2100,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
-                "AUC by Algorithm (%s)" % pathway.name
+                "AUPRC by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
                 + self.pathway_collection.name + "\n"
                 + "Node Percent Kept: " + str(
@@ -2107,7 +2110,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 + "Iterations: " + str(
                     self.options["iterations"]))
 
-            ax.set_xlabel("AUC")
+            ax.set_xlabel("AUPRC")
             ax.set_ylabel("Algorithm")
 
             vis_file_png = Path(
@@ -2151,9 +2154,62 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             fig.savefig(str(vis_file_png), bbox_inches='tight')
 
 
+        print("----------------------------------------------------")
+        print("Test Five")
+        print("----------------------------------------------------")
+        
+        # For each algorithm
+        #   For each pathway
+        #       Write a box plot per pathway for the algorithm's performance
 
+        for alg in self.algorithms:
+            name = alg.get_descriptive_name()
+            results = []
 
+            ax.set_title(
+                "AUPRC by Pathway"
+                + self.interactome.name + " "
+                + self.pathway_collection.name + "\n"
+                + "Node Percent Kept: " + str(
+                    self.options["percent_nodes_to_keep"]) + " "
+                + "Edge Percent Kept: " + str(
+                    self.options["percent_edges_to_keep"]) + " " 
+                + "Iterations: " + str(
+                    self.options["iterations"]))
 
+            ax.set_xlabel("AUPRC")
+            ax.set_ylabel("Algorithm")
+
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
+                name + "-auc.png")
+
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
+                name + "-auc.pdf")
+
+            for pathway, _ in creator_pathway_pairs:
+                labels.append(pathway.name)
+                results.append(algorithm_pathway_map[(name, pathway.name)])
+                
+            ax.boxplot(results, labels=labels, vert=False)
+
+            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+            fig.savefig(str(vis_file_png), bbox_inches='tight')
 
             
     def aggregate_pr_over_folds(
@@ -2713,16 +2769,33 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
                 '''
-                for j in [0.4]:
-                    for k in [0.4]:
-                        evaluators.append(
-                            NodeEdgeWithholdingEvaluator(
-                                interactome, 
-                                collection, 
-                                self.input_settings.algorithms, 
-                                {"percent_nodes_to_keep": j, 
-                                 "percent_edges_to_keep": k,
-                                 "iterations": 5}))
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .8, 
+                         "percent_edges_to_keep": .8,
+                         "iterations": 5}))
+
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .6, 
+                         "percent_edges_to_keep": .6,
+                         "iterations": 5}))
+
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .4, 
+                         "percent_edges_to_keep": .4,
+                         "iterations": 5}))
+
                 '''
                 for j in [0.8, 0.6, 0.4,]:
                     for k in [0.8, 0.6, 0.4,]:
@@ -2734,21 +2807,6 @@ class Pipeline(object):
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
                                  "iterations": 2}))
-<<<<<<< HEAD
-                
-                
-                for j in [0.9]:
-                    for k in [0.9]:
-                        evaluators.append(
-                            NodeEdgeWithholdingEvaluator(
-                                interactome, 
-                                collection, 
-                                self.input_settings.algorithms, 
-                                {"percent_nodes_to_keep": j, 
-                                 "percent_edges_to_keep": k,
-                                 "iterations": 1}))
-=======
->>>>>>> c09f9a3c4cc9b0ad73f7fcd29c39f78cfd2b19d1
                 '''
 
         return evaluators
