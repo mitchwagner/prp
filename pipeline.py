@@ -1584,7 +1584,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         for pathway, fc in creator_pathway_pairs:
 
             # Start with the p-graph
-            train_folds = fc.get_train_folds()
+            train_folds = fc.get_training_folds()
             test_folds = fc.get_test_folds()
 
             fig, ax = plt.subplots()
@@ -1592,7 +1592,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             ax.set_title(
                 "Fraction s-t pairs Connected vs. Rank"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.pathway_collection.name + " "
+                + pathway.name + "\n"
                 + "Node Percent Kept: " + str(
                     self.options["percent_nodes_to_keep"]) + " "
                 + "Edge Percent Kept: " + str(
@@ -1646,7 +1647,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                         self.pathway_collection.name,
                         pathway.name,
                         self.get_output_prefix(),
-                        fold[2])
+                        train_fold[2])
 
                     reconstruction_file = Path(
                         reconstruction_output_dir, 
@@ -1687,45 +1688,69 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
                     # 5) For reach rank...
                     for i, rank in enumerate(fold_predictions):
+
                         # 5) Add the edges with the rank to the graph
                         for edge in rank:
-                            base_graph.add_edge(edge)
+                            base_graph.add_edge(edge[0][0], edge[0][1])
+                        if i%20 == 0:
+                            print(i)
+                            # 6) For each source/target pair, try to find a path
 
-                        # 6) For each source/target pair, try to find a path
-
-                        path_sum = 0
-                        
-                        for source in sources:
-                            found = nx.single_source_shortest_path(
-                                base_graph, source)
-
-                            # 7) Sum the number of sucesses
-                            for target in targets:
-                                if target in found:
-                                    path_sum += 1
-                       
-                        
-                        total_possible = len(sources) * len(targets)
-                        frac = float(path_sum) / float(total_possible)
+                            path_sum = 0
+                            
+                            for source in sources:
+                                for target in targets:
+                                    if nx.has_path(
+                                        base_graph, source,target):
+                                        path_sum += 1
+                                # 7) Sum the number of sucesses
                            
-                        # 8) Create a tuple (rank, sum)
-                        tup = (i, frac)
+                            
+                            total_possible = len(sources) * len(targets)
+                            frac = float(path_sum) / float(total_possible)
+ 
+                            # 8) Create a tuple (rank, sum)
+                            tup = (i, frac)
 
-                    # 9) Append tuple to a list
-                    points.append(tup)
-                
-                # 10) Append list to overall list
-                rank_st_path_points.append(points)
+                        # 9) Append tuple to a list
+                            points.append(tup)
+                            #if frac == 1:
+                            #    break 
 
+                    # 10) Append list to overall list
+                    rank_st_path_points.append(points)
+                # 11) Avg. across folds
+                AvgYs = [0]*max([len(x) for x in rank_st_path_points])
+                Counts =      [0]*max([len(x) for x in rank_st_path_points])
+                StddevList = [[] for i in range(max([len(x) for x in rank_st_path_points]))]
                 for i, ls in enumerate(rank_st_path_points):
-                    xs = [point[0] for point in ls]
-                    ys = [point[1] for point in ls]
 
-                    label = algorithm.get_descriptive_name() + str(i)
-                    ax.plot(xs, ys, label=label)
+                    for j in range(len(ls)):
+                        AvgYs[j] += ls[j][1]
+                        StddevList[j].append(ls[j][1])
+                        Counts[j] += 1
+                    
+                AvgYs = [x/Counts[i] for i,x in enumerate(AvgYs)]
+                Ebars = [np.std(x) for i,x in enumerate(StddevList)]
+                #print(Counts)
+                #print([len(x) for x in StddevList])
+                #print(Ebars)
+                xs = [i*20 for i in range(len(AvgYs))]
+                #for i, ls in enumerate(rank_st_path_points):
+                    #xs = [point[0] for point in ls]
+                    #AvgYs = [point[1] for point in ls]
+                    
+                label = algorithm.get_descriptive_name() 
+                #ax.errorbar(xs, AvgYs, yerr = Ebars, label=label)
+                ax.plot(xs, AvgYs, label=label)
+                Ebars_minus = [max(0,x-Ebars[i]) for i,x in enumerate(AvgYs)]
+                Ebars_plus = [min(1,x+Ebars[i]) for i,x in enumerate(AvgYs)]
+                ax.fill_between(xs, Ebars_minus, Ebars_plus,alpha=0.5,)
 
-            ax.legend(loc='upper center')
-                
+                ax.set_ybound(0,1)
+                ax.set_xbound(0,1000)
+            ax.legend(loc='best')
+
             fig.savefig(str(vis_file_pdf), bbox_inches='tight')
             fig.savefig(str(vis_file_png), bbox_inches='tight')
              
@@ -2688,8 +2713,8 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
                 '''
-                for j in [0.8]:
-                    for k in [0.8]:
+                for j in [0.4]:
+                    for k in [0.4]:
                         evaluators.append(
                             NodeEdgeWithholdingEvaluator(
                                 interactome, 
@@ -2697,7 +2722,7 @@ class Pipeline(object):
                                 self.input_settings.algorithms, 
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
-                                 "iterations": 2}))
+                                 "iterations": 5}))
                 '''
                 for j in [0.8, 0.6, 0.4,]:
                     for k in [0.8, 0.6, 0.4,]:
@@ -2709,6 +2734,21 @@ class Pipeline(object):
                                 {"percent_nodes_to_keep": j, 
                                  "percent_edges_to_keep": k,
                                  "iterations": 2}))
+<<<<<<< HEAD
+                
+                
+                for j in [0.9]:
+                    for k in [0.9]:
+                        evaluators.append(
+                            NodeEdgeWithholdingEvaluator(
+                                interactome, 
+                                collection, 
+                                self.input_settings.algorithms, 
+                                {"percent_nodes_to_keep": j, 
+                                 "percent_edges_to_keep": k,
+                                 "iterations": 1}))
+=======
+>>>>>>> c09f9a3c4cc9b0ad73f7fcd29c39f78cfd2b19d1
                 '''
 
         return evaluators
