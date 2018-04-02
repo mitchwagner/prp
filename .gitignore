@@ -27,3 +27,6 @@ baobab-venv-regpathlinker/
 
 # FAdo (Python library) table file
 .tablereg
+.tablereg.bak
+.tablereg.dat
+.tablereg.dir
