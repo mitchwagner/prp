@@ -11,8 +11,8 @@ qsub/*
 __pycache__/
 *.py[cod]
 
-config/*
-!config/.gitkeep
+configs/*
+!configs/.gitkeep
 
 results/
 inputs/
@@ -22,8 +22,14 @@ outputs/
 # Virtual environments
 venv/
 venv-regpathlinker/
+
+# Virtual environments for running on baobab
 baobab-venv/
 baobab-venv-regpathlinker/
+
+# Different order of the above
+venv-baobab/
+venv-regpathlinker-baobab/
 
 # FAdo (Python library) table file
 .tablereg
