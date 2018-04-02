@@ -80,7 +80,7 @@ class GeneralizedShortcuts(RankingAlgorithm):
 
 
     def get_descriptive_name(self):
-        return "GeneralizedShortcuts, k=%d, alpha=%f" % (self.k, self.alpha)
+        return "Shortcuts, k=%d, alpha=%f" % (self.k, self.alpha)
 
 
     def get_output_file(self):

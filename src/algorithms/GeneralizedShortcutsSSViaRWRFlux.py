@@ -191,7 +191,7 @@ class GeneralizedShortcutsSSViaRWRFlux(RankingAlgorithm):
 
 
     def get_descriptive_name(self):
-        return "GeneralizedShortcutsSSViaRWRFlux, k=%d, alpha=%f, q=%f" % (self.k, self.alpha, self.q)
+        return "Shortcuts + ERWR, k=%d, alpha=%f, q=%f" % (self.k, self.alpha, self.q)
 
 
     def get_output_file(self):

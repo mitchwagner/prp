@@ -102,7 +102,7 @@ class ZeroQuickLinkerLabelNegatives(RankingAlgorithm):
 
 
     def get_descriptive_name(self):
-        return "ZeroQuickLinkerLabelNegatives"
+        return "PathLinker (Modified)"
 
 
     def get_output_file(self):
