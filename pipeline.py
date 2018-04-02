@@ -1629,17 +1629,16 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
         # TODO I messed up the flow of things here by plotting and 
         # evaluating in a single function. This is hard-coded to save time
-        #self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
-        #    Path(evaluation_dir.parent, "visualization"))
-
-        self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
+        self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
             Path(evaluation_dir.parent, "visualization"))
 
-        # WE TRUST YOU 
-        exit()
+        #self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
+        #    Path(evaluation_dir.parent, "visualization"))
 
-        self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
-        self.aggregate_pr_over_pathways(evaluation_dir)
+        # WE TRUST YOU 
+
+        #self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+        #self.aggregate_pr_over_pathways(evaluation_dir)
 
 
     def s_t_paths_analysis(
@@ -2230,13 +2229,14 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         print("Test Five")
         print("----------------------------------------------------")
         
-        # For each algorithm
-        #   For each pathway
-        #       Write a box plot per pathway for the algorithm's performance
+        outlist = []
 
         for alg in self.algorithms:
             name = alg.get_descriptive_name()
             results = []
+            labels = []
+
+            fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
                 "AUPRC by Pathway"
@@ -2274,6 +2274,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     self.options["iterations"]),
                 name + "-auc.pdf")
 
+            outlist.append(vis_file_png)
+
             for pathway, _ in creator_pathway_pairs:
                 labels.append(pathway.name)
                 results.append(algorithm_pathway_map[(name, pathway.name)])
@@ -2282,6 +2284,30 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
             fig.savefig(str(vis_file_pdf), bbox_inches='tight')
             fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+            '''
+            summary_file = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
+            with open 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "keep-%f-nodes-%f-edges-%d-iterations" % (
+                    self.options["percent_nodes_to_keep"], 
+                    self.options["percent_edges_to_keep"], 
+                    self.options["iterations"]),
+                name + "-auc.png")
+            '''
+
 
             
     def aggregate_pr_over_folds(
@@ -2493,10 +2519,10 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
-
-        self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
-        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
-        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
+        None
+        #self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
+        #self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
+        #self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
 
 
     # TODO: Remove. We do not care about this anymore.
