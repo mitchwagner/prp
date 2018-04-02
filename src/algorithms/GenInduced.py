@@ -14,7 +14,7 @@ import src.external.pathlinker.parse as pl_parse
 import src.external.utils.pathway.pathway_parse as pathway_parse
 
 
-class GenInducedSubgraph(RankingAlgorithm):
+class GenInduced(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
@@ -186,11 +186,11 @@ class GenInducedSubgraph(RankingAlgorithm):
         None
 
     def get_name(self) -> str:
-        return "GenInducedSubgraph"
+        return "GenInduced"
 
 
     def get_descriptive_name(self) -> str:
-        return "GenInducedSubgraph"
+        return "Induced"
 
 
     def get_output_file(self) -> str:

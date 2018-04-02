@@ -51,9 +51,8 @@ import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
 
 ## Induced Subgraph
 import src.algorithms.InducedSubgraph as InducedSubgraph
-import src.algorithms.GenInducedSubgraph as GenInducedSubgraph
-import src.algorithms.GeneralizedInducedSubgraphEdgeRWRFlux as \
-    GeneralizedInducedSubgraphEdgeRWRFlux
+import src.algorithms.GenInduced as GenInduced 
+import src.algorithms.GenInducedERWR as GenInducedERWR
 
 ## Shortcuts and generalized shortcuts
 import src.algorithms.ShortcutsSS as Shortcuts
@@ -4186,9 +4185,8 @@ RANKING_ALGORITHMS = {
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
 
     "induced-subgraph" : InducedSubgraph.InducedSubgraph,
-    "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
-    "GeneralizedInducedSubgraphEdgeRWRFlux": 
-        GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
+    "GenInduced": GenInduced.GenInduced,
+    "GenInducedERWR": GenInducedERWR.GenInducedERWR,
 
     "shortcuts-ss" : Shortcuts.ShortcutsSS,
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
