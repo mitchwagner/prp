@@ -66,8 +66,8 @@ import src.algorithms.ZeroQuickLinkerLabelNegatives as \
     ZeroQuickLinkerLabelNegatives
 
 ## Final version of QuickLinker
-import src.algorithms.QRLMultiplyConcatOriginalv2 as QRLMultiplyConcatOriginal 
-import src.algorithms.QRLMultiplyConcatEdgeRWRv2 as QRLMultiplyConcatEdgeRWR
+import src.algorithms.QuickLinker as QuickLinker 
+import src.algorithms.QuickLinkerERWR as QuickLinkerERWR 
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -4198,8 +4198,8 @@ RANKING_ALGORITHMS = {
     "ZeroQuickLinkerLabelNegatives" : 
         ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
     
-    "QRLMultiplyConcatOriginal":  QRLMultiplyConcatOriginal.QRLMultiplyConcatOriginal,
-    "QRLMultiplyConcatEdgeRWR":  QRLMultiplyConcatEdgeRWR.QRLMultiplyConcatEdgeRWR
+    "QuickLinker":  QuickLinker.QuickLinker,
+    "QuickLinkerERWR":  QuickLinkerERWR.QuickLinkerERWR
     }
 
 

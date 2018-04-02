@@ -9,7 +9,7 @@ import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
 
-class QRLMultiplyConcatOriginal(RankingAlgorithm):
+class QuickLinkerERWR(RankingAlgorithm):
     '''
     Concatenates the results running QuickRegLinker with several
     regular expressions. Takes a list of of regexes. For example,
@@ -194,11 +194,11 @@ class QRLMultiplyConcatOriginal(RankingAlgorithm):
 
 
     def get_name(self):
-        return "QRLMultiplyConcatOriginal"
+        return "QuickLinkerERWR"
 
 
     def get_descriptive_name(self):
-        return "QRLMultiplyConcatOriginal, rlcs=%s" % (self.rlc_abbr)
+        return "QuickLinkerERWR, rlcs=%s" % (self.rlc_abbr)
 
 
     def get_output_file(self):
