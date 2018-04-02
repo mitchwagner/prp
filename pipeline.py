@@ -43,69 +43,31 @@ import src.external.pathlinker.parse as pl_parse
 from src.external.utils.pathway.pathway import Pathway 
 import src.external.utils.pathway.pathway_parse as pathway_parse
 
+# Algorithms run in the pipeline
+
+## Bookkeping/sanity checks 
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
-import src.algorithms.PathLinker as PathLinker
+import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
+
+## Induced Subgraph
 import src.algorithms.InducedSubgraph as InducedSubgraph
 import src.algorithms.GenInducedSubgraph as GenInducedSubgraph
-
-
-import src.algorithms.InducedSubgraphRanked as InducedSubgraphRanked
-import src.algorithms.PCSF as PCSF
-import src.algorithms.QuickRegLinker as QuickRegLinker
-import src.algorithms.QRLIgnoreFoldNegatives as QuickNegatives
-import src.algorithms.QRLPathsThroughFoldPositives as QuickPositives
-import src.algorithms.QuickRegLinkerConcat as QuickConcat
-import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
-import src.algorithms.RegLinker as RegLinker
-import src.algorithms.ShortcutsSS as Shortcuts
-
-import src.algorithms.ZeroLinker as ZeroLinker
-import src.algorithms.ZeroQuickRegLinker as ZeroQuickRegLinker
-import src.algorithms.ZeroQuickLinker as ZeroQuickLinker
-import src.algorithms.ZeroQuickLinkerLabelNegatives as \
-    ZeroQuickLinkerLabelNegatives
-
-import src.algorithms.ZeroQuickLinkerLabelNegativesEdgeRWR as \
-    ZeroQuickLinkerLabelNegativesEdgeRWR
-
-import src.algorithms.Affinity as Affinity
-import src.algorithms.QRLMultiplyAffinity as QuickAffinity
-import src.algorithms.QRLMultiplyUniformFlux as QRLMultiplyUniform 
-import src.algorithms.QRLMultiplyInducedSubgraphFlux as QRLMultiplyInduced
-
-import src.algorithms.QRLPathsViaInducedSubgraphFlux as QRLPathsInduced 
-import src.algorithms.QRLPathsViaWeightedSubgraphFlux as QRLPathsWeighted 
-import src.algorithms.QRLPathsViaEdgeRWRFlux as QRLPathsViaEdgeRWRFlux 
-
-#import src.algorithms.InducedSubgraphEdgeRWR as InducedSubgraphEdgeRWR
-import src.algorithms.InducedSubgraphEdgeRWRFlux as InducedSubgraphEdgeRWR
 import src.algorithms.GeneralizedInducedSubgraphEdgeRWRFlux as \
     GeneralizedInducedSubgraphEdgeRWRFlux
 
-
-import src.algorithms.QRLEdgesViaRWRFlux as QRLEdgesViaRWRFlux
-import src.algorithms.QRLEdgesViaEdgeRWRFlux as QRLEdgesViaEdgeRWRFlux
-
+## Shortcuts and generalized shortcuts
+import src.algorithms.ShortcutsSS as Shortcuts
 import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
+import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
 import src.algorithms.GeneralizedShortcutsSSViaRWRFlux as GeneralizedShortcutsSSViaRWRFlux
 
-import src.algorithms.QRLConcatEdgeRWR as QRLConcatEdgeRWR
-import src.algorithms.ZeroLinkerLabelNegatives as ZeroLinkerLabelNegatives 
+## ZeroQuickLinker
+import src.algorithms.ZeroQuickLinkerLabelNegatives as \
+    ZeroQuickLinkerLabelNegatives
 
-import src.algorithms.QuickRegLinkerConcatLabelNegativesEdgeRWR as \
-    QRLConcatNegativesERWR 
-
-import src.algorithms.QuickRegLinkerConcatLabelNegatives as \
-    QRLConcatNegatives
-
-import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
-
-import src.algorithms.QRLMultiplyOriginal as QRLMultiplyOriginal 
-import src.algorithms.QRLMultiplyEdgeRWRFlux as QRLMultiplyEdgeRWRFlux
-
+## Final version of QuickLinker
 import src.algorithms.QRLMultiplyConcatOriginalv2 as QRLMultiplyConcatOriginal 
 import src.algorithms.QRLMultiplyConcatEdgeRWRv2 as QRLMultiplyConcatEdgeRWR
-
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -4221,58 +4183,20 @@ class ConfigParser(object):
 
 RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
 RANKING_ALGORITHMS = {
-    "pathlinker" : PathLinker.PathLinker,
-    "induced-subgraph" : InducedSubgraph.InducedSubgraph,
-    "induced-subgraph-ranked" : InducedSubgraphRanked.InducedSubgraphRanked,
-    "reglinker" : RegLinker.RegLinker,
-    "shortcuts-ss" : Shortcuts.ShortcutsSS,
-    "quickreglinker" : QuickRegLinker.QuickRegLinker,
-    "qrlignorefoldnegatives" : QuickNegatives.QRLIgnoreFoldNegatives,
-    "qrlpathsthroughfoldpositives" : 
-        QuickPositives.QRLPathsThroughFoldPositives,
-    "quickreglinkerconcat" : QuickConcat.QuickRegLinkerConcat,
-    "zerolinker" : ZeroLinker.ZeroLinker,
-    "ZeroLinkerLabelNegatives" : 
-        ZeroLinkerLabelNegatives.ZeroLinkerLabelNegatives,
-    "zeroquickreglinker" : ZeroQuickRegLinker.ZeroQuickRegLinker,
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
-    "pcsf" : PCSF.PCSF,
-    "affinity" : Affinity.Affinity,
-    "qrlmultiplyaffinity": QuickAffinity.QRLMultiplyAffinity,
-    "qrlmultiplyuniformflux": QRLMultiplyUniform.QRLMultiplyUniformFlux,
-    "qrlmultiplyweightedsubgraphflux": 
-        QRLMultiplyInduced.QRLMultiplyInducedSubgraphFlux,
-    "qrlpathsviainducedsubgraphflux": 
-        QRLPathsInduced.QRLPathsViaInducedSubgraphFlux,
-    "qrlpathsviaweightedsubgraphflux": 
-        QRLPathsWeighted.QRLPathsViaWeightedSubgraphFlux,
-    "QRLPathsViaEdgeRWRFlux": QRLPathsViaEdgeRWRFlux.QRLPathsViaEdgeRWRFlux,
-    "QRLMultiplyEdgeRWRFlux":QRLMultiplyEdgeRWRFlux.QRLMultiplyEdgeRWRFlux,
-    "QRLMultiplyOriginal":QRLMultiplyOriginal.QRLMultiplyOriginal,
 
+    "induced-subgraph" : InducedSubgraph.InducedSubgraph,
+    "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
     "GeneralizedInducedSubgraphEdgeRWRFlux": 
         GeneralizedInducedSubgraphEdgeRWRFlux.GeneralizedInducedSubgraphEdgeRWRFlux,
-    "InducedSubgraphEdgeRWR": InducedSubgraphEdgeRWR.InducedSubgraphEdgeRWR,
-    "GenInducedSubgraph": GenInducedSubgraph.GenInducedSubgraph,
 
-    "QRLEdgesViaRWRFlux": QRLEdgesViaRWRFlux.QRLEdgesViaRWRFlux,
-    "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
+    "shortcuts-ss" : Shortcuts.ShortcutsSS,
     "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
+    "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
     "GeneralizedShortcutsSSViaRWRFlux" : GeneralizedShortcutsSSViaRWRFlux.GeneralizedShortcutsSSViaRWRFlux,
-    "QRLEdgesViaEdgeRWRFlux": QRLEdgesViaEdgeRWRFlux.QRLEdgesViaEdgeRWRFlux, 
-    "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
-    "QRLConcatEdgeRWR" : QRLConcatEdgeRWR.QRLConcatEdgeRWR,
-    "ZeroQuickLinker" : ZeroQuickLinker.ZeroQuickLinker,
+
     "ZeroQuickLinkerLabelNegatives" : 
         ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
-    "ZeroQuickLinkerLabelNegativesEdgeRWR":
-        ZeroQuickLinkerLabelNegativesEdgeRWR.ZeroQuickLinkerLabelNegativesEdgeRWR,
-    "QuickRegLinkerConcatLabelNegativesEdgeRWR":
-        QRLConcatNegativesERWR.QuickRegLinkerConcatLabelNegativesEdgeRWR,
-    "QuickRegLinkerConcatLabelNegatives":
-        QRLConcatNegatives.QuickRegLinkerConcatLabelNegatives,
-    "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
-    "QRLMultiplyOriginal":  QRLMultiplyOriginal.QRLMultiplyOriginal,
     
     "QRLMultiplyConcatOriginal":  QRLMultiplyConcatOriginal.QRLMultiplyConcatOriginal,
     "QRLMultiplyConcatEdgeRWR":  QRLMultiplyConcatEdgeRWR.QRLMultiplyConcatEdgeRWR
