@@ -591,6 +591,193 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         return folds
 
 
+class SingleNodeDeletionFoldCreator(FoldCreator):
+    '''
+    1) Rank the nodes in a pathway by centrality
+    2) Delete node with highest centrality, then put it back and delete
+       the node with the second-highest centrality, etc. Per deletion:
+        - Training Positives: pathway edges left after deletion
+        - Testing Positives: pathway edges removed by deletion
+        - Training Negatives: 
+    Create positive "folds" via the removal of nodes (and associated edges)
+    from a pathway.
+
+    Create negative "folds" by sampling some percent of the edges in the
+    interactome that are not in the pathway.
+    '''
+
+    def __init__(self, interactome, pathway, options):
+        self.interactome = interactome
+        self.pathway = pathway
+
+
+    def create_positive_folds(self):
+        '''
+        1) Rank the edges by degree
+
+        2) For each edge: create a pathway where it is deleted, and
+           derive the set of positives from that
+
+        '''
+        pathway_obj = self.pathway.get_pathway_obj()
+
+        pathway_net = get_net_from_pathway(pathway_obj)
+
+        # Get the list of pathway nodes that are in the interactome
+        # and that are not sources or targets
+        nodes = get_filtered_pathway_nodes(pathway_obj, self.interactome)
+
+        # These are the edges that are actually in the interactome!
+        filtered_edges = get_filtered_pathway_edges(
+            pathway_obj, self.interactome)
+
+        degree_map = {node:pathway_net.degree(node) for node in nodes}
+        sorted_map = sorted(list(degree_map.items()), key=lambda tup:(tup[1],tup[0]))
+
+        # List of tuples of lists of training and test negatives
+        folds = []
+        
+        num_nodes = len(nodes)
+
+        for i, (key, value) in enumerate(sorted_map):
+            # Counter showing how many we have to move through
+            print(i, "/", num_nodes) 
+
+            node_to_delete = key
+
+            # 1) Get the list of edges incident on the node in the pathway 
+            in_edges = pathway_net.in_edges(node_to_delete)
+            out_edges = pathway_net.out_edges(node_to_delete)
+
+            # 2) These edges are your test positives. Every other edge in 
+            #    the pathway is a training positive 
+            test_positives = set(in_edges + out_edges).intersection(
+                filtered_edges)
+
+            #train_positives = set(pathway_net.edges()) - set(test_positives)
+            train_positives = set(filtered_edges) - set(test_positives)
+
+            folds.append((train_positives, test_positives))
+
+        return folds
+
+
+    def create_negative_folds(self):
+        '''
+        Very similar to the above method! 
+
+        1) Rank the edges by degree
+
+        2) For each edge: create a pathway where it is deleted, and
+           derive the set of positives from that
+
+        '''
+        interactome_net = None
+
+        with self.interactome.path.open('r') as f:
+            interactome_net = pl.readNetworkFile(f)
+
+        pathway_obj = self.pathway.get_pathway_obj()
+
+        pathway_net = get_net_from_pathway(pathway_obj)
+
+        # Get the list of pathway nodes that are in the interactome
+        # and that are not sources or targets
+        nodes = get_filtered_pathway_nodes(pathway_obj, self.interactome)
+
+        degree_map = {node:pathway_net.degree(node) for node in nodes}
+        sorted_map = sorted(list(degree_map.items()), key=lambda tup:(tup[1],tup[0]))
+
+        # List of tuples of lists of training and test negatives
+        folds = []
+        
+        num_nodes = len(nodes)
+
+        for i, (key, value) in enumerate(sorted_map):
+            # What we talked about with Murali
+
+            # Counter showing how many we have to move through
+            print(i, "/", num_nodes) 
+
+            # Figure out which edges belong to the pathway
+            node_to_delete = key
+
+            # 1) Get the list of edges incident on the node in the pathway 
+            in_edges = pathway_net.in_edges(node_to_delete)
+            out_edges = pathway_net.out_edges(node_to_delete)
+
+            pathway_edges_to_delete = in_edges + out_edges 
+
+            # 2) Get the edges incident on the node in the entire interactome 
+            in_inter_edges = interactome_net.in_edges(node_to_delete)
+            out_inter_edges = interactome_net.out_edges(node_to_delete)
+
+            inter_edges_to_delete = in_inter_edges + out_inter_edges
+
+            test_negatives = \
+                set(inter_edges_to_delete) - set(pathway_edges_to_delete)
+
+            train_negatives = set(interactome_net.edges()) - test_negatives - set(pathway_net.edges())
+
+            folds.append((train_negatives, test_negatives))
+            
+            # Giving all negatives
+            '''
+            # Every non-pathway edge as a negative
+            test_negatives = \
+                set(interactome_net.edges()) - set(pathway_net.edges())
+
+            train_negatives = set()
+
+            folds.append((train_negatives, test_negatives))
+            '''
+
+        return folds
+
+
+    def get_output_prefix(self): 
+        return Path("single-node-deletion")
+
+    
+    def get_fold_prefix(self, fold):
+        return Path(self.get_output_prefix(), "node-%d" % fold)
+
+
+    def get_training_folds(self):
+        '''
+        Returns an iterator that returns tuples:
+            (train_negatives, train_positives, fold_name)
+        '''
+        positive_folds = self.create_positive_folds()
+        negative_folds = self.create_negative_folds()
+
+        folds = []
+
+        for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            # [([],[]),([],[])]
+            fold_name = self.get_fold_prefix(i)
+            folds.append((pair[0][0], pair[1][0], fold_name))
+
+        return folds
+
+
+    def get_test_folds(self):
+        '''
+        Returns an iterator that returns tuples:
+            (test_negatives, test_positives, fold_name)
+        '''
+        positive_folds = self.create_positive_folds()
+        negative_folds = self.create_negative_folds()
+
+        folds = []
+
+        for i, pair in enumerate(zip(positive_folds, negative_folds)):
+            fold_name = self.get_fold_prefix(i)
+            folds.append((pair[0][1], pair[1][1], fold_name))
+
+        return folds
+
+
 class Evaluator(object):
     '''
     A runnable analysis to be incorporated into the pipeline
@@ -611,9 +798,146 @@ class Evaluator(object):
         raise NotImplementedError()
 
 
-class RemovalEvaluator(Evaluator):
+class QEstimator(Evaluator):
+    '''
+    Estimate q. For each pathway, for each fold, get all the shortest 
+    paths using PathLinker. Count sequences of x's and find the average
+    length of a sequence of x's in these paths.
+    '''
 
-#class DataSetEvaluator(Evaluator):
+    def __init__(
+            self, interactome, pathway_collection, algorithms, options={}):
+        '''
+        :param interactome: on-disk interactome object
+        :param pathway_collection: PathwayCollection object
+        :param algorithms: list of RankingAlgorithms
+        :param options: map of options for the evaluator
+        '''
+        self.interactome = interactome
+        self.pathway_collection = pathway_collection
+        self.algorithms = algorithms
+        self.options = options
+
+
+    def get_node_withholding_folds(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = NodeEdgeWithholdingFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
+   
+
+    def run(self, output_dir=Path()):
+        # Read in the interactome
+
+        interactome_net = None
+
+        with self.interactome.path.open('r') as f:
+            interactome_net = pl.readNetworkFile(f)
+
+        for pathway in self.pathway_collection.pathways:
+            # Get the set of folds...then we will need to do something for 
+            # each fold...
+
+            fc = self.get_node_withholding_folds(pathway)
+
+            # Make the pathway object
+            pathway_net = get_net_from_pathway(pathway_obj)
+
+            # Also make a pathway_obj for convenient access to sources/targets 
+            pathway_obj = pathway.get_pathway_obj()
+
+            sources = pathway_obj.get_receptors(data=False)
+            targets = pathway_obj.get_tfs(data=False)
+    
+            # Remove edges from the pathway net if they are not in the
+            # interactome. Also, give them weights from the interactome
+            filtered_edges = get_filtered_pathway_edges(
+                pathway, self.interactome)
+
+            for edge in pathway_net.edges():
+                if edge not in filtered_edges:
+                    pathway_net.remove_edge(edge[0], edge[1])
+                else:
+                    pathway_net[edge[0]][edge[1]]["weight"] = \
+                        interactome_net[edge[0]][edge[1]]["weight"]
+
+            # Add a super source and a super target 
+            for s in sources:
+                pathway_net.add_edge('source', s, weight=1)
+                pathway_net.edge['source'][s]['ksp_weight'] = 0
+
+            for t in targets:
+                pathway_net.add_edge(t, 'sink', weight=1)
+                pathway_net.edge[t]['sink']['ksp_weight'] = 0
+
+            pl.logTransformEdgeWeights(pathway_net)
+            
+            # Get all the paths. They won't change if we don't change the
+            # interactome between runs. Setting K to a large # (100k)
+            paths = ksp.k_shortest_paths_yen(
+                pathway_net,
+                'source',
+                'sink',
+                100000,
+                weight='ksp_weight',
+                clip=False)
+            
+            # Finally, analyze path distribution. Need to keep track of this
+            # over folds. So, create a map.
+            x_occurences_map = {}
+
+            training_folds = fc.get_training_folds()
+            test_folds = fc.get_test_folds()
+
+            for i, _ in enumerate(training_folds):
+                # First, create a lookup map for quick determination of an
+                # edge's label
+
+                edge_label_map = {}
+
+                training_positives = training_folds[i][0]
+                test_positives = training_folds[i][0]
+
+                for edge in training_positives:
+                    edge_label_map[edge] = 'p'
+
+                for edge in test_positives:
+                    edge_label_map[edge] = 'x'
+
+                for k, path in enumerate(paths, 1):
+                    # Chop off the source/target
+                    realpath = path[1:-1]
+                    print(path)
+                    print(realpath)
+                    
+                    counter = 0
+
+                    for i in range(len(realpath)-1):
+                        t = realpath[i][0]
+                        h = realpath[i+1][0]
+
+                    # I'll need to make sure I reset the counter when I hit
+                    # a p and that I flush the counter at the end of things as 
+                    # well
+
+
+
+                # Suppose I get the following:
+                # 1x: 8
+                # 2x: 9
+                # 3x: 10
+                # On average then, we travel (8 + 18 + 30) / (8 + 9 + 10)
+
+
+class RemovalEvaluator(Evaluator):
+    '''
+    Analyze the impact of removing a certain percentage of nodes/edges
+    '''
+
     def __init__(
             self, interactome, pathway_collection, algorithms, options={}):
         '''
@@ -649,6 +973,7 @@ class RemovalEvaluator(Evaluator):
 
         return fc
 
+
     def run(self, *args, **kwargs):
         '''
         for pathway in self.pathway_collection.pathways:
@@ -673,9 +998,6 @@ class RemovalEvaluator(Evaluator):
             # Get the training folds
             # Get the test folds
             
-
-
-
 
 '''
 def pathway_edge_weight_histograms(self):
@@ -793,6 +1115,38 @@ class AlgorithmEvaluator(Evaluator):
                     
                     # TODO: Is this step even necessary?
                     alg_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # TODO: Leaving this here in case we want to revisit
+                    # it later. This would limit the sources and targets
+                    # provided to only those incident on edges in the set
+                    # of training positives. Needs to be finished.
+                    '''                    
+                    ###########################################################
+                    # Create a new pathway_nodes_file 
+
+                    # 1) Get a list of training nodes
+                    training_nodes = set()
+                    
+                    positive_edges = fold[0]
+
+                    for edge in positive_edgeS: 
+                        training_nodes.add(edge[0])
+                        training_nodes.add(edge[1])
+
+                    # 2) Define a new nodes file
+                    new_nodes_file = Path(alg_dir, "new_nodes.txt")    
+
+                    with pathway.get_nodes_file.open('r') as f1,
+                            new_nodes_file.open('w') as f2:
+                        for line in f1:
+                            if line.startswith("#"):
+                                f2.write(line)
+                            else:
+                                toks = line.split("\t")
+
+                    ###########################################################
+                    '''
+
 
                     # Second, run the algorithms         
                     alg_input = RankingAlgorithm.PathwayReconstructionInput(
@@ -877,7 +1231,7 @@ class AlgorithmEvaluator(Evaluator):
             + "    procedure: %s\n" % self.get_name())
 
         print("Running reconstructions...")
-        #self.run_reconstructions(reconstruction_dir)
+        self.run_reconstructions(reconstruction_dir)
         print("Finished running reconstructions!")
         
         print("Everything else is commented out!")
@@ -889,7 +1243,286 @@ class AlgorithmEvaluator(Evaluator):
         print("Plotting results...")
         self.plot_results(evaluation_dir, visualization_dir)
         print("Finished plotting")
+
+
+class SingleNodeDeletionEvaluator(AlgorithmEvaluator):
+    '''
+    1) Rank pathway nodes by centrality
+
+    2) Delete the one with highest centrality, then replace it
+       and delete the one with the second-highest, etc.
+    
+        3) After each deletion, run QuickLinker 
+    
+    4) After everything is done running, evaluate AUPRC for each "fold"
+    
+    5) Plot fold # vs. AUC. If hypothesis is correct, line should go
+       up and to the right
+    '''
+
+    # To evaluate the results we build a chart, per pathway
+    # 1) x-axis: degree, or order of node deleted?
+    #    Okay, I can have nodes with the same degree have error bars
+    # 2) y-axis: AUPRC for that point
+
+    def get_fold_creator(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = SingleNodeDeletionFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
+
+    # TODO: Apparently I'm not using these functions elsewhere? I can
+    # probably ignore it here then, too...
+    def get_name(self):
+        return "single-node-deletion-eval"
+
+
+    def get_output_prefix(self):
+        return Path("single-node-deletion")
+
+
+    def evaluate_reconstructions(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+
+        self.calculate_auc_per_fold(reconstruction_dir, evaluation_dir)
+
+        self.calculate_and_plot_lineplot(reconstruction_dir, evaluation_dir,
+            Path(evaluation_dir.parent, "visualization"))
+
+
+    # TODO: It looks like I've written this method generally enough to abstract
+    # it out of each evaluator that uses this
+    def calculate_auc_per_fold(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Calculate the precision recall curve and average precison
+        for each fold independently, writing it to disk.
+        '''
+
+        print("----------------------------------------------------")
+        print("Calculating area under the PR curve for each fold")
+        print("----------------------------------------------------")
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            test_folds = fc.get_test_folds()
+            for algorithm in self.algorithms:
+                for fold in test_folds:
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        reconstruction_file.touch()
         
+                    # Where we will write precision/recall results
+                    pr_output_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    positives = set(fold[0])
+                    negatives = set(fold[1])
+
+                    fold_predictions = None
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+               
+                    fold_predictions = [
+                        set([tup[0] for tup in s])
+                        for s in fold_predictions]
+
+                    points = \
+                        precrec.compute_precision_recall_curve_negatives_decimals(
+                            fold_predictions, positives, negatives)
+                    
+                    auc = precrec.compute_area_under_precision_recall_curve(
+                        points)
+
+                    new_outfile = Path(
+                        pr_output_dir, 
+                        algorithm.get_output_directory(),
+                        "auprc.txt") 
+
+                    new_outfile.parent.mkdir(parents=True, exist_ok=True)
+
+                    with new_outfile.open("w") as f: 
+                        f.write(str(auc))
+   
+
+    def calculate_and_plot_lineplot(
+            self, reconstruction_dir=Path(), evaluation_dir=Path(),
+            visualization_dir=Path()):
+        
+        # TODO:
+        # 1) Per pathway..
+        #   2) Per algorithm...
+        #      3) Per fold...
+        #      - Read in the AUPRC for each fold
+        #      - Place tue AUPRCs in bins according to the degree of the node 
+        #        (degree in the pathway, not the interactome)
+        #
+        #            
+        print("----------------------------------------------------")
+        print("Plotting Node Degree vs. AUPRC")
+        print("----------------------------------------------------")
+
+        # {(pathway,algorithm) : {degree:[AUPRC scores]}}
+        pathway_algorithm_map = {}
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = list(zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators))
+        
+        # Initialize the map with empty list
+        for pathway, _ in creator_pathway_pairs:
+            for algorithm in self.algorithms:
+                name = algorithm.get_descriptive_name()
+                pathway_algorithm_map[(pathway.name, name)] = {}
+
+        print("----------------------------------------------------")
+        print("First, read in AUPRCs")
+        print("----------------------------------------------------")
+
+        for pathway, fc in creator_pathway_pairs:
+            test_folds = fc.get_test_folds()
+            for algorithm in self.algorithms:
+                for i, fold in enumerate(test_folds):
+
+                    # fold[0] is set of test positives 
+                    degree = len(set(fold[0]))
+
+                    # Already-written AUPRC 
+                    auprc_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    auprc_file= Path(
+                        auprc_dir, 
+                        algorithm.get_output_directory(),
+                        "auprc.txt") 
+
+                    point = None
+
+                    with auprc_file.open('r') as f:
+                        line = next(f)
+                        point = float(line.strip())
+
+                    tup = (pathway.name, algorithm.get_descriptive_name())
+
+                    # {(pathway,algorithm) : {degree:[AUPRC scores]}}
+                    degree_list = pathway_algorithm_map[tup].get(degree, [])
+
+                    degree_list.append(point)
+
+                    pathway_algorithm_map[tup][degree] = degree_list
+
+        print("----------------------------------------------------")
+        print("Second, plot AUPRCs")
+        print("----------------------------------------------------")
+
+        for pathway, _ in creator_pathway_pairs:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                "AUPRC vs. Degree of Node Deleted (%s)" % pathway.name
+                + self.interactome.name + " "
+                + self.pathway_collection.name)
+
+            ax.set_xlabel("Degree of Node Deleted")
+            ax.set_xlim(auto=True)
+
+            ax.set_ylabel("AUPRC")
+
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "auc.png")
+
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "auc.pdf")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                alg_name = algorithm.get_descriptive_name()
+
+                tup = (pathway.name, alg_name)
+
+                x = sorted(list(pathway_algorithm_map[tup].keys()))
+
+                y = []  
+
+                stddev = []  
+
+                for key in x:
+                    # List of values associated with the degree (key)
+                    vals = pathway_algorithm_map[tup].get(key,[])
+                    y.append(sum(vals) / len(vals))
+                    stddev.append(np.std(vals))
+
+                print(x)
+                print(y)
+                print(stddev)
+                ax.errorbar(x, y, yerr=stddev,label=alg_name)
+
+            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+            fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+
+    def plot_results(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+        # If I plot in the above function (hackier but whatever) this
+        # function can do nothing
+        None
+
+
+
+
+
+
+
+
 
 
 class EdgeWithholdingEvaluator(AlgorithmEvaluator): 
@@ -2828,6 +3461,7 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
                 '''
+                '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
@@ -2854,8 +3488,14 @@ class Pipeline(object):
                         {"percent_nodes_to_keep": .4, 
                          "percent_edges_to_keep": .4,
                          "iterations": 5}))
-
                 '''
+                evaluators.append(
+                    SingleNodeDeletionEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms)) 
+
+                '''      
                 evaluators.append(
                     RemovalEvaluator(
                         interactome, 
