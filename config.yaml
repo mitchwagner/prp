@@ -138,9 +138,6 @@ input_settings:
         - name: "induced-subgraph"
           params: {}
 
-        - name: "affinity"
-          params: {}
-
         #- name: "reglinker"
         #  params:
         #    k: [500]
