@@ -9,7 +9,7 @@ import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
 
-class QuickLinkerERWR(RankingAlgorithm):
+class QuickLinkerRWR(RankingAlgorithm):
     '''
     Concatenates the results running QuickRegLinker with several
     regular expressions. Takes a list of of regexes. For example,
@@ -19,7 +19,7 @@ class QuickLinkerERWR(RankingAlgorithm):
     Written generally, so no constraints on the regular expressions or
     the order they are provided are enforced.
     
-    Ranks edges based on edge RWR weights instead of path lengths.
+    Ranks edges based on RWR weights instead of path lengths.
 
     '''
     def __init__(self, params):
@@ -54,92 +54,53 @@ class QuickLinkerERWR(RankingAlgorithm):
             reconstruction_input.label_interactome_file(
                 in_file, out_file, sets, default="x")
         # Read in the interactome
-        net = None
-        netCopy = None
-        with reconstruction_input.interactome.open('r') as f:
-            net = pl.readNetworkFile(f)
 
-        with reconstruction_input.interactome.open('r') as f:
-            netCopy = pl.readNetworkFile(f)
-
-        # Add dummy nodes for every node in the "head" of a p-labeled edge
-        TempNodes = set([])
-        for edge in provided_edges:
-            TempNodes.add(str(edge[0]+"_temp"))
-            netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
-
-        # Restart to newly added temporary nodes
-        #weights = {node:1 for node in TempNodes}
         weights = {} 
         for edge in provided_edges:
             # Default value of 0
-            weights[str(edge[0]+"_temp")] = weights.get(str(edge[0]+"_temp"), 0) + 1
+            weights[str(edge[0])] = 1
 
+        net = None
+        with reconstruction_input.interactome.open('r') as f:
+            net = pl.readNetworkFile(f)
 
         # Set a minimum edge weight
         for edge in net.edges(data=True):
             if edge[2]["weight"] == 0:
                 edge[2]["weight"] = sys.float_info.min
 
-        # Set a minimum edge weight
-        for edge in netCopy.edges(data=True):
-            if edge[2]["weight"] == 0:
-                edge[2]["weight"] = sys.float_info.min
-    
-        # 1) PageRank using weighted restart set
-        pagerank_scores_weighted = pr.pagerank(
-            netCopy, weights=weights, q=float(self.q))
+        pagerank_scores = pr.pagerank(net, weights=weights, q=float(self.q))
 
-        pl.calculateFluxEdgeWeights(netCopy, pagerank_scores_weighted)
-                
-        fluxes_weighted = {}
-        # Add edd fluxes computed from TempNodes to original head nodes
-        # If head is not in TempNodes, use normal ksp_weight
-        # If
-        for edge in netCopy.edges():
-            attr_dict=netCopy.get_edge_data(edge[0],edge[1])
-            if edge[0] in TempNodes:
-                attr_dict_original=netCopy.get_edge_data(edge[0][:-5],edge[1])
-                fluxes_weighted[(edge[0][:-5], edge[1])] = attr_dict_original["ksp_weight"]+attr_dict["ksp_weight"]
-            elif (edge[0],edge[1]) in provided_edges:
-                continue # This edge has already been added, do not overwrite it.
-            else:
-                fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
+        pl.calculateFluxEdgeWeights(net, pagerank_scores)
+
+        fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
+            for edge in net.edges(data=True)}
 
 
 
-
-        # Create new interactome file using RWER weights
-
-
+        
         new_labeled_interactome = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
             "new-labeled-interactome.txt")
 
-        with labeled_interactome.open('r') as f1,\
-             new_labeled_interactome.open('w') as f2:
-
-             for line in f1:
-                if not line.startswith('#'):
+        with labeled_interactome.open('w') as f2:
+            for line in f1:
+                if not line.startswith("#"):
                     toks = line.split("\t")
                     f2.write("\t".join([
                         toks[0],
                         toks[1],
                         str(fluxes_weighted[(toks[0], toks[1])]),
                         toks[3],
-                        toks[4]],
+                        toks[4]]
                         ))
 
 
 
 
 
-
-
-
-
-
+                
         #######################################################################
         # 2) Keep only the necessary columns
         cut_labeled_interactome = Path(
@@ -244,7 +205,7 @@ class QuickLinkerERWR(RankingAlgorithm):
             eWeights = [(
                 edge[0], 
                 edge[1], 
-                fluxes_weighted[(edge[0], edge[1])])
+                fluxes[(edge[0], edge[1])])
                 for edge in Edge_SPDict.keys()]
 
             # Sort the list of final scores 
@@ -279,11 +240,11 @@ class QuickLinkerERWR(RankingAlgorithm):
 
 
     def get_name(self):
-        return "QuickLinker + ERWR"
+        return "QuickLinker + RWR"
 
 
     def get_descriptive_name(self):
-        return "QuickLinker + ERWR, q=%s, rlcs=%s" % (self.q, self.rlc_abbr)
+        return "QuickLinker + RWR, q=%s, rlcs=%s" % (self.q, self.rlc_abbr)
 
 
     def get_output_file(self):

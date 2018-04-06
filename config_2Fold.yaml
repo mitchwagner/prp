@@ -1,0 +1,509 @@
+# Input Settings: initialize base input folder names, and interactomes,
+# pathway collections, and algorithms to run over
+input_settings:
+
+    # Base input directory
+    input_dir : "inputs"
+
+    # Technique used to create a pathway subnetwork. Via cross-validation,
+    # this technique will be applied to pathways, with the goal being
+    # to use the subnetwork to reconstruct the entire curated pathway.
+    #
+    # List of available techniques:
+    #   - "remove-edges-then-prune"
+    #   - "remove-nodes-then-prune"
+    #   - "remove nodes"
+    #   - "remove edges"
+    subnetwork_creation: "remove-edges" 
+
+    # Subdirectory of inputs that interactomes should be placed into 
+    interactome_dir: "interactomes"
+
+    # Subdirectory of inputs that pathway collections should be placed into
+    pathway_collection_dir: "interactions"
+
+    # Denotes a list of interactomes, each with the following parameters:
+    #   name: Name of the interactome. May be used in logging or other 
+    #       messages written during execution
+    #
+    #   filename: Filename of the interactome
+    #
+    #   path: Subdirectory of interactome_dir, specified by list of folders
+    #       along the path 
+    interactomes:
+        #- name: "pathlinker-signaling-children-reg-no-netpath-weighted"
+        #  filename: "pathlinker-signaling-children-reg-no-netpath-weighted.txt"
+        #  path: ["human"]
+
+        #- name: "pathlinker-signaling-children-reg-weighted"
+        #  filename: "pathlinker-signaling-children-reg-weighted.txt"
+        #  path: ["human"]
+
+        - name: "no-kegg-no-spike"
+          filename: "2018-02-28-human-ppi-weighted-cap0_75.txt"
+          path: ["human"]
+
+        #- name: "all-pathway-edges"
+        #  filename: "pathlinker-signaling-children-reg-weighted-all-netpath-edges.txt"
+        #  path: ["human"]
+
+        #- name: "string"
+        #  filename: "9606-final.txt"
+        #  path: ["human"]
+
+    # Denotes a list of pathway collections, each with the following 
+    # parameters:
+    #   name: Name of the interactome. May be used in logging or other 
+    #       messages written during execution
+    #
+    #   path: Subdirectory of pathway_collection_dir, where the node and edge
+    #       files corresponding to a pathway collection's pathways should be
+    #       placed
+    #
+    #   pathways: List of pathways in the collection. The name used here will
+    #       be used by the pipeline to identify corresponding pathway nodes and
+    #       edges files in the subdirectory specified above by the path
+    #       parameter. Specifically, the pipeline expects to find files
+    #       <name>-nodes.txt and <name>-edges.txt in that folder.
+    
+    pathway_collections:
+        - name: "netpath-s-t-pruned"
+          path: ["netpath-s-t-pruned", "pathways"]
+          pathways:
+            - "BDNF"
+            #- "EGFR1"
+            #- "IL1"
+            #- "IL2"
+            - "IL3"
+            #- "IL6"
+            #- "IL-7"
+            #- "KitReceptor"
+            #- "Leptin"
+            #- "Prolactin"
+            #- "RANKL"
+            #- "TCR"
+            #- "TGF_beta_Receptor"
+            #- "TNFalpha"
+            #- "Wnt"
+
+        #- name: "netpath"
+          #path: ["netpath", "pathways"]
+          #pathways:
+          #  - "BDNF"
+          #  - "EGFR1"
+          #  - "IL1"
+          #  - "IL2"
+          #  - "IL3"
+          #  - "IL6"
+          #  - "IL-7"
+          #  - "KitReceptor"
+          #  - "Leptin"
+          #  - "Prolactin"
+          #  - "RANKL"
+          #  - "TCR"
+          #  - "TGF_beta_Receptor"
+          #  - "TNFalpha"
+          #  - "Wnt"
+
+    # Denotes a list of algorithms to run. Each has the following parameters: 
+    #   name: Name of the algorithm. Must be recognized by the pipeline, see
+    #       code for acceptable values
+    #
+    #   <additional parameters>: any additional, algorithm-specific parameters 
+    #       should be specified in the map for a given algorithm
+    algorithms:
+        #- name: "pathlinker"
+        #  params:
+        #    k: [100]
+
+        #- name: "zerolinker"
+        #  params:
+        #    k: [1000]
+
+        #- name: "pcsf"
+        #  params:
+        #    omega: [0, 0.1, .1]
+        #    prize: [1, 3, 5, 7, 9]
+
+        #- name: "QRLMultiplyConcatEdgeRWR"
+        #  params: 
+        #    rlcs:
+                #- ["one-xv2", ["p*xp*"]]
+                #- ["1-3-xv2", ["p*xp*","p*xp*xp*","p*xp*xp*xp*"]]
+                #- ["one-x", ["p*xp*"]]
+        #        - ["one-x,two-xv2", ["p*xp*","p*xp*xp*"]]
+        #    q:
+        #        - .5
+
+
+        - name: "shortcuts-ss"
+          params:
+            k: [1000]
+            alpha: [1]
+                
+        - name: "ShortcutsRWER"
+          params:
+            k: [1000]
+            alpha: [1]
+            q: 
+                - .5
+        - name: "ShortcutsRWR"
+          params:
+            k: [1000]
+            alpha: [1]
+            q: 
+                - .5
+
+        - name: "induced-subgraph"
+          params: {}
+          
+        - name: "InducedRWER"
+          params: 
+            q:
+                - .5
+        - name: "InducedRWR"
+          params: 
+            q:
+                - .5
+
+        - name: "ZeroQuickLinkerLabelNegatives"
+          params: {}
+
+        - name: "QuickLinker"
+          params: 
+             rlcs:
+                 - ["one-x,two-x", ["p*xp*","p*xp*xp*"]]
+
+        - name: "QuickLinkerERWR"
+          params: 
+             rlcs:
+                 - ["one-x,two-x", ["p*xp*","p*xp*xp*"]]
+             q:
+                 - .5
+
+        - name: "QuickLinkerRWR"
+          params: 
+             rlcs:
+                 - ["one-x,two-x", ["p*xp*","p*xp*xp*"]]
+             q:
+                 - .5
+
+        #- name: "QRLMultiplyConcatOriginal"
+        #  params: 
+        #    rlcs:
+        #        #- ["one-xv2", ["p*xp*"]]
+        #        - ["one-x,two-xv2", ["p*xp*","p*xp*xp*"]]
+        #        #- ["one-x", ["p*xp*"]]
+        #        #- ["one-x,two-x", ["p*xp*","p*xp*xp*"]]
+
+        
+        #- name: "ZeroQuickLinkerLabelNegativesEdgeRWR"
+        #  params: 
+        #    q:
+        #        - .5
+                
+        #- name: "QRLMultiplyOriginal"
+        #  params: 
+        #    rlc:
+        #        - ["one-x", "p*xp*"]
+
+        #- name: "QRLMultiplyEdgeRWRFlux"
+        #  params: 
+        #    rlc:
+        #        - ["one-x", "p*xp*"]
+        #        - ["two-x", "p*xp*xp*"]
+        #    q:
+        #        - .5
+
+
+
+
+
+                
+        #- name: "affinity"
+        #  params: {}
+
+        #- name: "reglinker"
+        #  params:
+        #    k: [500]
+        #    rlc:
+        #        - ["start-p-one-n", "spp*np*s"]
+        #        - ["one-n", "sp*np*s"]
+        #        # At least 1 unknown edge, up to length 5 
+        #        - ["at-least-1-unknown-length-5", "n|np|pn|nn|npp|pnp|ppn|nnp|npn|pnn|nnn|nppp|pnpp|ppnp|pppn|nnpp|npnp|nppn|pnnp|pnpn|ppnn|nnnp|nnpn|npnn|pnnn|nnnn|npppp|pnppp|ppnpp|pppnp|ppppn|nnppp|npnpp|nppnp|npppn|pnnpp|pnpnp|pnppn|ppnnp|ppnpn|pppnn|nnnpp|nnpnp|nnppn|npnnp|npnpn|nppnn|pnnnp|pnnpn|pnpnn|ppnnn|nnnnp|nnnpn|nnpnn|npnnn|pnnnn|nnnnn"]
+
+        #        # Start with known edge, ues 0 or more known edges, use an
+        #        # unknown edge, and finish with 0 or more known edges
+        #        - ["at-least-1-known-one-unknown-some-known" ,"pp*np*"]
+
+        #        # At least one unknown edge, up to length 4
+        #        - ["1-unknown-length-4", "n|pn|ppn|pppn|ppnp|pnp|pnpp|np|npp|nppp"]
+
+        #        # At most two unknown edges (simpler), start or end with
+        #        # a known edge 
+        #        - ["at-most-2-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*"]
+
+       #        - ["at-most-2-unknown", "p*np*|p*np*np*"]
+
+       #        # At most three unknown edges, start or end with a known
+        #        # edge
+        #        - ["at-most-3-unknown-with-positive", "sp*s|spp*np*s|sp*npp*s|spp*np*np*s|sp*np*npp*s|spp*np*np*np*s|sp*np*np*npp*s"] 
+
+
+        #- name: "QRLMultiplyEdgeRWRFlux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        - ["two-n", "p*np*np*"]
+        #    q:
+        #        - .5
+
+        #- name: "GeneralizedInducedSubgraphEdgeRWRFlux"
+        #  params: 
+        #    q:
+        #        - .5
+
+        #- name: "InducedSubgraphRWRFlux"
+        #  params: 
+        #    q:
+        #        - .5
+
+        #- name: "inducedfluxweightededge"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #    q:
+        #        - .5
+
+
+        #- name: "qrlmultiplyaffinity"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        #- ["one-n-or-two", "p*np*|p*np*np*"]
+        #        - ["start-p-one-n", "pp*np*"]
+                #- ["two-n", "p*np*np*"]
+                #- ["any", "(p|n)*"]
+
+        #- name: "qrlpathsthroughfoldpositives"
+        #  params: 
+        #    rlc:
+        #        - ["one-n-or-x", "p*(n|x)p*"]
+        #        - ["one-x", "p*xp*"]
+
+        #- name: "qrlmultiplyuniformflux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        #- ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
+
+        #- name: "QRLEdgesViaEdgeRWRFlux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        - ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
+
+        #- name: "QRLEdgesViaRWRFlux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        #- ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
+
+        #- name: "QRLEdgesViaEdgeRWRFlux"
+        #  params: 
+        #    rlc:
+        #        #- ["one-n", "p*np*"]
+        #        - ["EdgeRWRRanked","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .5
+        #        #- .4
+        #        #- .5
+
+        #- name: "qrlpathsviainducedsubgraphflux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        - ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
+
+        #- name: "qrlpathsviaweightedsubgraphflux"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*np*"]
+        #        - ["any","(p|n)*"]
+        #    q:
+        #        #- .0
+        #        #- .1
+        #        #- .2
+        #        - .3
+        #        #- .4
+        #        #- .5
+
+#        - name: "quickreglinker"
+#          params: 
+#            rlc:
+#                - ["one-n", "p*np*"]
+#                - ["two-n", "p*np*np*"]
+                #- ["any","(p|n)*"]
+                #- ["start-p-one-n", "pp*np*"]
+                #- ["one-n-end-p", "p*npp*"]
+                # At least 1 unknown edge, up to length 5 
+        #        - ["at-least-1-unknown-length-5", "n|np|pn|nn|npp|pnp|ppn|nnp|npn|pnn|nnn|nppp|pnpp|ppnp|pppn|nnpp|npnp|nppn|pnnp|pnpn|ppnn|nnnp|nnpn|npnn|pnnn|nnnn|npppp|pnppp|ppnpp|pppnp|ppppn|nnppp|npnpp|nppnp|npppn|pnnpp|pnpnp|pnppn|ppnnp|ppnpn|pppnn|nnnpp|nnpnp|nnppn|npnnp|npnpn|nppnn|pnnnp|pnnpn|pnpnn|ppnnn|nnnnp|nnnpn|nnpnn|npnnn|pnnnn|nnnnn"]
+
+        #        # Start with known edge, ues 0 or more known edges, use an
+        #        # unknown edge, and finish with 0 or more known edges
+        #        - ["at-least-1-known-one-unknown-one-known" ,"pp*np*"]
+
+        #        # At least one unknown edge, up to length 4
+        #        - ["1-unknown-length-4", "n|pn|ppn|pppn|ppnp|pnp|pnpp|np|npp|nppp"]
+
+        #        # At most two unknown edges (simpler), start or end with
+        #        # a known edge 
+        #        - ["at-most-2-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*"]
+
+        #        # At most three unknown edges, start or end with a known
+        #        # edge
+        #        - ["at-most-3-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*|pp*np*np*np*|p*np*np*npp*"] 
+
+        #- name: "zeroquickreglinker"
+        #  params: 
+        #    rlc:
+        #        # At least 1 unknown edge, up to length 5 
+        #        - ["at-least-1-unknown-length-5", "n|np|pn|nn|npp|pnp|ppn|nnp|npn|pnn|nnn|nppp|pnpp|ppnp|pppn|nnpp|npnp|nppn|pnnp|pnpn|ppnn|nnnp|nnpn|npnn|pnnn|nnnn|npppp|pnppp|ppnpp|pppnp|ppppn|nnppp|npnpp|nppnp|npppn|pnnpp|pnpnp|pnppn|ppnnp|ppnpn|pppnn|nnnpp|nnpnp|nnppn|npnnp|npnpn|nppnn|pnnnp|pnnpn|pnpnn|ppnnn|nnnnp|nnnpn|nnpnn|npnnn|pnnnn|nnnnn"]
+
+        #        # Start with known edge, ues 0 or more known edges, use an
+        #        # unknown edge, and finish with 0 or more known edges
+        #        - ["at-least-1-known-one-unknown-one-known" ,"pp*np*"]
+
+        #        # At least one unknown edge, up to length 4
+        #        - ["1-unknown-length-4", "n|pn|ppn|pppn|ppnp|pnp|pnpp|np|npp|nppp"]
+
+        #        # At most two unknown edges (simpler), start or end with
+        #        # a known edge 
+        #        - ["at-most-2-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*"]
+
+        #        # At most three unknown edges, start or end with a known
+        #        # edge
+        #        - ["at-most-3-unknown-with-positive", "p*|pp*np*|p*npp*|pp*np*np*|p*np*npp*|pp*np*np*np*|p*np*np*npp*"] 
+
+        # TODO: the labeling has since changed. We should look though
+        # paths with ps and ts, not ps and fs
+        #- name: "quickreglinker-sanity"
+        #  params: 
+        #    rlc:
+        #        - ["one-n", "p*tp*"]
+        #        # At least 1 unknown edge, up to length 5 
+        #        - ["at-least-1-unknown-length-5", "f|fp|pf|ff|fpp|pfp|ppf|ffp|fpf|pff|fff|fppp|pfpp|ppfp|pppf|ffpp|fpfp|fppf|pffp|pfpf|ppff|fffp|ffpf|fpff|pfff|ffff|fpppp|pfppp|ppfpp|pppfp|ppppf|ffppp|fpfpp|fppfp|fpppf|pffpp|pfpfp|pfppf|ppffp|ppfpf|pppff|fffpp|ffpfp|ffppf|fpffp|fpfpf|fppff|pfffp|pffpf|pfpff|ppfff|ffffp|fffpf|ffpff|fpfff|pffff|fffff"]
+
+        #        # Start with known edge, ues 0 or more known edges, use an
+        #        # unknown edge, and finish with 0 or more known edges
+        #        - ["at-least-1-known-one-unknown-some-known" ,"pp*fp*"]
+
+        #        # At least one unknown edge, up to length 4
+        #        - ["1-unknown-length-4", "f|pf|ppf|pppf|ppfp|pfp|pfpp|fp|fpp|fppp"]
+
+        #        # At most two unknown edges (simpler), start or end with
+        #        # a known edge 
+        #        - ["at-most-2-unknown-with-positive", "p*|pp*fp*|p*fpp*|pp*fp*fp*|p*fp*fpp*"]
+
+        #        # At most three unknown edges, start or end with a known
+        #        # edge
+        #        - ["at-most-3-unknown-with-positive", "p*|pp*fp*|p*fpp*|pp*fp*fp*|p*fp*fpp*|pp*fp*fp*fp*|p*fp*fp*fpp*"] 
+
+        #- name: "QRLConcatEdgeRWR"
+        #  params:
+        #   rlcs:
+                #- ["12345-any", ["(p|1|2|3|4|5)*"]]
+                #- ["123-two", ["p*1p*1p*", "p*1p*2p*|p*2p*1p*", "p*2p*2p*", 
+                #               "p*1p*3p*", "p*3p*1p*", "p*2p*3p*", "p*3p*2p*", 
+                #               "p*3p*3p*"]]
+        #        - ["1-one-two-any", ["p*1p*","p*1p*1p*", (p|1)* ]]
+
+                #- ["123-one-two", ["p*1p*",  "p*1p*1p*", "p*2p*", 
+                #                   "p*1p*2p*|p*2p*1p*", "p*2p*2p*", "p*3p*",
+                #                   "p*1p*3p*|p*3p*1p*", "p*2p*3p*|p*3p*2p*", #"p*3p*3p*"]]
+                #- ["123-one-two-any", ["p*1p*",  "p*1p*1p*", "p*2p*", 
+                #                   "p*1p*2p*|p*2p*1p*", "p*2p*2p*", "p*3p*",
+                #                   "p*1p*3p*|p*3p*1p*", "p*2p*3p*|p*3p*2p*", "p*3p*3p*","(p|1|2|3)*"]]
+         #       - ["1234-one-two-any", ["p*1p*",  "p*1p*1p*", "(p|1)*","p*2p*", 
+         #                          "p*1p*2p*|p*2p*1p*", "p*2p*2p*", "(p|1|2)*","p*3p*",
+         #                          "p*1p*3p*|p*3p*1p*", "p*2p*3p*|p*3p*2p*", "p*3p*3p*","(p|1|2|3)*","(p|1|2|3|4)*"]]
+         #
+         #  num_bins:
+         #       - 1
+         #  q:
+         #       - .5
+
+        #- name: "shortcuts-ss"
+        #  params:
+        #    k: [1000]
+        #    alpha: [1.2]
+
+        #- name: "ShortcutsSSViaRWRFlux"
+        #  params:
+        #    k: [100]
+        #    alpha: [1.2]
+        #    q: 
+        #        - .5
+
+        #- name: "GeneralizedShortcutsSSViaRWRFlux"
+        #  params:
+        #    k: [500]
+        #    alpha: [1]
+        #    q: 
+        #        - .5
+
+
+# Output Settings: initialize base output folder names
+output_settings:
+
+    # Base output directory
+    output_dir: "outputs"
+
+    # Subdirectory of output_dir into which computed pathway-specific
+    # interactomes will be placed
+    pathway_specific_interactome_dir: "pathway-specific-interactomes"
+
+    # Subdirectory of output_dir into which computed pathway reconstructions
+    # will be placed
+    reconstruction_dir: "reconstructions"
+
+
+    # Subdirectory of output_dir into which computed precision/recall 
+    # curve data will be placed
+    precision_recall_dir: "precision-recall"
+
+
+    # Subdirectory of output_dir into which computed visualizations will
+    # be placed
+    visualization_dir: "visualizations"

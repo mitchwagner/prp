@@ -53,10 +53,14 @@ import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
 import src.algorithms.InducedSubgraph as InducedSubgraph
 import src.algorithms.GenInduced as GenInduced 
 import src.algorithms.GenInducedERWR as GenInducedERWR
-
+ 
+import src.algorithms.InducedRWER as InducedRWER
+import src.algorithms.InducedRWR as InducedRWR
 ## Shortcuts and generalized shortcuts
 import src.algorithms.ShortcutsSS as Shortcuts
-import src.algorithms.ShortcutsSSViaRWRFlux as ShortcutsSSViaRWRFlux
+import src.algorithms.ShortcutsRWER as ShortcutsRWER
+import src.algorithms.ShortcutsRWR as ShortcutsRWR
+
 import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
 import src.algorithms.GeneralizedShortcutsSSViaRWRFlux as GeneralizedShortcutsSSViaRWRFlux
 
@@ -67,6 +71,7 @@ import src.algorithms.ZeroQuickLinkerLabelNegatives as \
 ## Final version of QuickLinker
 import src.algorithms.QuickLinker as QuickLinker 
 import src.algorithms.QuickLinkerERWR as QuickLinkerERWR 
+import src.algorithms.QuickLinkerRWR as QuickLinkerRWR 
 
 # TODO: Explicit write-up of what our edge files and interactome files are
 
@@ -1553,8 +1558,8 @@ class EdgeWithholdingEvaluator(AlgorithmEvaluator):
             Path(evaluation_dir.parent, "visualization"))
 
 
-        #self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
-        #self.aggregate_pr_over_pathways(evaluation_dir)
+        self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+        self.aggregate_pr_over_pathways(evaluation_dir)
 
 
     # Create boxplots
@@ -3453,6 +3458,7 @@ class Pipeline(object):
         evaluators = []
         for interactome in self.input_settings.interactomes:
             for collection in self.input_settings.pathway_collections:
+            
                 '''
                 evaluators.append(
                     EdgeWithholdingEvaluator(
@@ -3460,8 +3466,6 @@ class Pipeline(object):
                         collection, 
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
-                '''
-                '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
@@ -3488,13 +3492,13 @@ class Pipeline(object):
                         {"percent_nodes_to_keep": .4, 
                          "percent_edges_to_keep": .4,
                          "iterations": 5}))
+
                 '''
                 evaluators.append(
                     SingleNodeDeletionEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms)) 
-
                 '''      
                 evaluators.append(
                     RemovalEvaluator(
@@ -4827,9 +4831,11 @@ RANKING_ALGORITHMS = {
     "induced-subgraph" : InducedSubgraph.InducedSubgraph,
     "GenInduced": GenInduced.GenInduced,
     "GenInducedERWR": GenInducedERWR.GenInducedERWR,
-
+    "InducedRWER": InducedRWER.InducedRWER,
+    "InducedRWR": InducedRWR.InducedRWR,
     "shortcuts-ss" : Shortcuts.ShortcutsSS,
-    "ShortcutsSSViaRWRFlux" : ShortcutsSSViaRWRFlux.ShortcutsSSViaRWRFlux,
+    "ShortcutsRWER" : ShortcutsRWER.ShortcutsRWER,
+    "ShortcutsRWR" : ShortcutsRWR.ShortcutsRWR,
     "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
     "GeneralizedShortcutsSSViaRWRFlux" : GeneralizedShortcutsSSViaRWRFlux.GeneralizedShortcutsSSViaRWRFlux,
 
@@ -4837,7 +4843,8 @@ RANKING_ALGORITHMS = {
         ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
     
     "QuickLinker":  QuickLinker.QuickLinker,
-    "QuickLinkerERWR":  QuickLinkerERWR.QuickLinkerERWR
+    "QuickLinkerERWR":  QuickLinkerERWR.QuickLinkerERWR,
+    "QuickLinkerRWR":  QuickLinkerRWR.QuickLinkerRWR
     }
 
 
