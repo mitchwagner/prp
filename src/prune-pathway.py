@@ -32,19 +32,38 @@ def write_pruned_pathway(
 
     edges = set(net.edges())
     nodes = set(net.nodes())
+
+    copy = net.copy()
     
     prune.remove_nodes_not_on_s_t_path(
-        net, sources, targets, method="reachability")
+        net, sources, targets, rm_ends=False, method="reachability")
 
-    new_edges = net.edges()
-    new_nodes = net.nodes()
+    prune.remove_nodes_not_on_s_t_path(
+        copy, sources, targets, rm_ends=True, method="reachability")
 
-    print(edges.difference(new_edges))
-    print(nodes.difference(new_nodes))
+    new_edges = set(net.edges())
+    new_nodes = set(net.nodes())
+    
+    new_edges2 = set(copy.edges())
+    new_nodes2 = set(copy.nodes())
 
-    write_pruned_nodes_file(net, old_nodes_file_handle, new_nodes_file_handle)
+    #print(edges.difference(copy))
+    #print(nodes.difference(copy))
+    
+    print("Extra edges deleted:")
+    print(new_edges.difference(new_edges2))
+    print("\nExtra nodes deleted:")
+    a = new_nodes.difference(new_nodes2)
 
-    write_pruned_edges_file(net, old_edges_file_handle, new_edges_file_handle)
+    for edge in a:
+        if edge in sources:
+            print("source", edge)
+        else:
+            print("target", edge)
+
+    write_pruned_nodes_file(copy, old_nodes_file_handle, new_nodes_file_handle)
+
+    write_pruned_edges_file(copy, old_edges_file_handle, new_edges_file_handle)
 
 
 def create_network_from_pathway_files(nodes_file_handle, edges_file_handle):
@@ -128,7 +147,7 @@ def main():
         Path(".."
             ,"inputs"
             ,"interactions"
-            ,"netpath-s-t-pruned"
+            ,"netpath-s-t-pruned-including-ends"
             ,"pathways"
             )
 
@@ -145,7 +164,7 @@ def main():
              new_node_file.open('w') as nnf, new_edge_file.open('w') as nef:
             
             write_pruned_pathway(onf, oef, nnf, nef)
-        print("-----------")
+        print("---------------------------------------------")
 
 if __name__ == "__main__":
     main()
