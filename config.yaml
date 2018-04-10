@@ -68,7 +68,7 @@ input_settings:
     #
     pathway_collections:
         - name: "netpath-s-t-pruned"
-          path: ["netpath-s-t-pruned", "pathways"]
+          path: ["netpath-s-t-pruned-updated-receptors", "pathways"]
           pathways:
             - "BDNF"
             - "EGFR1"
