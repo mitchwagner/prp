@@ -426,8 +426,8 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         if verbose:
             print(
                 "pathway\t"
-                "% nodes deleted\t"
-                "% edges deleted\t"
+                "frac nodes deleted\t"
+                "frac edges deleted\t"
                 "Starting node count\t"
                 "# nodes kept\t"
                 "# nodes deleted\t"
@@ -435,8 +435,10 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
                 "# edges after node removal\t"
                 "# p-labeled edges\t"
                 "# x-labeled edges\t"
-                "% p-labeled\t"
-                "% x-labeled\t")
+                "frac p-labeled\t"
+                "frac x-labeled\t"
+                "# nodes remaining (INCLUDES sources/targets)")
+
 
         for rand in rand_inits:
             # First, sort the nodes to make sure they are in the same order.
@@ -451,7 +453,38 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             nodes_to_keep = nodes[:num_to_keep]
             nodes_to_delete = nodes[num_to_keep:]
 
+            #######################################################
+            # New version
+            ######################################################
 
+            # Remove the nodes
+
+            # Create a temporary version of the pathway and remove edges
+            # not in the interactome
+            temp_net = get_net_from_pathway(pathway_obj)
+            remove_edges_not_in_interactome(
+                temp_net, pathway_obj, self.interactome)
+            
+            # Delete nodes from the temporary pathway
+            for node in nodes_to_delete:
+                temp_net.remove_node(node)
+
+            edge_count_after_node_deletion = len(temp_net.edges())
+
+            # s-t prune
+            sources = pathway_obj.get_receptors(data=False)
+            targets = pathway_obj.get_tfs(data=False)
+
+            prune.remove_nodes_not_on_s_t_path(
+                temp_net, sources, targets, rm_ends=True, 
+                method="reachability")
+
+            # Create a fold using the resulting lists of edges
+            train = temp_net.edges()
+            test = list(original_edges - set(train))
+            folds.append((train, test))
+
+            '''
             # Create a temporary version of the pathway and remove edges
             # not in the interactome
             temp_net = get_net_from_pathway(pathway_obj)
@@ -478,9 +511,9 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             train = temp_net.edges()
             test = list(original_edges - set(train))
             folds.append((train, test))
-
+            '''
             if verbose:
-                print("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f" % (
+                print("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f\t%d" % (
                     self.pathway.name,
                     self.percent_nodes,
                     self.percent_edges,
@@ -492,7 +525,8 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
                     len(train),
                     len(test),
                     len(train)/len(original_edges),
-                    len(test)/len(original_edges)))
+                    len(test)/len(original_edges),
+                    len(temp_net.nodes())))
 
         return folds
 
@@ -527,6 +561,22 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
 
         folds = []
 
+        if verbose:
+            print(
+                "(negatives) pathway\t"
+                "frac nodes deleted\t"
+                "frac edges deleted\t"
+                "Starting node count\t"
+                "# nodes kept\t"
+                "# nodes deleted\t"
+                "Starting edge count\t"
+                "# edges after node removal\t"
+                "# p-labeled edges\t"
+                "# x-labeled edges\t"
+                "frac p-labeled\t"
+                "frac x-labeled\t"
+                "# nodes remaining (INCLUDES sources/targets)")
+
         for rand in rand_inits:
             # First, sort the nodes to make sure they are in the same order.
             # Then, randomly shuffle them using a seed
@@ -551,6 +601,14 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             for node in nodes_to_delete:
                 temp_net.remove_node(node)
 
+            edge_count_after_node_deletion = len(temp_net.edges())
+
+            # Create a fold using the resulting lists of edges
+            train = temp_net.edges()
+            test = list(original_edges - set(train))
+            folds.append((train, test))
+            '''
+
             # Random deletion of pathway edges as well
             random.seed(0)
             train = list(temp_net.edges())
@@ -569,8 +627,24 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             #print("Original # Edges: %d" % len(original_edges))
             #print("    edges labeled 'p': %d" % len(train))
             #print("    edges labeled 'x': %d" % len(test))
+            '''
 
-        
+            if verbose:
+                print("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f\t%d" % (
+                    self.pathway.name,
+                    self.percent_nodes,
+                    self.percent_edges,
+                    len(nodes),
+                    len(nodes_to_keep),
+                    len(nodes_to_delete),
+                    len(original_edges),
+                    edge_count_after_node_deletion,
+                    len(train),
+                    len(test),
+                    len(train)/len(original_edges),
+                    len(test)/len(original_edges),
+                    len(temp_net.nodes())))
+
         return folds
         
         
@@ -904,11 +978,16 @@ class QEstimator(Evaluator):
                 if edge not in filtered_edges:
                     pathway_net.remove_edge(edge[0], edge[1])
                 else:
+                    '''
                     pathway_net[edge[0]][edge[1]]["weight"] = \
                         interactome_net[edge[0]][edge[1]]["weight"]
 
                     pathway_net[edge[0]][edge[1]]["ksp_weight"] = \
                         interactome_net[edge[0]][edge[1]]["weight"]
+                    '''
+                    pathway_net[edge[0]][edge[1]]["weight"] = 1 
+
+                    pathway_net[edge[0]][edge[1]]["ksp_weight"] = 1 
 
             training_folds = fc.get_training_folds()
             test_folds = fc.get_test_folds()
@@ -950,6 +1029,7 @@ class QEstimator(Evaluator):
                                 nx.shortest_path(pathway_net, source, target)
                         except:
                             print("Whoops, no path found! Skipping...")
+                            number_of_xs.append(99999999999)
                             continue
                             
                         '''
@@ -1283,7 +1363,7 @@ class AlgorithmEvaluator(Evaluator):
             + "    procedure: %s\n" % self.get_name())
 
         print("Running reconstructions...")
-        #self.run_reconstructions(reconstruction_dir)
+        self.run_reconstructions(reconstruction_dir)
         print("Finished running reconstructions!")
         
         print("Everything else is commented out!")
@@ -3214,7 +3294,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
-        
+
         self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
         self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
         self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
@@ -3563,16 +3643,14 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
                 '''
-                
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
-                        {"percent_nodes_to_keep": .6, 
-                         "percent_edges_to_keep": .6,
+                        {"percent_nodes_to_keep": .8, 
+                         "percent_edges_to_keep": 1,
                          "iterations": 10}))
-                
                 '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
@@ -3599,6 +3677,8 @@ class Pipeline(object):
                         interactome, 
                         collection, 
                         self.input_settings.algorithms)) 
+                '''
+                '''
                 # QEstimator for node + edge withholding
                 evaluators.append(
                     QEstimator(
@@ -3625,7 +3705,8 @@ class Pipeline(object):
                         {"percent_nodes_to_keep": .4, 
                          "percent_edges_to_keep": .4,
                          "iterations": 10}))
-                
+                '''
+                '''
                 # QEstimator for edge k-fold CV 
                 evaluators.append(
                     QEstimator(
@@ -3656,14 +3737,16 @@ class Pipeline(object):
                          "percent_edges_to_keep": .8,
                          "iterations": 10}))
                 '''
+
                 '''
+                #The percent of edges to keep shouldn't matter any more
                 evaluators.append(
                     RemovalEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .8, 
-                         "percent_edges_to_keep": .8,
+                         "percent_edges_to_keep": 1,
                          "iterations": 10}))
 
                 evaluators.append(
@@ -3672,7 +3755,7 @@ class Pipeline(object):
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .6, 
-                         "percent_edges_to_keep": .6,
+                         "percent_edges_to_keep": 1,
                          "iterations": 10}))
 
                 evaluators.append(
@@ -3681,7 +3764,7 @@ class Pipeline(object):
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .4, 
-                         "percent_edges_to_keep": .4,
+                         "percent_edges_to_keep": 1,
                          "iterations": 10}))
                 '''
 
