@@ -139,7 +139,7 @@ def main():
         Path(".."
             ,"inputs"
             ,"interactions"
-            ,"netpath"
+            ,"netpath-picr-updated-receptors"
             ,"pathways"
             )
 
@@ -147,7 +147,7 @@ def main():
         Path(".."
             ,"inputs"
             ,"interactions"
-            ,"netpath-s-t-pruned-including-ends"
+            ,"netpath-s-t-pruned-updated-receptors"
             ,"pathways"
             )
 
