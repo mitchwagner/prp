@@ -966,7 +966,7 @@ class QEstimator(Evaluator):
                         # TODO: Clean the above + variable names up. We are
                         # interested in the length of the path, not in the 
                         # number of x's.
-                        number_of_xs.append(len(path))
+                        number_of_xs.append(len(path) + 1)
 
             number_of_xs_per_pathway.append((pathway.name, number_of_xs)) 
         
@@ -2808,9 +2808,9 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             "AUPRC by Algorithm "
             + self.interactome.name + " "
             + self.pathway_collection.name + "\n"
-            + "Node Percent Kept: " + str(
+            + "Fraction Retained: Nodes = " + str(
                 self.options["percent_nodes_to_keep"]) + " "
-            + "Edge Percent Kept: " + str(
+            + ", Edges =  " + str(
                 self.options["percent_edges_to_keep"]) + " " 
             + "Iterations: " + str(
                 self.options["iterations"]))
@@ -2861,9 +2861,9 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 "AUPRC by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
                 + self.pathway_collection.name + "\n"
-                + "Node Percent Kept: " + str(
+                + "Fraction Retained: Nodes = " + str(
                     self.options["percent_nodes_to_keep"]) + " "
-                + "Edge Percent Kept: " + str(
+                + ", Edges =  " + str(
                     self.options["percent_edges_to_keep"]) + " " 
                 + "Iterations: " + str(
                     self.options["iterations"]))
