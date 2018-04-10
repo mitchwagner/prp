@@ -83,15 +83,15 @@ class QuickLinkerRWR(RankingAlgorithm):
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
             "new-labeled-interactome.txt")
-
-        with labeled_interactome.open('w') as f2:
+        with labeled_interactome.open('r') as f1,\
+             new_labeled_interactome.open('w') as f2:
             for line in f1:
                 if not line.startswith("#"):
                     toks = line.split("\t")
                     f2.write("\t".join([
                         toks[0],
                         toks[1],
-                        str(fluxes_weighted[(toks[0], toks[1])]),
+                        str(fluxes[(toks[0], toks[1])]),
                         toks[3],
                         toks[4]]
                         ))

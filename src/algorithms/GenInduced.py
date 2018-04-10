@@ -12,51 +12,16 @@ import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
 import src.external.utils.pathway.pathway_parse as pathway_parse
-
+from .GeneralizedSubgraphv2 import GeneralizedSubgraphv2 as egoSubgraph
 
 class GenInduced(RankingAlgorithm):
     '''
-    Put nodes incident on training edges in restart set, RWR, calculate edge
-    flux, then let edge's affinity be the flux on the edge.
-
-    Combine with Quick(Reg)Linker by finding paths using flux as edge weight,
-    or else multiplying QuickLinker scores by flux scores.
+    Computes Generalized Induced Subgraph.
     '''
 
     def __init__(self, params:Dict):
         self.q = 0
 
-
-    def egoSubgraph(self, G, PGraph, radius = 1):
-        '''
-        A modified version of ego graph. For a given subgraph PGraph,
-        adds nodes/edges from a directed graph G that are "radius" number of edges away.
-        The ego graph returns only "out" neighbors of a given node in G.
-        radius = 0 is the Induced Subgraph from G for the nodes in PGraph
-        Works correctly only for radius = 1 because of adding only the out neighbors.
-        ToDo: Extend it to work beyond radius 1 by computing it on G and G.reverse().
-        '''
-        ExtendedSubgraph = nx.compose(G.subgraph(list(PGraph.nodes())),PGraph)
-        i = 1
-        while (i<=radius):
-            i += 1
-            NodeList = ExtendedSubgraph.nodes()
-            for node in NodeList:
-                for pred in G.predecessors(node):
-                    edge_dict = G.get_edge_data(pred,node)
-                    #if edge_dict['label'] == 'x':
-                        #print(pred,node,G.get_edge_data(pred,node))
-                    ExtendedSubgraph.add_edge(pred,node,attr_dict=G.get_edge_data(pred,node))
-
-                for succ in G.successors(node):
-                    edge_dict = G.get_edge_data(node,succ)
-                    #if edge_dict['label'] == 'x':
-                    ExtendedSubgraph.add_edge(node,succ,attr_dict=G.get_edge_data(node,succ))
-
-                #print(nx.ego_graph(G, node, radius, undirected=True).edges())
-                #ExtendedSubgraph = nx.compose(ExtendedSubgraph, nx.ego_graph(G, node, radius, undirected=True))
-        print("Done generating egoSubgraph", radius)
-        return ExtendedSubgraph
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
@@ -103,13 +68,6 @@ class GenInduced(RankingAlgorithm):
         induced_subgraph = net.subgraph(nodes.union(sources,targets))
         #print(nodes.union(sources,targets), nodes, sources,targets)
         
-        #for edge in induced_subgraph
-        # TODO: Find better names for these
-        #multiplied = [(
-        #    edge[0], 
-        #    edge[1], 
-        #    3+fluxes_weighted[(edge[0], edge[1])])
-        #    for edge in induced_subgraph.edges()]
         multiplied = []
         seen_edges = set()
         for edge in induced_subgraph.edges():
@@ -118,29 +76,23 @@ class GenInduced(RankingAlgorithm):
             multiplied.append((edge[0], edge[1], 
             3+eData['weight']))
                               
-        egoSub = self.egoSubgraph(net,induced_subgraph, 1)
+        egoSub = egoSubgraph(net,induced_subgraph, 2)
         for edge in egoSub.edges():
             if edge not in seen_edges:
                 seen_edges.add((edge[0], edge[1]))
                 eData = net.get_edge_data(edge[0], edge[1])
+                print(eData,edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
                 2+eData['weight']))
 
-        egoSub = self.egoSubgraph(net,induced_subgraph, 2)
+        egoSub = egoSubgraph(net,induced_subgraph, 3)
         for edge in egoSub.edges():
             if edge not in seen_edges:
                 #seen_edges.add((edge[0], edge[1]))
                 eData = net.get_edge_data(edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
                 1+eData['weight']))
-        #egoSub = self.egoSubgraph(net,induced_subgraph, 3)
-        #for edge in egoSub.edges():
-        #    if edge not in seen_edges:
-        #        seen_edges.append((edge[0], edge[1]))
-        #        eData = net.get_edge_data(edge[0], edge[1])
-        #        multiplied.append((edge[0], edge[1], 
-        #        0+eData['weight']))
-                
+
         # Sort the list of final scores 
         multiplied_only = list(set([x[2] for x in multiplied]))
         multiplied_only.sort(reverse=True)
@@ -186,11 +138,11 @@ class GenInduced(RankingAlgorithm):
         None
 
     def get_name(self) -> str:
-        return "GenInduced"
+        return "Extended Subgraph"
 
 
     def get_descriptive_name(self) -> str:
-        return "Induced"
+        return "Extended Subgraph"
 
 
     def get_output_file(self) -> str:

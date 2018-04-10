@@ -67,24 +67,24 @@ input_settings:
     #       <name>-nodes.txt and <name>-edges.txt in that folder.
     
     pathway_collections:
-        - name: "netpath-s-t-pruned"
-          path: ["netpath-s-t-pruned", "pathways"]
+        - name: "netpath-s-t-pruned-including-ends"
+          path: ["netpath-s-t-pruned-including-ends", "pathways"]
           pathways:
             - "BDNF"
-            #- "EGFR1"
-            #- "IL1"
-            #- "IL2"
+            - "EGFR1"
+            - "IL1"
+            - "IL2"
             - "IL3"
-            #- "IL6"
-            #- "IL-7"
-            #- "KitReceptor"
-            #- "Leptin"
-            #- "Prolactin"
-            #- "RANKL"
-            #- "TCR"
-            #- "TGF_beta_Receptor"
-            #- "TNFalpha"
-            #- "Wnt"
+            - "IL6"
+            - "IL-7"
+            - "KitReceptor"
+            - "Leptin"
+            - "Prolactin"
+            - "RANKL"
+            - "TCR"
+            - "TGF_beta_Receptor"
+            - "TNFalpha"
+            - "Wnt"
 
         #- name: "netpath"
           #path: ["netpath", "pathways"]

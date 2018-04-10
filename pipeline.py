@@ -2355,11 +2355,11 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
         # TODO I messed up the flow of things here by plotting and 
         # evaluating in a single function. This is hard-coded to save time
-        #self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
-        #    Path(evaluation_dir.parent, "visualization"))
+        self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
+            Path(evaluation_dir.parent, "visualization"))
 
-        #self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
-        #    Path(evaluation_dir.parent, "visualization"))
+        self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
+            Path(evaluation_dir.parent, "visualization"))
 
         # WE TRUST YOU 
 
@@ -2791,39 +2791,6 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         ax.set_ylabel("Algorithm")
 
 
-        table_file = Path(
-            visualization_dir,
-            self.interactome.name,
-            self.pathway_collection.name,
-            self.get_output_prefix(),
-            "keep-%f-nodes-%f-edges-%d-iterations" % (
-                self.options["percent_nodes_to_keep"], 
-                self.options["percent_edges_to_keep"], 
-                self.options["iterations"]),
-            "wilcoxon.tsv")
-
-        with table_file.open('w') as f:
-            # Write header
-            f.write("Alg1\tAlg2\tMedian1\tMedian2\tp-val (Wilcoxon)\n")
-
-            # Write out matrix2 to the tsv, row by row
-            for i, algorithm in enumerate(self.algorithms):
-
-                for j, algorithm2 in enumerate(self.algorithms):
-                    name1 = algorithm.get_descriptive_name()
-                    name2 = algorithm2.get_descriptive_name()
-                
-                    median1 = matrix2[i][j][0]
-                    median2 = matrix2[i][j][1]
-                    p_val = matrix2[i][j][2]
-
-                    f.write("%s\t%s\t%.10f\t%.10f\t%.10f\n" % (
-                        name1,
-                        name2,
-                        median1,
-                        median2,
-                        p_val))
-
         vis_file_png = Path(
             visualization_dir,
             self.interactome.name,
@@ -2861,6 +2828,39 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         #ax.set_yticklabels(['']+labels)
         
         vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+        table_file = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "wilcoxon.tsv")
+
+        with table_file.open('w') as f:
+            # Write header
+            f.write("Alg1\tAlg2\tMedian1\tMedian2\tp-val (Wilcoxon)\n")
+
+            # Write out matrix2 to the tsv, row by row
+            for i, algorithm in enumerate(self.algorithms):
+
+                for j, algorithm2 in enumerate(self.algorithms):
+                    name1 = algorithm.get_descriptive_name()
+                    name2 = algorithm2.get_descriptive_name()
+                
+                    median1 = matrix2[i][j][0]
+                    median2 = matrix2[i][j][1]
+                    p_val = matrix2[i][j][2]
+
+                    f.write("%s\t%s\t%.10f\t%.10f\t%.10f\n" % (
+                        name1,
+                        name2,
+                        median1,
+                        median2,
+                        p_val))
 
         fig.savefig(str(vis_file_pdf), bbox_inches='tight')
         fig.savefig(str(vis_file_png), bbox_inches='tight')
@@ -3286,10 +3286,9 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
-        None
-        #self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
-        #self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
-        #self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
+        self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
+        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
+        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
 
 
     # TODO: Remove. We do not care about this anymore.
@@ -3635,16 +3634,14 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
                 '''
-                '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .8, 
-                         "percent_edges_to_keep": .8,
+                         "percent_edges_to_keep": 1,
                          "iterations": 10}))
-                '''
                 '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
@@ -3679,9 +3676,10 @@ class Pipeline(object):
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
-                        {"percent_nodes_to_keep": .8, 
-                         "percent_edges_to_keep": .8,
+                        {"percent_nodes_to_keep": .6, 
+                         "percent_edges_to_keep": .6,
                          "iterations": 10}))
+                
                 evaluators.append(
                     QEstimator(
                         interactome, 
@@ -3730,6 +3728,8 @@ class Pipeline(object):
                          "percent_edges_to_keep": .8,
                          "iterations": 10}))
                 '''
+
+                '''
                 #The percent of edges to keep shouldn't matter any more
                 evaluators.append(
                     RemovalEvaluator(
@@ -3757,6 +3757,7 @@ class Pipeline(object):
                         {"percent_nodes_to_keep": .4, 
                          "percent_edges_to_keep": 1,
                          "iterations": 10}))
+                '''
 
         return evaluators
 
