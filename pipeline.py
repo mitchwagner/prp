@@ -45,7 +45,7 @@ import src.external.utils.pathway.pathway_parse as pathway_parse
 
 # Algorithms run in the pipeline
 
-## Bookkeping/sanity checks 
+## Bookkeeping/sanity checks 
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
 import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
 
@@ -56,6 +56,7 @@ import src.algorithms.GenInducedERWR as GenInducedERWR
  
 import src.algorithms.InducedRWER as InducedRWER
 import src.algorithms.InducedRWR as InducedRWR
+
 ## Shortcuts and generalized shortcuts
 import src.algorithms.ShortcutsSS as Shortcuts
 import src.algorithms.ShortcutsRWER as ShortcutsRWER
@@ -406,7 +407,7 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         self.itr = options["iterations"]
 
 
-    def create_positive_folds(self):
+    def create_positive_folds(self, verbose=True):
         pathway_obj = self.pathway.get_pathway_obj()
 
         # Get the list of pathway nodes that are in the interactome
@@ -421,6 +422,21 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         rand_inits = range(self.itr)
 
         folds = []
+        
+        if verbose:
+            print(
+                "pathway\t"
+                "% nodes deleted\t"
+                "% edges deleted\t"
+                "Starting node count\t"
+                "# nodes kept\t"
+                "# nodes deleted\t"
+                "Starting edge count\t"
+                "# edges after node removal\t"
+                "# p-labeled edges\t"
+                "# x-labeled edges\t"
+                "% p-labeled\t"
+                "% x-labeled\t")
 
         for rand in rand_inits:
             # First, sort the nodes to make sure they are in the same order.
@@ -435,10 +451,6 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             nodes_to_keep = nodes[:num_to_keep]
             nodes_to_delete = nodes[num_to_keep:]
 
-            print("Original # of nodes: %d" % len(nodes))
-            print("    # positive nodes to keep: %d" % len(nodes_to_keep))
-            print("    # positive nodes to delete: %d" % len(nodes_to_delete))
-
 
             # Create a temporary version of the pathway and remove edges
             # not in the interactome
@@ -449,6 +461,8 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             # Delete nodes from the temporary pathway
             for node in nodes_to_delete:
                 temp_net.remove_node(node)
+
+            edge_count_after_node_deletion = len(temp_net.edges())
 
             # Random deletion of pathway edges as well
             random.seed(0)
@@ -464,16 +478,26 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             train = temp_net.edges()
             test = list(original_edges - set(train))
             folds.append((train, test))
-                
-            print("Original # of edges: %d" % len(original_edges))
-            print("    edges labeled 'p': %d" % len(train))
-            print("    edges labeled 'x': %d" % len(test))
-            print("<>")
+
+            if verbose:
+                print("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f" % (
+                    self.pathway.name,
+                    self.percent_nodes,
+                    self.percent_edges,
+                    len(nodes),
+                    len(nodes_to_keep),
+                    len(nodes_to_delete),
+                    len(original_edges),
+                    edge_count_after_node_deletion,
+                    len(train),
+                    len(test),
+                    len(train)/len(original_edges),
+                    len(test)/len(original_edges)))
 
         return folds
 
 
-    def create_negative_folds(self): 
+    def create_negative_folds(self, verbose=True): 
         interactome_net = None
 
         with self.interactome.path.open('r') as f:
@@ -561,13 +585,13 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         return Path(self.get_output_prefix(), "iteration-%d" % fold)
     
 
-    def get_training_folds(self):
+    def get_training_folds(self, verbose=True):
         '''
         Returns an iterator that returns tuples:
             (train_negatives, train_positives, fold_name)
         '''
-        positive_folds = self.create_positive_folds()
-        negative_folds = self.create_negative_folds()
+        positive_folds = self.create_positive_folds(verbose=verbose)
+        negative_folds = self.create_negative_folds(verbose=verbose)
 
         folds = []
 
@@ -579,13 +603,13 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         return folds
 
 
-    def get_test_folds(self):
+    def get_test_folds(self, verbose=True):
         '''
         Returns an iterator that returns tuples:
             (test_negatives, test_positives, fold_name)
         '''
-        positive_folds = self.create_positive_folds()
-        negative_folds = self.create_negative_folds()
+        positive_folds = self.create_positive_folds(verbose=verbose)
+        negative_folds = self.create_negative_folds(verbose=verbose)
 
         folds = []
 
@@ -833,9 +857,20 @@ class QEstimator(Evaluator):
             self.interactome, pathway, self.options)
 
         return fc
+
+
+    def get_edge_cv_folds(self, pathway):
+        '''
+        Create a fold creator for the provided pathway, given this
+        evaluation's specified interactome and pathway
+        '''
+        fc = EdgeWithholdingFoldCreator(
+            self.interactome, pathway, self.options)
+
+        return fc
    
 
-    def run(self, output_dir=Path()):
+    def run(self, output_dir=Path(), purge_results=False):
         # Read in the interactome
 
         interactome_net = None
@@ -843,25 +878,27 @@ class QEstimator(Evaluator):
         with self.interactome.path.open('r') as f:
             interactome_net = pl.readNetworkFile(f)
 
+        number_of_xs_per_pathway = []
+
         for pathway in self.pathway_collection.pathways:
-            # Get the set of folds...then we will need to do something for 
-            # each fold...
+            print("Pathway: %s" % pathway.name)
 
+            # Comment in the one we want!
             fc = self.get_node_withholding_folds(pathway)
+            #fc = self.get_edge_cv_folds(pathway)
 
-            # Make the pathway object
-            pathway_net = get_net_from_pathway(pathway_obj)
-
-            # Also make a pathway_obj for convenient access to sources/targets 
+            # Make a pathway_obj for convenient access to sources/targets 
             pathway_obj = pathway.get_pathway_obj()
 
-            sources = pathway_obj.get_receptors(data=False)
+            # Make a network from the pathway 
+            pathway_net = get_net_from_pathway(pathway_obj)
+
             targets = pathway_obj.get_tfs(data=False)
     
             # Remove edges from the pathway net if they are not in the
             # interactome. Also, give them weights from the interactome
             filtered_edges = get_filtered_pathway_edges(
-                pathway, self.interactome)
+                pathway_obj, self.interactome)
 
             for edge in pathway_net.edges():
                 if edge not in filtered_edges:
@@ -870,72 +907,91 @@ class QEstimator(Evaluator):
                     pathway_net[edge[0]][edge[1]]["weight"] = \
                         interactome_net[edge[0]][edge[1]]["weight"]
 
-            # Add a super source and a super target 
-            for s in sources:
-                pathway_net.add_edge('source', s, weight=1)
-                pathway_net.edge['source'][s]['ksp_weight'] = 0
-
-            for t in targets:
-                pathway_net.add_edge(t, 'sink', weight=1)
-                pathway_net.edge[t]['sink']['ksp_weight'] = 0
-
-            pl.logTransformEdgeWeights(pathway_net)
-            
-            # Get all the paths. They won't change if we don't change the
-            # interactome between runs. Setting K to a large # (100k)
-            paths = ksp.k_shortest_paths_yen(
-                pathway_net,
-                'source',
-                'sink',
-                100000,
-                weight='ksp_weight',
-                clip=False)
-            
-            # Finally, analyze path distribution. Need to keep track of this
-            # over folds. So, create a map.
-            x_occurences_map = {}
+                    pathway_net[edge[0]][edge[1]]["ksp_weight"] = \
+                        interactome_net[edge[0]][edge[1]]["weight"]
 
             training_folds = fc.get_training_folds()
             test_folds = fc.get_test_folds()
 
+            number_of_xs = []
+
+            # If I'm just looking at the shortest path between a node and a
+            # tf, then I can just use NetworkX...
+
             for i, _ in enumerate(training_folds):
+                print("Fold %d" % i)
+
                 # First, create a lookup map for quick determination of an
                 # edge's label
 
                 edge_label_map = {}
 
                 training_positives = training_folds[i][0]
-                test_positives = training_folds[i][0]
+                test_positives = test_folds[i][0]
+                
+                # List of sources == head nodes in training positives
+                # So, we'll make this simultaneously with the labeling
 
+                sources = []
+                
                 for edge in training_positives:
                     edge_label_map[edge] = 'p'
+                    sources.append(edge[1])
 
                 for edge in test_positives:
                     edge_label_map[edge] = 'x'
+                
+                for source in sources:
+                    for target in targets:
+                        x_count = 0
 
-                for k, path in enumerate(paths, 1):
-                    # Chop off the source/target
-                    realpath = path[1:-1]
-                    print(path)
-                    print(realpath)
-                    
-                    counter = 0
+                        try:
+                            path = \
+                                nx.shortest_path(pathway_net, source, target)
+                        except:
+                            print("Whoops, no path found! Skipping...")
+                            continue
+                            
+                        '''
+                        for i in range(len(path)-1):
+                            t = path[i]
+                            h = path[i+1]
+                            edge = (t, h)
+                            if edge_label_map[edge] == 'x':
+                                x_count += 1
 
-                    for i in range(len(realpath)-1):
-                        t = realpath[i][0]
-                        h = realpath[i+1][0]
+                        number_of_xs.append(x_count)
+                        '''
 
-                    # I'll need to make sure I reset the counter when I hit
-                    # a p and that I flush the counter at the end of things as 
-                    # well
+                        # TODO: Clean the above + variable names up. We are
+                        # interested in the length of the path, not in the 
+                        # number of x's.
+                        number_of_xs.append(len(path))
 
+            number_of_xs_per_pathway.append((pathway.name, number_of_xs)) 
+        
+        concatenated_list = []
+        for tup in number_of_xs_per_pathway:
+            name = tup[0]
+            ls = tup[1]
+            
+            print("Pathway: %s" % name)
+            avg = sum(ls)/len(ls)
+            print("    avg %f" % avg)
+            median = np.median(ls)
+            print("    median %f" % median)
+            std = np.std(ls)
+            print("    stddev %f" % std)
 
+            concatenated_list = concatenated_list + ls
 
-                # Suppose I get the following:
-                # 1x: 8
-                # 2x: 9
-                # 3x: 10
-                # On average then, we travel (8 + 18 + 30) / (8 + 9 + 10)
+        print("Overall:")
+        avg = sum(concatenated_list)/len(concatenated_list)
+        print("    avg %f" % avg)
+        median = np.median(concatenated_list)
+        print("    median %f" % median)
+        std = np.std(concatenated_list)
+        print("    stddev %f" % std)
 
 
 class RemovalEvaluator(Evaluator):
@@ -992,17 +1048,8 @@ class RemovalEvaluator(Evaluator):
         for pathway in self.pathway_collection.pathways:
             fc = self.get_node_withholding_folds(pathway)
 
-            print(
-                pathway.name, 
-                self.options["percent_nodes_to_keep"],
-                self.options["percent_edges_to_keep"])
-
-            print("-----------------------------------------------")
-            training_folds = fc.get_training_folds()
-            test_folds = fc.get_test_folds()
-            # Get the training folds
-            # Get the test folds
-            
+            training_folds = fc.get_training_folds(verbose=True)
+            test_folds = fc.get_test_folds(verbose=False)
 
 '''
 def pathway_edge_weight_histograms(self):
@@ -1236,7 +1283,7 @@ class AlgorithmEvaluator(Evaluator):
             + "    procedure: %s\n" % self.get_name())
 
         print("Running reconstructions...")
-        self.run_reconstructions(reconstruction_dir)
+        #self.run_reconstructions(reconstruction_dir)
         print("Finished running reconstructions!")
         
         print("Everything else is commented out!")
@@ -2596,6 +2643,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
         matrix = []
 
+        matrix2 = []
+
         alpha = .05
         correction = sp.special.comb(len(self.algorithms), 2)
 
@@ -2605,6 +2654,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         for i, algorithm1 in enumerate(self.algorithms):
             labels.append(algorithm1.get_descriptive_name())
             matrix.append([])
+            matrix2.append([])
 
             #print("------------------------------------------------------")
 
@@ -2614,6 +2664,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
                 if (name1 == name2):
                     matrix[i].append(0)
+                    matrix2[i].append((-1, -1, -1))
                     continue
 
                 alg1_list = algorithm_map[name1]
@@ -2627,6 +2678,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 median1 = np.median(alg1_list)
                 median2 = np.median(alg2_list)
 
+                matrix2[i].append((median1, median2, p_val))
+
                 # Greater and significant: green
                 # Lesser and significant: red
                 # Not significant: black
@@ -2639,7 +2692,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                 else:
                     matrix[i].append(0)
 
-
+        print(matrix)
+        print(matrix2)
         fig, ax = plt.subplots()
 
         ax.set_title(
@@ -2655,6 +2709,40 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
         ax.set_xlabel("Algorithm")
         ax.set_ylabel("Algorithm")
+
+
+        table_file = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "wilcoxon.tsv")
+
+        with table_file.open('w') as f:
+            # Write header
+            f.write("Alg1\tAlg2\tMedian1\tMedian2\tp-val (Wilcoxon)\n")
+
+            # Write out matrix2 to the tsv, row by row
+            for i, algorithm in enumerate(self.algorithms):
+
+                for j, algorithm2 in enumerate(self.algorithms):
+                    name1 = algorithm.get_descriptive_name()
+                    name2 = algorithm2.get_descriptive_name()
+                
+                    median1 = matrix2[i][j][0]
+                    median2 = matrix2[i][j][1]
+                    p_val = matrix2[i][j][2]
+
+                    f.write("%s\t%s\t%.10f\t%.10f\t%.10f\n" % (
+                        name1,
+                        name2,
+                        median1,
+                        median2,
+                        p_val))
 
         vis_file_png = Path(
             visualization_dir,
@@ -3466,6 +3554,8 @@ class Pipeline(object):
                         collection, 
                         self.input_settings.algorithms, 
                         {"num_folds":2}))
+                '''
+                '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
@@ -3473,8 +3563,9 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .8, 
                          "percent_edges_to_keep": .8,
-                         "iterations": 5}))
-
+                         "iterations": 10}))
+                '''
+                '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
@@ -3482,8 +3573,9 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .6, 
                          "percent_edges_to_keep": .6,
-                         "iterations": 5}))
-
+                         "iterations": 10}))
+                '''
+                '''
                 evaluators.append(
                     NodeEdgeWithholdingEvaluator(
                         interactome, 
@@ -3491,15 +3583,72 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .4, 
                          "percent_edges_to_keep": .4,
-                         "iterations": 5}))
-
+                         "iterations": 10}))
+                '''
                 '''
                 evaluators.append(
                     SingleNodeDeletionEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms)) 
-                '''      
+                '''
+                # QEstimator for node + edge withholding
+                evaluators.append(
+                    QEstimator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .8, 
+                         "percent_edges_to_keep": .8,
+                         "iterations": 10}))
+                evaluators.append(
+                    QEstimator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .6, 
+                         "percent_edges_to_keep": .6,
+                         "iterations": 10}))
+                evaluators.append(
+                    QEstimator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .4, 
+                         "percent_edges_to_keep": .4,
+                         "iterations": 10}))
+                '''
+                # QEstimator for edge k-fold CV 
+                evaluators.append(
+                    QEstimator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"num_folds": 2}))
+                evaluators.append(
+                    QEstimator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"num_folds": 3}))
+                evaluators.append(
+                    QEstimator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"num_folds": 5}))
+                '''
+                '''
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": .8, 
+                         "percent_edges_to_keep": .8,
+                         "iterations": 10}))
+                '''
+                '''
                 evaluators.append(
                     RemovalEvaluator(
                         interactome, 
@@ -3507,7 +3656,7 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .8, 
                          "percent_edges_to_keep": .8,
-                         "iterations": 5}))
+                         "iterations": 10}))
 
                 evaluators.append(
                     RemovalEvaluator(
@@ -3516,7 +3665,7 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .6, 
                          "percent_edges_to_keep": .6,
-                         "iterations": 5}))
+                         "iterations": 10}))
 
                 evaluators.append(
                     RemovalEvaluator(
@@ -3525,7 +3674,7 @@ class Pipeline(object):
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .4, 
                          "percent_edges_to_keep": .4,
-                         "iterations": 5}))
+                         "iterations": 10}))
                 '''
 
         return evaluators
