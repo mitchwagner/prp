@@ -2278,13 +2278,13 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
         self.calculate_and_plot_wilcoxon(reconstruction_dir, evaluation_dir,
             Path(evaluation_dir.parent, "visualization"))
 
-        #self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
-        #    Path(evaluation_dir.parent, "visualization"))
+        self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
+            Path(evaluation_dir.parent, "visualization"))
 
         # WE TRUST YOU 
 
-        #self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
-        #self.aggregate_pr_over_pathways(evaluation_dir)
+        self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+        self.aggregate_pr_over_pathways(evaluation_dir)
 
 
     def s_t_paths_analysis(
@@ -2436,9 +2436,17 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     # 10) Append list to overall list
                     rank_st_path_points.append(points)
                 # 11) Avg. across folds
-                AvgYs = [0]*max([len(x) for x in rank_st_path_points])
-                Counts =      [0]*max([len(x) for x in rank_st_path_points])
-                StddevList = [[] for i in range(max([len(x) for x in rank_st_path_points]))]
+                maxLen = max([len(x) for x in rank_st_path_points])
+                AvgYs = [0]*maxLen
+                Counts = [0]*maxLen
+                StddevList = [[] for i in range(maxLen)]
+                for x in rank_st_path_points:
+                    xLen =  len(x)
+                    lastElement = x[-1]
+                    
+                    for i in range(maxLen - xLen):
+                        x.append(lastElement)
+                
                 for i, ls in enumerate(rank_st_path_points):
 
                     for j in range(len(ls)):
@@ -3206,7 +3214,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
-        None
+        
         self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
         self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
         self.plot_pr_all_pathways(evaluation_dir, visualization_dir)

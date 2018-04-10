@@ -81,7 +81,7 @@ class GenInduced(RankingAlgorithm):
             if edge not in seen_edges:
                 seen_edges.add((edge[0], edge[1]))
                 eData = net.get_edge_data(edge[0], edge[1])
-                print(eData,edge[0], edge[1])
+                #print(eData,edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
                 2+eData['weight']))
 
