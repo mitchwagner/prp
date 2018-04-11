@@ -67,8 +67,8 @@ input_settings:
     #       <name>-nodes.txt and <name>-edges.txt in that folder.
     
     pathway_collections:
-        - name: "netpath-s-t-pruned-including-ends"
-          path: ["netpath-s-t-pruned-including-ends", "pathways"]
+        - name: "netpath-s-t-pruned-updated-receptors"
+          path: ["netpath-s-t-pruned-updated-receptors", "pathways"]
           pathways:
             - "BDNF"
             - "EGFR1"

@@ -2536,9 +2536,17 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
                     # 10) Append list to overall list
                     rank_st_path_points.append(points)
                 # 11) Avg. across folds
-                AvgYs = [0]*max([len(x) for x in rank_st_path_points])
-                Counts =      [0]*max([len(x) for x in rank_st_path_points])
-                StddevList = [[] for i in range(max([len(x) for x in rank_st_path_points]))]
+                maxLen = max([len(x) for x in rank_st_path_points])
+                AvgYs = [0]*maxLen
+                Counts = [0]*maxLen
+                StddevList = [[] for i in range(maxLen)]
+                for x in rank_st_path_points:
+                    xLen =  len(x)
+                    lastElement = x[-1]
+                    
+                    for i in range(maxLen - xLen):
+                        x.append(lastElement)
+                
                 for i, ls in enumerate(rank_st_path_points):
 
                     for j in range(len(ls)):
@@ -3302,6 +3310,7 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
 
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
+
         self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
         self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
         self.plot_pr_all_pathways(evaluation_dir, visualization_dir)

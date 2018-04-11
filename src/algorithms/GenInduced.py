@@ -25,6 +25,7 @@ class GenInduced(RankingAlgorithm):
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
+        negatives = reconstruction_input.training_negatives
 
         labeled_interactome = Path(
             self.get_full_output_directory(
@@ -45,8 +46,11 @@ class GenInduced(RankingAlgorithm):
         with reconstruction_input.interactome.open('r') as f:
             net = pl.readNetworkFile(f)
 
-            
-                
+        count  = 0
+        for edge in negatives:
+            count += 1
+            net.remove_edge(edge[0],edge[1])
+        print("Removed ", count, " negatives")
         # Create network object from the pathway 
         nodes_file = reconstruction_input.pathway_nodes_file
         edges_file = reconstruction_input.all_edges_file
@@ -81,7 +85,7 @@ class GenInduced(RankingAlgorithm):
             if edge not in seen_edges:
                 seen_edges.add((edge[0], edge[1]))
                 eData = net.get_edge_data(edge[0], edge[1])
-                print(eData,edge[0], edge[1])
+                #print(eData,edge[0], edge[1])
                 multiplied.append((edge[0], edge[1], 
                 2+eData['weight']))
 
