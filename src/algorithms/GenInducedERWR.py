@@ -31,7 +31,7 @@ class GenInducedERWR(RankingAlgorithm):
     def run(self, reconstruction_input: PathwayReconstructionInput):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
-
+        negatives = reconstruction_input.training_negatives
         # Read in the interactome
         net = None
         netCopy = None
@@ -106,6 +106,13 @@ class GenInducedERWR(RankingAlgorithm):
             nodes.add(edge[0])
             nodes.add(edge[1])
         
+        count  = 0
+        for edge in negatives:
+            count += 1
+            net.remove_edge(edge[0],edge[1])
+        print("Removed ", count, " negatives")
+
+
         induced_subgraph = net.subgraph(nodes.union(sources,targets))
         #print(nodes.union(sources,targets), nodes, sources,targets)
 
