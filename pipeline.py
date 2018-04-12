@@ -458,9 +458,10 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             # Partition the list
             nodes_to_keep = nodes[:num_to_keep]
             nodes_to_delete = nodes[num_to_keep:]
-            
+
+            """
             #######################################################
-            # New version
+            # Delete nodes only w/ or w/o s-t pruning 
             ######################################################
 
             # Remove the nodes
@@ -480,12 +481,10 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             # s-t prune
             sources = pathway_obj.get_receptors(data=False)
             targets = pathway_obj.get_tfs(data=False)
-            
-            '''
-            prune.remove_nodes_not_on_s_t_path(
-                temp_net, sources, targets, rm_ends=True, 
-                method="reachability")
-            '''
+
+            #prune.remove_nodes_not_on_s_t_path(
+            #    temp_net, sources, targets, rm_ends=True, 
+            #    method="reachability")
 
             # Create a fold using the resulting lists of edges
             train = temp_net.edges()
@@ -516,8 +515,12 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
                 print("We'll be skipping this one. No training edges.")
 
             cur_itr += 1
+            """
 
-            '''
+            ###################################################################
+
+            ''' 
+
             # Create a temporary version of the pathway and remove edges
             # not in the interactome
             temp_net = get_net_from_pathway(pathway_obj)
@@ -544,9 +547,97 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             train = temp_net.edges()
             test = list(original_edges - set(train))
             folds.append((train, test))
+
+            pathway_percent_list.append(len(train)/len(original_edges))
             '''
+            ###########################################################
+            ## Edge-deletion only analysis
+            ###########################################################
+
+            # lookup table of pathway/edge percent pairs
+
+            deletion_percent_map = {
+                ("BDNF",              .9): .75,
+                ("EGFR1",             .9): .74,
+                ("IL1",               .9): .75,
+                ("IL2",               .9): .80,
+                ("IL3",               .9): .75,
+                ("IL6",               .9): .74,
+                ("IL-7",              .9): .74,
+                ("KitReceptor",       .9): .78,
+                ("Leptin",            .9): .77,
+                ("Prolactin",         .9): .74,
+                ("RANKL",             .9): .74,
+                ("TCR",               .9): .72,
+                ("TGF_beta_Receptor", .9): .82,
+                ("TNFalpha",          .9): .77,
+                ("Wnt",               .9): .74,
+
+                ("BDNF",              .8): .54,
+                ("EGFR1",             .8): .54,
+                ("IL1",               .8): .52,
+                ("IL2",               .8): .58,
+                ("IL3",               .8): .50,
+                ("IL6",               .8): .56,
+                ("IL-7",              .8): .56,
+                ("KitReceptor",       .8): .56,
+                ("Leptin",            .8): .54,
+                ("Prolactin",         .8): .53,
+                ("RANKL",             .8): .53,
+                ("TCR",               .8): .52,
+                ("TGF_beta_Receptor", .8): .68,
+                ("TNFalpha",          .8): .59,
+                ("Wnt",               .8): .57,
+
+                ("BDNF",              .7): .40,
+                ("EGFR1",             .7): .36,
+                ("IL1",               .7): .35,
+                ("IL2",               .7): .44,
+                ("IL3",               .7): .37,
+                ("IL6",               .7): .42,
+                ("IL-7",              .7): .41,
+                ("KitReceptor",       .7): .42,
+                ("Leptin",            .7): .42,
+                ("Prolactin",         .7): .38,
+                ("RANKL",             .7): .35,
+                ("TCR",               .7): .37,
+                ("TGF_beta_Receptor", .7): .54,
+                ("TNFalpha",          .7): .42,
+                ("Wnt",               .7): .40,
+            }
+
+            cur_itr += 1
+
+            # Create a temporary version of the pathway and remove edges
+            # not in the interactome
+            temp_net = get_net_from_pathway(pathway_obj)
+            remove_edges_not_in_interactome(
+                temp_net, pathway_obj, self.interactome)
+            
+            # Random deletion of pathway edges
+            random.seed(0)
+            train = list(temp_net.edges())
+            train.sort(key=lambda edge: (edge[0], edge[1]))
+
+            edge_percentage = deletion_percent_map[(self.pathway.name, self.percent_edges)]
+
+            for edge in train:
+                toss = random.uniform(0, 1)
+                if toss > edge_percentage:
+                    temp_net.remove_edge(edge[0], edge[1])
+           
+            # Create a fold using the resulting lists of edges
+            train = temp_net.edges()
+            test = list(original_edges - set(train))
+            folds.append((train, test))
+
+            pathway_percent_list.append(len(train)/len(original_edges))
+
+            ###########################################################
+
         if (verbose): 
             print("Avg:", sum(pathway_percent_list)/len(pathway_percent_list))
+            print("Std:", np.std(pathway_percent_list))
             print("Min:", min(pathway_percent_list))
             print("Max:", max(pathway_percent_list))
 
@@ -578,7 +669,6 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
         nodes = interactome_net.nodes()
         original_edges = set(interactome_net.edges())
 
-
         rand_inits = range(self.itr)
 
         folds = []
@@ -599,8 +689,10 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
                 "frac x-labeled\t"
                 "# nodes remaining (INCLUDES sources/targets)")
 
+        pathway_percent_list = []
 
         for rand in rand_inits:
+            """
             # First, sort the nodes to make sure they are in the same order.
             # Then, randomly shuffle them using a seed
             nodes.sort()
@@ -626,12 +718,13 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
 
             edge_count_after_node_deletion = len(temp_net.edges())
 
+            '''
             # Create a fold using the resulting lists of edges
             train = temp_net.edges()
             test = list(original_edges - set(train))
             folds.append((train, test))
-
             '''
+
             # Random deletion of pathway edges as well
             random.seed(0)
             train = list(temp_net.edges())
@@ -650,8 +743,8 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
             #print("Original # Edges: %d" % len(original_edges))
             #print("    edges labeled 'p': %d" % len(train))
             #print("    edges labeled 'x': %d" % len(test))
-            '''
 
+            pathway_percent_list.append(len(train)/len(original_edges))
             if verbose:
                 print("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f\t%d" % (
                     self.pathway.name,
@@ -667,6 +760,123 @@ class NodeEdgeWithholdingFoldCreator(FoldCreator):
                     len(train)/len(original_edges),
                     len(test)/len(original_edges),
                     len(temp_net.nodes())))
+            """
+            ##################################################################
+            # Edge deletion only analysis
+            #################################################################
+
+            # lookup table of pathway/edge percent pairs
+
+            deletion_percent_map = {
+                ("BDNF",              .9): .73,
+                ("EGFR1",             .9): .73,
+                ("IL1",               .9): .72,
+                ("IL2",               .9): .73,
+                ("IL3",               .9): .73,
+                ("IL6",               .9): .73,
+                ("IL-7",              .9): .73,
+                ("KitReceptor",       .9): .73,
+                ("Leptin",            .9): .73,
+                ("Prolactin",         .9): .73,
+                ("RANKL",             .9): .73,
+                ("TCR",               .9): .73,
+                ("TGF_beta_Receptor", .9): .73,
+                ("TNFalpha",          .9): .73,
+                ("Wnt",               .9): .73,
+
+                ("BDNF",              .8): .51,
+                ("EGFR1",             .8): .51,
+                ("IL1",               .8): .51,
+                ("IL2",               .8): .51,
+                ("IL3",               .8): .51,
+                ("IL6",               .8): .51,
+                ("IL-7",              .8): .51,
+                ("KitReceptor",       .8): .51,
+                ("Leptin",            .8): .51,
+                ("Prolactin",         .8): .51,
+                ("RANKL",             .8): .52,
+                ("TCR",               .8): .51,
+                ("TGF_beta_Receptor", .8): .51,
+                ("TNFalpha",          .8): .52,
+                ("Wnt",               .8): .51,
+
+                ("BDNF",              .7): .35,
+                ("EGFR1",             .7): .34,
+                ("IL1",               .7): .34,
+                ("IL2",               .7): .34,
+                ("IL3",               .7): .34,
+                ("IL6",               .7): .34,
+                ("IL-7",              .7): .34,
+                ("KitReceptor",       .7): .34,
+                ("Leptin",            .7): .34,
+                ("Prolactin",         .7): .34,
+                ("RANKL",             .7): .34,
+                ("TCR",               .7): .34,
+                ("TGF_beta_Receptor", .7): .34,
+                ("TNFalpha",          .7): .34,
+                ("Wnt",               .7): .34,
+            }
+
+            # First, sort the nodes to make sure they are in the same order.
+            # Then, randomly shuffle them using a seed
+            nodes.sort()
+            random.Random(rand).shuffle(nodes)
+
+            # Get the number of nodes to keep
+            num_to_keep = int(self.percent_nodes * len(nodes))
+            
+            # Partition the list
+            nodes_to_keep = nodes[:num_to_keep]
+            nodes_to_delete = nodes[num_to_keep:]
+
+            # Create a temporary copy of the interactome for convenience
+            temp_net = interactome_net.copy()
+
+            # Delete nodes from the temporary interactome
+            for node in nodes_to_delete:
+                temp_net.remove_node(node)
+
+            edge_count_after_node_deletion = len(temp_net.edges())
+
+            edge_percentage = deletion_percent_map[(self.pathway.name, self.percent_edges)]
+
+            # Random deletion of pathway edges as well
+            random.seed(0)
+            train = list(temp_net.edges())
+            train.sort(key=lambda edge: (edge[0], edge[1]))
+
+            for edge in train:
+                toss = random.uniform(0, 1)
+                if toss > edge_percentage:
+                    temp_net.remove_edge(edge[0], edge[1])
+
+            # Create a fold using the resulting lists of edges
+            train = temp_net.edges()
+            test = list(original_edges - set(train))
+            folds.append((train, test))
+                
+            pathway_percent_list.append(len(train)/len(original_edges))
+            if verbose:
+                print("%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%f\t%f\t%d" % (
+                    self.pathway.name,
+                    self.percent_nodes,
+                    self.percent_edges,
+                    len(nodes),
+                    len(nodes_to_keep),
+                    len(nodes_to_delete),
+                    len(original_edges),
+                    edge_count_after_node_deletion,
+                    len(train),
+                    len(test),
+                    len(train)/len(original_edges),
+                    len(test)/len(original_edges),
+                    len(temp_net.nodes())))
+
+        if (verbose): 
+            print("Avg:", sum(pathway_percent_list)/len(pathway_percent_list))
+            print("Std:", np.std(pathway_percent_list))
+            print("Min:", min(pathway_percent_list))
+            print("Max:", max(pathway_percent_list))
 
         return folds
         
@@ -3620,9 +3830,8 @@ class NodeEdgeWithholdingEvaluator(AlgorithmEvaluator):
             fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
                 bbox_inches='tight')
 
-
     def get_output_prefix(self):
-        return Path("node-witholding-only")
+        return Path("edge-witholding-only")
 
 
 class Pipeline(object):
@@ -3650,7 +3859,35 @@ class Pipeline(object):
         evaluators = []
         for interactome in self.input_settings.interactomes:
             for collection in self.input_settings.pathway_collections:
-            
+                # TODO TODO TODO THIS SET IS ONLY FOR EDGE_ONLY DELETION
+                '''
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep": 1,
+                         "percent_edges_to_keep": .9,
+                         "iterations": 10}))
+                '''
+                '''
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": 1, 
+                         "percent_edges_to_keep": .8,
+                         "iterations": 10}))
+                '''
+                evaluators.append(
+                    NodeEdgeWithholdingEvaluator(
+                        interactome, 
+                        collection, 
+                        self.input_settings.algorithms, 
+                        {"percent_nodes_to_keep": 1, 
+                         "percent_edges_to_keep": .7,
+                         "iterations": 10}))
                 '''
                 evaluators.append(
                     EdgeWithholdingEvaluator(
@@ -3763,25 +4000,23 @@ class Pipeline(object):
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .9, 
-                         "percent_edges_to_keep": 1,
+                         "percent_edges_to_keep": .9,
                          "iterations": 10}))
-
                 evaluators.append(
                     RemovalEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .8, 
-                         "percent_edges_to_keep": 1,
+                         "percent_edges_to_keep": .8,
                          "iterations": 10}))
-
                 evaluators.append(
                     RemovalEvaluator(
                         interactome, 
                         collection, 
                         self.input_settings.algorithms, 
                         {"percent_nodes_to_keep": .7, 
-                         "percent_edges_to_keep": 1,
+                         "percent_edges_to_keep": .7,
                          "iterations": 10}))
                 '''
 
