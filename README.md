@@ -37,7 +37,7 @@ file.
 
 ## Inputs
 
-- *Interactomes*: stored as edge lists, as consructed from CSBDB.
+- *Interactomes*: stored as edge lists, as constructed from CSBDB.
 
 - *Pathways*: stored as node and edge lists:
     - \<pathway-name>-nodes.txt
