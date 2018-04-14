@@ -3,6 +3,11 @@
 
 git submodule update --init --recursive
 
+# Build gradle after downloading QuickLinker
+gradle build -p src/external/quicklinker/
+
+# TODO: Pypy!
+
 ###############################################################################
 # Create Python virtual environment for the pipeline
 
