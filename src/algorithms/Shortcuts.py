@@ -77,11 +77,11 @@ class ShortcutsSS(RankingAlgorithm):
 
 
     def get_name(self):
-        return "shortcuts"
+        return "Shortcuts"
 
 
     def get_descriptive_name(self):
-        return "shortcuts-ss, k=%d, alpha=%f" % (self.k, self.alpha)
+        return "Shortcuts, k=%d, alpha=%f" % (self.k, self.alpha)
 
 
     def get_output_file(self):
