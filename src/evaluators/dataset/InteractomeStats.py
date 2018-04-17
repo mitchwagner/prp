@@ -52,7 +52,7 @@ class InteractomeStats(Evaluator):
 
     def init_edge_weight_figure(self):
         fig, ax = plt.subplots()
-        ax.set_title("Interactome edge distribution")
+        ax.set_title("Interactome Edge Weight Distribution")
         ax.set_xlabel("Edge weight (bin size = .05)")
         ax.set_ylabel("# of edges in bin")
 
