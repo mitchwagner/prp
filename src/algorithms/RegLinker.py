@@ -194,11 +194,11 @@ class QuickLinker(RankingAlgorithm):
 
 
     def get_name(self):
-        return "QuickLinker"
+        return "RegLinker"
 
 
     def get_descriptive_name(self):
-        return "QuickLinker, rlcs=%s" % (self.rlc_abbr)
+        return "RegLinker, rlcs=%s" % (self.rlc_abbr)
 
 
     def get_output_file(self):

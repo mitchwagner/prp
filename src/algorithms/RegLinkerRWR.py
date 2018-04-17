@@ -240,11 +240,11 @@ class QuickLinkerRWR(RankingAlgorithm):
 
 
     def get_name(self):
-        return "QuickLinker + RWR"
+        return "RegLinker + RWR"
 
 
     def get_descriptive_name(self):
-        return "QuickLinker + RWR, q=%s, rlcs=%s" % (self.q, self.rlc_abbr)
+        return "RegLinker + RWR, q=%s, rlcs=%s" % (self.q, self.rlc_abbr)
 
 
     def get_output_file(self):
