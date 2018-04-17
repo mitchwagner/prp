@@ -23,6 +23,15 @@ import concurrent.futures
 # Local imports
 import src.external.utils.pathway.pathway_parse as pathway_parse
 
+# Evaluators
+from src.evaluators.fold_stats.NodeEdgeRemovalEvaluator \
+    import NodeEdgeRemovalEvaluator
+
+from src.evaluators.dataset.InteractomeStats import InteractomeStats
+
+from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
+    import NodeAndEdgeWithholdingEvaluator
+
 # Algorithms run in the pipeline
 
 ## Bookkeeping/sanity checks 
@@ -80,10 +89,33 @@ class Pipeline(object):
         '''
         evaluators = []
         for interactome in self.input_settings.interactomes:
+            
+            evaluators.append(InteractomeStats(interactome))
+
             for collection in self.input_settings.pathway_collections:
                 # TODO: It would be wonderful to be able to specify these
                 # from the config file as well
-                None
+
+                # TODO: I need to separate each removal evaluation, e.g.,
+                # KFold should not be run with NodeEdge b/c they require 
+                # different parameters
+                '''
+                evaluators.append(
+                    NodeEdgeRemovalEvaluator(
+                        interactome,
+                        collection,
+                        {"percent_nodes_to_keep":.7,
+                         "percent_edges_to_keep":.7,
+                         "iterations": 10}))
+                '''
+                evaluators.append(
+                    NodeAndEdgeWithholdingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.7,
+                         "percent_edges_to_keep":.7,
+                         "iterations": 10}))
 
         return evaluators
 
@@ -226,35 +258,12 @@ class OutputSettings(object):
     be written to
     '''
 
-    def __init__(self, base_dir, reconstruction_dir, evaluation_dir, vis_dir):
-            
+    def __init__(self, base_dir):
         self.base_dir = base_dir
-
-        self.reconstruction_dir = reconstruction_dir 
-
-        self.evaluation_dir = evaluation_dir
-
-        self.vis_dir = vis_dir
 
 
     def __append_base_dir(self, directory_name):
         return Path(self.base_dir, directory_name)
-
-
-    def get_cross_validation_folds_dir(self):
-        return self.__append_base_dir("cross-validation-folds") 
-
-
-    def get_reconstruction_dir(self):
-        return self.__append_base_dir(self.reconstruction_dir)
-
-
-    def get_evaluation_dir(self):
-        return self.__append_base_dir(self.evaluation_dir)
-
-
-    def get_visualization_dir(self):
-        return self.__append_base_dir(self.vis_dir)
 
 
 class ConfigParser(object):
@@ -335,15 +344,7 @@ class ConfigParser(object):
     @staticmethod 
     def __parse_output_settings(output_settings_map):
         output_dir = output_settings_map["output_dir"]
-
-        reconstruction_dir = output_settings_map["reconstruction_dir"]
-
-        evaluation_dir = output_settings_map["evaluation_dir"]
-
-        visualization_dir = output_settings_map["visualization_dir"]
-
-        return OutputSettings(output_dir, reconstruction_dir, 
-            evaluation_dir, visualization_dir)
+        return OutputSettings(output_dir) 
         
 
 RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
