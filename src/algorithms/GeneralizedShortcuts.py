@@ -47,22 +47,6 @@ class GeneralizedShortcuts(RankingAlgorithm):
             ])
 
 
-    def get_interpolator(self, 
-            old_min: float, old_max: float, new_min: float, new_max: float):
-        '''
-        Return an interpolation closure
-        '''
-
-        def interpolator(val):
-            a = (val - old_min) / (old_max - old_min)
-            b = (new_max - new_min)
-            c = a * b + new_min
-
-            return c
-
-        return interpolator 
-         
-
     def conform_output(self, output_dir):
         outfile = Path(output_dir, 
                        self.get_output_directory(),

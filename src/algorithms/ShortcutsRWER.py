@@ -107,17 +107,6 @@ class ShortcutsRWER(RankingAlgorithm):
         #difference = {edge:fluxes_weighted[edge] 
         #    for edge in [(edge[0], edge[1]) for edge in fluxes.keys()]}
 
-        # Map to new range of 0-.75 
-
-        #old_min = sorted(difference.values())[0]
-        #old_max = sorted(difference.values())[-1]
-        #new_min = 0 
-        #new_max = .75
-
-        #fn = self.get_interpolator(old_min, old_max, new_min, new_max)
-
-        #difference = {x:fn(difference[x]) for x in difference.keys()}
-
         # 5) Write out new labeled interactome where we have replaced the
         #    weight with the new edge flux
 
@@ -154,6 +143,7 @@ class ShortcutsRWER(RankingAlgorithm):
                 str(new_labeled_interactome)],
                 stdout=outfile
                 )
+
         # 6) Run Shortcuts on the resulting interactome
 
         #######################################################################
@@ -172,22 +162,6 @@ class ShortcutsRWER(RankingAlgorithm):
             str(reconstruction_input.pathway_nodes_file)
             ])
 
-
-    def get_interpolator(self, 
-            old_min: float, old_max: float, new_min: float, new_max: float):
-        '''
-        Return an interpolation closure
-        '''
-
-        def interpolator(val):
-            a = (val - old_min) / (old_max - old_min)
-            b = (new_max - new_min)
-            c = a * b + new_min
-
-            return c
-
-        return interpolator 
-         
 
     def conform_output(self, output_dir):
         outfile = Path(output_dir, 
