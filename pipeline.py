@@ -24,13 +24,29 @@ import concurrent.futures
 import src.external.utils.pathway.pathway_parse as pathway_parse
 
 # Evaluators
+
+# Dataset Evaluators
+from src.evaluators.dataset.InteractomeStats import InteractomeStats
+from src.evaluators.dataset.PathwayStats import PathwayStats
+
+# Fold Creator Evaluators
 from src.evaluators.fold_stats.NodeEdgeRemovalEvaluator \
     import NodeEdgeRemovalEvaluator
 
-from src.evaluators.dataset.InteractomeStats import InteractomeStats
+from src.evaluators.fold_stats.EdgeKFoldRemovalEvaluator \
+    import EdgeKFoldRemovalEvaluator 
 
+# AlgorithmEvaluators
 from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
     import NodeAndEdgeWithholdingEvaluator
+
+from src.evaluators.reconstruction.EdgeKFoldEvaluator \
+    import EdgeKFoldEvaluator
+
+# RWR "q" Estimators 
+from src.evaluators.qestimator.NodeEdgeQEstimator import NodeEdgeQEstimator
+from src.evaluators.qestimator.EdgeKFoldQEstimator import EdgeKFoldQEstimator 
+
 
 # Algorithms run in the pipeline
 
@@ -47,21 +63,21 @@ import src.algorithms.InducedRWER as InducedRWER
 import src.algorithms.InducedRWR as InducedRWR
 
 ## Shortcuts and generalized shortcuts
-import src.algorithms.ShortcutsSS as Shortcuts
+import src.algorithms.Shortcuts as Shortcuts
 import src.algorithms.ShortcutsRWER as ShortcutsRWER
 import src.algorithms.ShortcutsRWR as ShortcutsRWR
 
 import src.algorithms.GeneralizedShortcuts as GeneralizedShortcuts 
-import src.algorithms.GeneralizedShortcutsSSViaRWRFlux as GeneralizedShortcutsSSViaRWRFlux
+import src.algorithms.GeneralizedShortcutsRWER as GeneralizedShortcutsRWER 
 
 ## ZeroQuickLinker
 import src.algorithms.ZeroQuickLinkerLabelNegatives as \
     ZeroQuickLinkerLabelNegatives
 
 ## Final version of RegLinker 
-import src.algorithms.QuickLinker as QuickLinker 
-import src.algorithms.QuickLinkerERWR as QuickLinkerERWR 
-import src.algorithms.QuickLinkerRWR as QuickLinkerRWR 
+import src.algorithms.RegLinker as RegLinker 
+import src.algorithms.RegLinkerRWER as RegLinkerRWER
+import src.algorithms.RegLinkerRWR as RegLinkerRWR 
 
 class Pipeline(object):
     """
@@ -93,12 +109,18 @@ class Pipeline(object):
             evaluators.append(InteractomeStats(interactome))
 
             for collection in self.input_settings.pathway_collections:
+
+                evaluators.append(PathwayStats(interactome, collection))
+
                 # TODO: It would be wonderful to be able to specify these
                 # from the config file as well
-
-                # TODO: I need to separate each removal evaluation, e.g.,
-                # KFold should not be run with NodeEdge b/c they require 
-                # different parameters
+                '''
+                evaluators.append(
+                    EdgeKFoldRemovalEvaluator(
+                        interactome,
+                        collection,
+                        {"num_folds":2}))
+                '''
                 '''
                 evaluators.append(
                     NodeEdgeRemovalEvaluator(
@@ -108,6 +130,7 @@ class Pipeline(object):
                          "percent_edges_to_keep":.7,
                          "iterations": 10}))
                 '''
+                '''
                 evaluators.append(
                     NodeAndEdgeWithholdingEvaluator(
                         interactome,
@@ -116,6 +139,30 @@ class Pipeline(object):
                         {"percent_nodes_to_keep":.7,
                          "percent_edges_to_keep":.7,
                          "iterations": 10}))
+                '''
+                '''
+                evaluators.append(
+                    EdgeKFoldEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"num_folds":2}))
+                '''
+                '''
+                evaluators.append(
+                    NodeEdgeQEstimator(
+                        interactome,
+                        collection,
+                        {"percent_nodes_to_keep":.9,
+                         "percent_edges_to_keep":.9,
+                         "iterations": 10}))
+                '''
+                evaluators.append(
+                    EdgeKFoldQEstimator(
+                        interactome,
+                        collection,
+                        {"num_folds":2}))
+
 
         return evaluators
 
@@ -352,22 +399,26 @@ RANKING_ALGORITHMS = {
     "quickreglinker-sanity" : SanityCheck.QuickRegLinkerSanityCheck,
 
     "induced-subgraph" : InducedSubgraph.InducedSubgraph,
+    "InducedRWR": InducedRWR.InducedRWR,
+    "InducedRWER": InducedRWER.InducedRWER,
+
     "GenInduced": GenInduced.GenInduced,
     "GenInducedERWR": GenInducedERWR.GenInducedERWR,
-    "InducedRWER": InducedRWER.InducedRWER,
-    "InducedRWR": InducedRWR.InducedRWR,
-    "shortcuts-ss" : Shortcuts.ShortcutsSS,
-    "ShortcutsRWER" : ShortcutsRWER.ShortcutsRWER,
+
+    "Shortcuts" : Shortcuts.Shortcuts,
     "ShortcutsRWR" : ShortcutsRWR.ShortcutsRWR,
+    "ShortcutsRWER" : ShortcutsRWER.ShortcutsRWER,
+
     "GeneralizedShortcuts": GeneralizedShortcuts.GeneralizedShortcuts,
-    "GeneralizedShortcutsSSViaRWRFlux" : GeneralizedShortcutsSSViaRWRFlux.GeneralizedShortcutsSSViaRWRFlux,
+    "GeneralizedShortcutsRWER" : 
+        GeneralizedShortcutsRWER.GeneralizedShortcutsRWER,
 
     "ZeroQuickLinkerLabelNegatives" : 
         ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
     
-    "QuickLinker":  QuickLinker.QuickLinker,
-    "QuickLinkerERWR":  QuickLinkerERWR.QuickLinkerERWR,
-    "QuickLinkerRWR":  QuickLinkerRWR.QuickLinkerRWR
+    "RegLinker":  RegLinker.RegLinker,
+    "RegLinkerRWR":  RegLinkerRWR.RegLinkerRWR,
+    "RegLinkerERWR":  RegLinkerRWER.RegLinkerRWER,
     }
 
 
