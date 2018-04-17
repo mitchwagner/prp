@@ -1,0 +1,1413 @@
+import time
+from pathlib import Path
+
+import scipy as sp
+import numpy as np
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib import colors
+
+import src.external.pathlinker.parse as pl_parse
+import src.external.utils.precision_recall.precision_recall as precrec
+
+import src.algorithms.RankingAlgorithm as RankingAlgorithm
+
+from src.evaluators.Evaluator import Evaluator
+
+# TODO: In the past, I had this "write tp_fp with folds" function to 
+# write out whether or not an edge was a true positive or a false positive
+
+# I also plotted out the weights of these edges and divided them into two
+# bins: true positives or false positives: to see what their overall weights
+# are
+
+def flatten_fold_aggregate(xs):
+    '''
+    [[a,b],[c]] -> [(a, 0), (b, 0), (c, 1)]
+    
+    Inner lists correspond to folds, and folds here corespond to int 
+    labels:
+
+    [[edgeA,edgeB],[edgeC]] -> [(edgeA, 0), (edgeB, 0), (edgeC, 1)]
+    '''
+    flat = [(y, i) for i, ys in enumerate(xs) for y in ys]
+    return flat
+
+
+def flatten_fold_predictions(xs):
+    '''
+    I need to decompose and re-group these predictions by weight
+
+    1)
+    [[{(edge, weight)}]] -> [((edge, weight), fold)]
+    [[{a}]] -> [(a, 0)]
+
+    2)
+    Regrouping:
+    [((edge, weight), fold)] -> [{((edge, weight),fold)}]
+    
+    3)
+    Making the items match the positives/negatives:
+    [{(edge, weight),fold}] -> [{(edge, fold)}]
+    ''' 
+    flat = [(z, i) for i, ys in enumerate(xs) for y in ys for z in y]
+
+    weights = set([x[0][1] for x in flat])
+    weights = list(weights)
+    weights.sort(reverse=True)
+
+    regrouped = []
+    for weight in weights:
+        s = {x for x in flat if x[0][1] == weight}
+        regrouped.append(s)
+
+    final = [{(x[0][0], x[1]) for x in xs} for xs in regrouped]
+
+    return final
+
+
+class AlgorithmEvaluator(Evaluator):
+    '''
+    Base class for an object that has a "fold" creation procedure and
+    runs a set of supplied algorithms over each fold.
+    '''
+
+    def __init__(
+            self, interactome, pathway_collection, algorithms, options={}):
+        '''
+        :param interactome: on-disk interactome object
+        :param pathway_collection: PathwayCollection object
+        :param algorithms: list of RankingAlgorithms
+        :param options: map of options for the evaluator
+        '''
+        self.interactome = interactome
+        self.pathway_collection = pathway_collection
+        self.algorithms = algorithms
+        self.options = options
+        
+        self.training_folds = self.get_training_folds()
+        self.test_folds = self.get_test_folds()
+
+
+    def get_name(self):
+        raise NotImplementedError()
+
+
+    def get_details(self):
+        raise NotImplementedError()
+
+
+    def get_output_prefix(self):
+        raise NotImplementedError()
+
+
+    def get_fold_creator(self, pathway):
+        raise NotImplementedError()
+
+
+    def get_fold_creators(self):
+        fcs = []
+
+        for pathway in self.pathway_collection.pathways:
+            fcs.append(self.get_fold_creator(pathway))
+
+        return fcs
+
+
+    def get_training_folds(self):
+        '''
+        Returns a list of tuples (positives, negatives) detailing the 
+        set of training positives/negatives for each fold
+        '''
+        fold_creators = self.get_fold_creators()
+        folds = []
+
+        for fc in fold_creators:
+            training_folds = fc.get_training_folds()
+            folds.append(training_folds)
+
+        return folds
+
+
+    def get_test_folds(self):
+        '''
+        Returns a list of tuples (positives, negatives) detailing the
+        set of test positives/negatives for each fold
+        '''
+        fold_creators = self.get_fold_creators()
+        folds = []
+
+        for fc in fold_creators:
+            test_folds = fc.get_test_folds()
+            folds.append(test_folds)
+
+        return folds
+
+
+    def run_reconstructions(self, output_dir=Path()):
+        '''
+        Run each algorithm over each fold of each pathway in the 
+        pathway collection.
+        '''
+
+        pairs = zip(self.pathway_collection.pathways, self.training_folds)
+
+        for pathway, training_fold in pairs: 
+            for fold in training_fold:
+                print(fold[2])
+                for algorithm in self.algorithms:
+                    # First, write output directory
+                    full_output_dir = Path(
+                        output_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    alg_dir = algorithm.get_full_output_directory(
+                        full_output_dir)
+                    
+                    # TODO: Is this step even necessary?
+                    alg_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    # TODO: Leaving this here in case we want to revisit
+                    # it later. This would limit the sources and targets
+                    # provided to only those incident on edges in the set
+                    # of training positives. Needs to be finished.
+                    '''                    
+                    ###########################################################
+                    # Create a new pathway_nodes_file 
+
+                    # 1) Get a list of training nodes
+                    training_nodes = set()
+                    
+                    positive_edges = fold[0]
+
+                    for edge in positive_edgeS: 
+                        training_nodes.add(edge[0])
+                        training_nodes.add(edge[1])
+
+                    # 2) Define a new nodes file
+                    new_nodes_file = Path(alg_dir, "new_nodes.txt")    
+
+                    with pathway.get_nodes_file.open('r') as f1,
+                            new_nodes_file.open('w') as f2:
+                        for line in f1:
+                            if line.startswith("#"):
+                                f2.write(line)
+                            else:
+                                toks = line.split("\t")
+
+                    ###########################################################
+                    '''
+
+                    # Second, run the algorithms         
+                    alg_input = RankingAlgorithm.PathwayReconstructionInput(
+                        self.interactome.path,
+                        fold[0], # training positive edges
+                        pathway.get_nodes_file(),
+                        full_output_dir,
+                        pathway.get_edges_file(),
+                        fold[1]) # training negative edges
+                    
+                    print("Running algorithm: ")
+                    print("    " + self.interactome.name)
+                    print("    " + self.pathway_collection.name)
+                    print("    " + pathway.name)
+                    print("    " + self.get_name())
+                    print("    " + str(fold[2]))
+                    self.run_alg(algorithm, alg_input)
+
+
+    def run_alg(self, algorithm, alg_input):
+        '''
+        Run an algorithm, keeping track of and printing the time that it
+        takes to run.
+        '''
+        print("    Running " + algorithm.get_descriptive_name())
+        start = time.time()
+        algorithm.run_wrapper(alg_input, should_force=False)
+        end = time.time()
+        print("    Time to run: " + str(end - start))
+        print("-----------------------------------------------------")
+
+
+    def evaluate_reconstructions(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Calculate performance metrics, like precision/recall scores.
+        '''
+
+        self.calculate_metrics(reconstruction_dir, evaluation_dir)
+        self.calculate_wilcoxon_scores(evaluation_dir)
+
+        #self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
+        #    Path(evaluation_dir.parent, "visualization"))
+
+        #self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+
+        #self.aggregate_pr_over_pathways(evaluation_dir)
+
+
+    # TODO: Also make it calculate and write wilcoxon scores? Then all of the
+    # evaluation is done in this method!
+    # But the Wilcoxon scores would compare each of average_precision,
+    # AUPRC, and F1Max
+    def calculate_metrics(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Calculate the precision recall curve and average precison
+        for each fold independently, writing it to disk.
+        '''
+
+        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+
+        for pathway, test_fold in pairs:
+            for algorithm in self.algorithms:
+                for fold in test_fold:
+                    
+                    # TODO: get a directory from a function instead
+
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        reconstruction_file.touch()
+        
+                    # Where we will write precision/recall results
+                    eval_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    positives = set(fold[0])
+                    negatives = set(fold[1])
+
+                    fold_predictions = None
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+               
+                    fold_predictions = [
+                        set([tup[0] for tup in s])
+                        for s in fold_predictions]
+
+                    print("Calculating precision/recall points")
+                    t1 = time.time()
+                    points = \
+                        precrec.compute_precision_recall_curve_negatives_decimals(fold_predictions, positives, negatives)
+                    t2 = time.time()
+                    print("Done! That took: ", t2 - t1)
+
+                    # Calculate all of the measures and write them out
+                    avg_prec = precrec.compute_average_precision(points)
+
+                    f1_max = precrec.compute_f_max(points)
+
+                    # TODO: Rename utils function to compute_AUPRC
+                    auprc = precrec.compute_AUPRC(points)
+
+                    avg_prec_file = Path(
+                        eval_dir, 
+                        algorithm.get_output_directory(),
+                        "average_precision.txt") 
+
+                    f1_max_file = Path(
+                        eval_dir, 
+                        algorithm.get_output_directory(),
+                        "f1_max.txt") 
+
+                    auprc_file = Path(
+                        eval_dir, 
+                        algorithm.get_output_directory(),
+                        "auprc.txt") 
+
+                    avg_prec_file.parent.mkdir(parents=True, exist_ok=True)
+
+                    with avg_prec_file.open('w') as f: 
+                        f.write(str(avg_prec))
+
+                    with f1_max_file.open('w') as f:
+                        f.write(str(f1_max))
+
+                    with auprc_file.open('w') as f:
+                        f.write(str(auprc))
+   
+
+    def calculate_wilcoxon_scores(self, evaluation_dir=Path()):
+        '''
+        Write out a TSV relating Wilcoxon scores between algorithms
+        '''
+        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+
+        # First, read in the scores 
+
+        # Map of algorithms to lists of points
+        avg_prec_algorithm_map = {}
+        f1_max_algorithm_map = {}
+        auprc_algorithm_map = {}
+
+        for algorithm in self.algorithms:
+            name = algorithm.get_descriptive_name()
+            avg_prec_algorithm_map[name] = []
+            f1_max_algorithm_map[name] = []
+            auprc_algorithm_map[name] = []
+
+        for pathway, test_fold in pairs:
+            for algorithm in self.algorithms:
+                predictions = []
+                test_positives = []
+                test_negatives = []
+                for fold in test_fold:
+                    
+                    # Where we will wrote scores to
+                    eval_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    avg_prec_file = Path(
+                        eval_dir, 
+                        algorithm.get_output_directory(),
+                        "average_precision.txt") 
+
+                    f1_max_file = Path(
+                        eval_dir, 
+                        algorithm.get_output_directory(),
+                        "f1_max.txt") 
+
+                    auprc_file = Path(
+                        eval_dir, 
+                        algorithm.get_output_directory(),
+                        "auprc.txt") 
+
+                    avg_prec = None
+                    f1_max = None
+                    auprc = None
+
+                    with avg_prec_file.open('r') as f:
+                        line = next(f)
+                        avg_prec = float(line.strip())
+                        
+                    with f1_max_file.open('r') as f:
+                        line = next(f)
+                        f1_max = float(line.strip())
+
+                    with auprc_file.open('r') as f:
+                        line = next(f)
+                        auprc = float(line.strip())
+
+                    name = algorithm.get_descriptive_name()
+
+                    avg_prec_algorithm_map[name].append(avg_prec) 
+                    f1_max_algorithm_map[name].append(f1_max)
+                    auprc_algorithm_map[name].append(auprc)
+
+        # Second, calculate the Wilcoxon stat for each measure
+        alpha = .05
+
+        correction = sp.special.comb(len(self.algorithms), 2)
+
+        # This is the Bonferroni-corrected alpha value
+        corrected_alpha = alpha / correction
+
+        wilcoxon_avg_prec = []
+        wilcoxon_f1_max = []
+        wilcoxon_auprc = []
+
+        for i, alg_a in enumerate(self.algorithms):
+            wilcoxon_avg_prec.append([])
+            wilcoxon_f1_max.append([])
+            wilcoxon_auprc.append([])
+
+            for i, alg_b in enumerate(self.algorithms):
+                name_a = alg_a.get_descriptive_name()
+                name_b = alg_b.get_descriptive_name()
+
+                if name_a == name_b:
+                    wilcoxon_avg_prec[i].append((-1, -1, -1))
+                    wilcoxon_f1_max[i].append((-1, -1, -1))
+                    wilcoxon_auprc[i].append((-1, -1, -1))
+
+                avg_prec_list_a = avg_prec_algorithm_map[name_a]
+                f1_max_list_a = f1_max_algorithm_map[name_a]
+                auprc_list_a = auprc_algorithm_map[name_a]
+
+                avg_prec_list_b = avg_prec_algorithm_map[name_b]
+                f1_max_list_b = f1_max_algorithm_map[name_b]
+                auprc_list_b = auprc_algorithm_map[name_b]
+
+                # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wilcoxon.html
+                avg_prec_stat, avg_prec_p_val = \
+                    sp.stats.wilcoxon(avg_prec_list_a, avg_prec_list_b)
+
+                f1_max_stat, f1_max_p_val = \
+                    sp.stats.wilcoxon(f1_max_list_a, f1_max_list_b)
+
+                auprc_stat, auprc_p_val = \
+                    sp.stats.wilcoxon(auprc_list_a, auprc_list_b)
+
+                avg_prec_a_median = np.median(avg_prec_list_a)
+                avg_prec_b_median = np.median(avg_prec_list_b)
+
+                f1_max_a_median = np.median(f1_max_list_a)
+                f1_max_b_median = np.median(f1_max_list_b)
+
+                auprc_a_median = np.median(auprc_list_a)
+                auprc_b_median = np.median(auprc_list_b)
+
+                #matrix2[i].append((median1, median2, p_val))
+                wilcoxon_avg_prec.append(
+                    (avg_prec_a_median, avg_prec_b_median, avg_prec_p_val))
+
+                wilcoxon_f1_max.append(
+                    (f1_max_a_median, f1_max_b_median, f1_max_p_val))
+
+                wilcoxon_auprc.append(
+                    (auprc_a_median, auprc_b_median, auprc_p_val))
+
+
+        # Third, write these scores out to disk
+        # TODO: Yes, I know that all of this repetition is screaming for
+        # a function. Don't let the perfect be the enemy of the good.
+
+        wilcoxon_avg_prec_file = Path(
+            evaluation_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "wilcoxon-avg-prec.tsv")
+
+        wilcoxon_f1_max_file = Path(
+            evaluation_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "wilcoxon-f1-max.tsv")
+
+        wilcoxon_auprc_file = Path(
+            evaluation_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "wilcoxon-auprc.tsv")
+
+        wilcoxon_avg_prec_file.parent.mkdir(parents=True, exist_ok=True)
+
+        with wilcoxon_avg_prec_file.open('w') as f: 
+            # Write header
+            f.write("Alg1\tAlg2\tMedian1\tMedian2\tp-val (Wilcoxon)\n")
+
+            # Write out matrix2 to the tsv, row by row
+            for i, algorithm in enumerate(self.algorithms):
+
+                for j, algorithm2 in enumerate(self.algorithms):
+                    name1 = algorithm.get_descriptive_name()
+                    name2 = algorithm2.get_descriptive_name()
+                
+                    median1 = wilcoxon_avg_prec[i][j][0]
+                    median2 = wilcoxon_avg_prec[i][j][1]
+                    p_val = wilcoxon_avg_prec[i][j][2]
+
+                    f.write("%s\t%s\t%.10f\t%.10f\t%.10f\n" % (
+                        name1,
+                        name2,
+                        median1,
+                        median2,
+                        p_val))
+
+        with wilcoxon_f1_max_file.open('w') as f: 
+            # Write header
+            f.write("Alg1\tAlg2\tMedian1\tMedian2\tp-val (Wilcoxon)\n")
+
+            # Write out matrix2 to the tsv, row by row
+            for i, algorithm in enumerate(self.algorithms):
+
+                for j, algorithm2 in enumerate(self.algorithms):
+                    name1 = algorithm.get_descriptive_name()
+                    name2 = algorithm2.get_descriptive_name()
+                
+                    median1 = wilcoxon_f1_max[i][j][0]
+                    median2 = wilcoxon_f1_max[i][j][1]
+                    p_val = wilcoxon_f1_max[i][j][2]
+
+                    f.write("%s\t%s\t%.10f\t%.10f\t%.10f\n" % (
+                        name1,
+                        name2,
+                        median1,
+                        median2,
+                        p_val))
+
+        with wilcoxon_auprc_file.open('w') as f: 
+            # Write header
+            f.write("Alg1\tAlg2\tMedian1\tMedian2\tp-val (Wilcoxon)\n")
+
+            # Write out matrix2 to the tsv, row by row
+            for i, algorithm in enumerate(self.algorithms):
+
+                for j, algorithm2 in enumerate(self.algorithms):
+                    name1 = algorithm.get_descriptive_name()
+                    name2 = algorithm2.get_descriptive_name()
+                
+                    median1 = wilcoxon_auprc[i][j][0]
+                    median2 = wilcoxon_auprc[i][j][1]
+                    p_val = wilcoxon_auprc[i][j][2]
+
+                    f.write("%s\t%s\t%.10f\t%.10f\t%.10f\n" % (
+                        name1,
+                        name2,
+                        median1,
+                        median2,
+                        p_val))
+        
+    """
+        for i, algorithm1 in enumerate(self.algorithms):
+            for algorithm2 in self.algorithms:
+
+                # Greater and significant: green
+                # Lesser and significant: red
+                # Not significant: black
+                # Colormap defined below
+                if (p_val < corrected_alpha):
+                    if median1 > median2: 
+                        matrix[i].append(2) 
+                    else:
+                        matrix[i].append(1)
+                else:
+                    matrix[i].append(0)
+
+        fig, ax = plt.subplots()
+
+        ax.set_title(
+            "Wilcoxon Rank Sum Test"
+            + self.interactome.name + " "
+            + self.pathway_collection.name + "\n"
+            + "Node Percent Kept: " + str(
+                self.options["percent_nodes_to_keep"]) + " "
+            + "Edge Percent Kept: " + str(
+                self.options["percent_edges_to_keep"]) + " " 
+            + "Iterations: " + str(
+                self.options["iterations"]))
+
+        ax.set_xlabel("Algorithm")
+        ax.set_ylabel("Algorithm")
+
+        vis_file_png = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "wilcoxon.png")
+
+        vis_file_pdf = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "wilcoxon.pdf")
+
+        array = np.array(matrix)
+        print(array)
+
+        cmap = colors.ListedColormap([[0, 0, 0], [1, 0 ,0], [0, 1, 0]])
+        ax.matshow(array, cmap=cmap)
+        
+        plt.xticks(range(0, len(array)), labels, rotation="vertical")
+        ax.xaxis.tick_bottom()
+
+        plt.yticks(range(0, len(array)), labels)
+
+        #ax.set_xticklabels(['']+labels)
+        #ax.set_yticklabels(['']+labels)
+        
+        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+
+        fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+        fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+
+        #######################################################################
+        # Two kinds of boxplots: one per pathway, one aggregating all pathwys 
+        # So, with 15 pathways, that will be 16 boxplots total...
+        print("----------------------------------------------------")
+        print("Overall Boxplot")
+        print("----------------------------------------------------")
+
+        ####### First, the overall boxplot 
+        labels = []
+        results = []
+
+        for alg in self.algorithms:
+            name = alg.get_descriptive_name()
+            labels.append(name)
+            results.append(algorithm_map[name])
+
+
+        fig, ax = precrec.init_precision_recall_figure()
+
+        ax.set_title(
+            "AUPRC by Algorithm "
+            + self.interactome.name + " "
+            + self.pathway_collection.name + "\n"
+            + "Fraction Retained: Nodes = " + str(
+                self.options["percent_nodes_to_keep"]) + " "
+            + ", Edges =  " + str(
+                self.options["percent_edges_to_keep"]) + " " 
+            + "Iterations: " + str(
+                self.options["iterations"]))
+
+        ax.set_xlabel("AUPRC")
+        ax.set_ylabel("Algorithm")
+
+        vis_file_png = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "auc.png")
+
+        vis_file_pdf = Path(
+            visualization_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            self.get_output_prefix(),
+            "keep-%f-nodes-%f-edges-%d-iterations" % (
+                self.options["percent_nodes_to_keep"], 
+                self.options["percent_edges_to_keep"], 
+                self.options["iterations"]),
+            "auc.pdf")
+
+        ax.boxplot(results, labels=labels, vert=False)
+
+        fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+        fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+        print("----------------------------------------------------")
+        print("Per pathway boxplot")
+        print("----------------------------------------------------")
+
+        for pathway, _ in creator_pathway_pairs:
+            # Create the output file here
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                "AUPRC by Algorithm (%s)" % pathway.name
+                + self.interactome.name + " "
+                + self.pathway_collection.name + "\n"
+                + "Fraction Retained: Nodes = " + str(
+                    self.options["percent_nodes_to_keep"]) + " "
+                + ", Edges =  " + str(
+                    self.options["percent_edges_to_keep"]) + " " 
+                + "Iterations: " + str(
+                    self.options["iterations"]))
+
+            ax.set_xlabel("AUPRC")
+            ax.set_ylabel("Algorithm")
+
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "auc.png")
+
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "auc.pdf")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            labels = []
+            results = []
+
+            for algorithm in self.algorithms:
+                name = algorithm.get_descriptive_name()
+                labels.append(name)
+                results.append(algorithm_pathway_map[(name, pathway.name)])
+
+                
+            ax.boxplot(results, labels=labels, vert=False)
+
+            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+            fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+
+        print("----------------------------------------------------")
+        print("Per algorithm boxplot")
+        print("----------------------------------------------------")
+        
+        for alg in self.algorithms:
+            name = alg.get_descriptive_name()
+            results = []
+            labels = []
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                "AUPRC by Pathway"
+                + self.interactome.name + " "
+                + self.pathway_collection.name + "\n"
+                + self.get_details())
+
+            ax.set_xlabel("AUPRC")
+            ax.set_ylabel("Algorithm")
+
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                name + "-auprc.png")
+
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                name + "-auprc.pdf")
+
+            for pathway, _ in creator_pathway_pairs:
+                labels.append(pathway.name)
+                results.append(algorithm_pathway_map[(name, pathway.name)])
+                
+            ax.boxplot(results, labels=labels, vert=False)
+
+            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+            fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+
+    # TODO: This needs to be updated to reflect Aditya's most recent changes!
+    def s_t_paths_analysis(
+            self, reconstruction_dir=Path(), evaluation_dir=Path(),
+            visualization_dir=Path()):
+        '''
+        See how quickly the algorithms connect all receptors to all
+        transcription factors.
+        '''
+        
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+
+            # Start with the p-graph
+            train_folds = fc.get_training_folds()
+            test_folds = fc.get_test_folds()
+
+            fig, ax = plt.subplots()
+
+            ax.set_title(
+                "Fraction s-t pairs Connected vs. Rank"
+                + self.interactome.name + " "
+                + self.pathway_collection.name + " "
+                + pathway.name + "\n"
+                + self.get_details())
+
+            ax.set_xlabel("Rank")
+            ax.set_ylabel("Fraction s-t Pairs Connected")
+
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "st-pairs.png")
+
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "st-pairs.pdf")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+
+                rank_st_path_points = [] 
+
+                for (train_fold, test_fold) in zip(train_folds, test_folds):
+                    points = []
+
+                    # 1) Get the list of edges for the algorithm               
+
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        train_fold[2])
+
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        reconstruction_file.touch()
+        
+                    # 2) Read the list of edges in by rank
+                    fold_predictions = None
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+
+                    # 3) Read the lists of sources and targets
+
+                    pathway_obj = pathway.get_pathway_obj()
+
+                    sources = pathway_obj.get_receptors(data=False)
+                    targets = pathway_obj.get_tfs(data=False)
+                    
+                    # 4) Construct the base graph
+
+                    base_graph = nx.DiGraph()
+
+                    for source in sources:
+                        base_graph.add_node(source)
+
+                    for target in targets:
+                        base_graph.add_node(target)
+
+                    for edge in set(train_fold[0]):
+                        base_graph.add_edge(edge[0], edge[1])
+
+                    # 5) For reach rank...
+                    for i, rank in enumerate(fold_predictions):
+
+                        # 5) Add the edges with the rank to the graph
+                        for edge in rank:
+                            base_graph.add_edge(edge[0][0], edge[0][1])
+                        if i%20 == 0:
+                            # 6) For each source/target pair, try to find a
+                            # path. Keep track of the number of successes
+
+                            path_sum = 0
+                            
+                            for source in sources:
+                                for target in targets:
+                                    if nx.has_path(
+                                        base_graph, source,target):
+                                        path_sum += 1
+                            
+                            total_possible = len(sources) * len(targets)
+                            frac = float(path_sum) / float(total_possible)
+ 
+                            # 7) Create a tuple (rank, sum)
+                            tup = (i, frac)
+
+                        # 8) Append tuple to a list
+                            points.append(tup)
+                            #if frac == 1:
+                    # 9) Append list to overall list
+                    rank_st_path_points.append(points)
+
+                # 10) Avg. across folds
+                maxLen = max([len(x) for x in rank_st_path_points])
+                AvgYs = [0] * maxLen
+                Counts = [0] * maxLen
+                StddevList = [[] for i in range(maxLen)]
+
+                # Make all lists the same length by padding the end of the
+                # shorter ones with their last element
+                for x in rank_st_path_points:
+                    xLen =  len(x)
+                    lastElement = x[-1]
+                    
+                    for i in range(maxLen - xLen):
+                        x.append(lastElement)
+                
+                for i, ls in enumerate(rank_st_path_points):
+
+                    for j in range(len(ls)):
+                        AvgYs[j] += ls[j][1]
+                        StddevList[j].append(ls[j][1])
+                        Counts[j] += 1
+                    
+                AvgYs = [x/Counts[i] for i,x in enumerate(AvgYs)]
+                Ebars = [np.std(x) for i,x in enumerate(StddevList)]
+
+                xs = [i*20 for i in range(len(AvgYs))]
+                    
+                label = algorithm.get_descriptive_name() 
+                ax.plot(xs, AvgYs, label=label)
+                Ebars_minus = [max(0,x-Ebars[i]) for i,x in enumerate(AvgYs)]
+                Ebars_plus = [min(1,x+Ebars[i]) for i,x in enumerate(AvgYs)]
+                ax.fill_between(xs, Ebars_minus, Ebars_plus,alpha=0.5,)
+
+                ax.set_ybound(0,1)
+                ax.set_xbound(0,1000)
+            ax.legend(loc='best')
+
+            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
+            fig.savefig(str(vis_file_png), bbox_inches='tight')
+
+            
+    def aggregate_pr_over_folds(
+            self, reconstruction_dir=Path(), evaluation_dir=Path()):
+        '''
+        Merge the precision/recall results per pathway using folds
+        '''
+
+        print("----------------------------------------------------")
+        print("Aggregating Folds and Computing Precision/Recall")
+        print("----------------------------------------------------")
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            test_folds = fc.get_test_folds()
+            for algorithm in self.algorithms:
+                predictions = []
+                test_positives = []
+                test_negatives = []
+
+                avg_prec = []
+
+                for fold in test_folds:
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+                    
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        print("ALERT: RECONSTRUCTION FILE NOT FOUND")
+                        reconstruction_file.touch()
+
+                    # Where we will write precision/recall results
+                    pr_output_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        "keep-%f-nodes-%f-edges-%d-iterations" % (
+                            self.options["percent_nodes_to_keep"], 
+                            self.options["percent_edges_to_keep"], 
+                            self.options["iterations"]),
+                        "aggregate")
+
+                    positives = fold[0]
+                    negatives = fold[1]
+
+
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+                        predictions.append(fold_predictions)
+
+                    test_positives.append(positives)
+                    test_negatives.append(negatives)
+
+                    
+                    '''
+                    # Already-written average precision
+                    avg_avg_prec_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+
+                    avg_avg_prec_file = Path(
+                        avg_avg_prec_dir, 
+                        algorithm.get_output_directory(),
+                        "average-precision.txt") 
+
+                    
+                    with avg_avg_prec_file.open('r') as f:
+                        line = next(f)
+                        point = float(line.strip())
+                        avg_prec.append(point)
+                    '''
+
+
+                flat_test_pos = set(flatten_fold_aggregate(test_positives))
+                flat_test_neg = set(flatten_fold_aggregate(test_negatives))
+                flat_pred = flatten_fold_predictions(predictions)
+
+
+                # Call existing precrec functions passing these things above
+                points = \
+                    precrec.compute_precision_recall_curve_negatives_fractions(
+                        flat_pred, flat_test_pos, flat_test_neg)
+
+                '''
+                points2 = \
+                    precrec.compute_precision_recall_curve_negatives_decimals(
+                        flat_pred, flat_test_pos, flat_test_neg)
+
+                weighted_avg = precrec.compute_average_precision(points2)
+
+                avg_avg_prec = sum(avg_prec) / len(avg_prec)
+                '''
+
+                new_outfile = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                new_outfile2 = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "average-aggregate-precision.txt") 
+
+
+                new_outfile3 = Path(
+                    pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "average-average-precision.txt") 
+
+                new_outfile.parent.mkdir(parents=True, exist_ok=True)
+
+                with new_outfile.open("w") as f: 
+                    precrec.write_precision_recall_fractions(f, points)
+
+                '''
+                with new_outfile2.open("w") as f: 
+                    f.write(str(weighted_avg))
+
+                with new_outfile3.open("w") as f: 
+                    f.write(str(avg_avg_prec))
+                '''
+
+
+    def aggregate_pr_over_pathways(self, evaluation_dir=Path()):
+        '''
+        Per algorithm, aggregate the precision/recall scores across
+        pathways.
+        '''
+
+        print("----------------------------------------------------")
+        print("Aggregating Precision/Recall Over Pathways")
+        print("----------------------------------------------------")
+
+        # Where we will write precision/recall, aggregated over
+        # all pathways
+        pathway_collection_pr_output_dir = Path(
+            evaluation_dir,
+            self.interactome.name,
+            self.pathway_collection.name,
+            "aggregate",
+            self.get_output_prefix())
+
+        for algorithm in self.algorithms:    
+            curves = []
+            
+            # Where we wrote precision/recall, aggregated over
+            # all folds per pathway
+            for pathway in self.pathway_collection.pathways:
+                pathway_pr_output_dir = Path(
+                    evaluation_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    "aggregate")
+
+                pathway_pr_outfile = Path(
+                    pathway_pr_output_dir, 
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt") 
+
+                with pathway_pr_outfile.open('r') as f:
+                    curve = precrec.read_precision_recall_fractions(f)
+                    curves.append(curve)
+
+            aggregated = precrec.aggregate_precision_recall_curve_fractions(
+                curves)
+
+            # Write aggregated curve back out
+            pathway_collection_pr_outfile = Path(
+                pathway_collection_pr_output_dir, 
+                algorithm.get_output_directory(),
+                "precision-recall.txt") 
+
+            pathway_collection_pr_outfile.parent.mkdir(
+                parents=True, exist_ok=True)
+
+            with pathway_collection_pr_outfile.open("w") as f: 
+                precrec.write_precision_recall_fractions(f, aggregated)
+
+
+    def plot_results(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+        '''
+        Run all plotting algorithms
+        '''
+        self.plot_avg_precision_boxplot(evaluation_dir, visualization_dir)
+        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
+        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
+
+
+    def plot_pr_individual_pathways(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        for pathway in self.pathway_collection.pathways:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                self.interactome.name + " " +
+                self.pathway_collection.name + " " +
+                pathway.name)
+
+            # Where we wrote precision/recall results
+            pr_output_dir = Path(
+                evaluation_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "aggregate")
+
+            # PDF file we will write
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "precision-recall.pdf")
+    
+            # PNG file we will write 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                pathway.name,
+                self.get_output_prefix(),
+                "precision-recall.png")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt")
+
+                points = []
+
+                with pr_file.open('r') as f:
+                    points = precrec.read_precision_recall_fractions(f)
+
+                precrec.plot_precision_recall_curve_fractions(
+                    points, label=algorithm.get_descriptive_name(), ax=ax)
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            lgd = ax.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5,-0.1))
+
+            fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+            fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+
+    def plot_pr_all_pathways(
+            self, evaluation_dir=Path(), visualization_dir=Path()):
+
+        for pathway in self.pathway_collection.pathways:
+
+            fig, ax = precrec.init_precision_recall_figure()
+
+            ax.set_title(
+                self.interactome.name + " " +
+                self.pathway_collection.name + " " +
+                self.get_details())
+
+            # Where we wrote precision/recall results
+            pr_output_dir = Path(
+                evaluation_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                "aggregate",
+                self.get_output_prefix()),
+
+            # PDF file we will write
+            vis_file_pdf = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "precision-recall.pdf")
+    
+            # PNG file we will write 
+            vis_file_png = Path(
+                visualization_dir,
+                self.interactome.name,
+                self.pathway_collection.name,
+                self.get_output_prefix(),
+                "precision-recall.png")
+
+            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+            for algorithm in self.algorithms:
+                
+                pr_file = Path(
+                    pr_output_dir,
+                    algorithm.get_output_directory(),
+                    "precision-recall.txt")
+
+                points = []
+
+                with pr_file.open('r') as f:
+                    points = precrec.read_precision_recall_fractions(f)
+
+                precrec.plot_precision_recall_curve_fractions(
+                    points, label=algorithm.get_descriptive_name(), ax=ax)
+
+            handles, labels = ax.get_legend_handles_labels()
+
+            lgd = ax.legend(handles, labels, loc='upper center', 
+                bbox_to_anchor=(0.5,-0.1))
+
+            fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+
+            fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                bbox_inches='tight')
+    """
+
+
+    def purge_results(self, reconstruction_dir=Path()):
+        '''
+        Delete previously-computed pathway reconstructions 
+        for the algorithms specified in the config file.
+        '''
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            training_folds = fc.get_training_folds()
+            for fold in training_folds:
+                output_dir = Path(
+                    reconstruction_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    fold[2])
+
+                for algorithm in self.algorithms:
+                    alg_dir = algorithm.get_full_output_directory(output_dir)
+                    print(str(alg_dir))
+                    if os.path.exists(str(alg_dir)):
+                        shutil.rmtree(str(alg_dir))
+    
+
+    def run(self, output_dir=Path(), purge_results=False):
+        '''
+        0) Remove reconstructions created during previous runs of algorithms
+           (this does not remove evaluations or plots at this point)
+
+        1) Run each algorithm over each pathway in the pathway collection for
+           each fold defined by the algorithm evaluator's get_fold_creator
+           method
+
+        2) Run evaluations (like precision/recall, AUPRC) for each run
+
+        3) Plot the results of the above evaluations
+        '''
+
+        output_dir = Path(output_dir, "pathway-reconstruction")
+
+        # TODO: Add as paramaters, and override with config-file specified 
+        # directories in the pipeline itself
+        reconstruction_dir = Path(output_dir, "reconstruction")
+        evaluation_dir = Path(output_dir, "evaluation")
+        visualization_dir = Path(output_dir, "visualization")
+
+        if purge_results:
+            self.purge_results(reconstruction_dir)
+
+        print("Beginning evaluation of:\n"
+            + "    interactome: %s\n" % self.interactome.name
+            + "    pathway collection: %s\n" % self.pathway_collection.name
+            + "    procedure: %s\n" % self.get_name())
+
+        print("Running reconstructions...")
+        self.run_reconstructions(reconstruction_dir)
+        print("Finished running reconstructions!")
+        
+        print("Evaluating reconstructions...")
+        self.evaluate_reconstructions(reconstruction_dir, evaluation_dir)
+        print("Finished evaluating")
+
+        print("Plotting results...")
+        #self.plot_results(evaluation_dir, visualization_dir)
+        print("Finished plotting")
