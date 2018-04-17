@@ -9,7 +9,7 @@ import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
 import src.external.pathlinker.parse as pl_parse
 
-class QuickLinkerERWR(RankingAlgorithm):
+class RegLinkerRWER(RankingAlgorithm):
     '''
     Concatenates the results running QuickRegLinker with several
     regular expressions. Takes a list of of regexes. For example,
