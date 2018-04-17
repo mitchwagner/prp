@@ -6,7 +6,7 @@ from pathlib import Path
 from .RankingAlgorithm import RankingAlgorithm
 import src.external.pathlinker.parse as pl_parse
 
-class ShortcutsSS(RankingAlgorithm):
+class Shortcuts(RankingAlgorithm):
     def __init__(self, params):
         self.k = params["k"]
         self.alpha = params["alpha"]
