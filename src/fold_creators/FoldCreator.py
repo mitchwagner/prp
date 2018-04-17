@@ -17,7 +17,11 @@ class FoldCreator(object):
         raise NotImplementedError()
         
         
-    def get_output_prefix(): 
+    def get_training_folds():
+        '''
+        Returns an iterator that returns tuples:
+            (train_negatives, train_positives, fold_name)
+        '''
         raise NotImplementedError()
 
 
@@ -25,14 +29,6 @@ class FoldCreator(object):
         '''
         Returns an iterator that returns tuples:
             (test_negatives, test_positives, fold_name)
-        '''
-        raise NotImplementedError()
-
-
-    def get_training_folds():
-        '''
-        Returns an iterator that returns tuples:
-            (train_negatives, train_positives, fold_name)
         '''
         raise NotImplementedError()
 
@@ -47,7 +43,7 @@ def get_filtered_pathway_edges(pathway, interactome):
     2) Remove edges that are incoming to sources and outgoing from
        targets
     """
-    net = pathway.get_pathway_obj().get_net_from_pathway()
+    net = pathway.get_net_from_pathway()
 
     remove_edges_not_in_interactome(net, pathway, interactome)
 
