@@ -40,8 +40,16 @@ from src.evaluators.fold_stats.EdgeKFoldRemovalEvaluator \
 from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
     import NodeAndEdgeWithholdingEvaluator
 
+from src.evaluators.reconstruction.EmpiricalEdgeSamplingEvaluator \
+    import EmpiricalEdgeSamplingEvaluator
+
 from src.evaluators.reconstruction.EdgeKFoldEvaluator \
     import EdgeKFoldEvaluator
+
+# Post-hoc Evaluators
+from src.evaluators.post_hoc.FullPathwayEvaluator \
+    import FullPathwayEvaluator
+
 
 # RWR "q" Estimators 
 from src.evaluators.qestimator.NodeEdgeQEstimator import NodeEdgeQEstimator
@@ -57,7 +65,7 @@ import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
 ## Induced Subgraph
 import src.algorithms.InducedSubgraph as InducedSubgraph
 import src.algorithms.GenInduced as GenInduced 
-import src.algorithms.GenInducedERWR as GenInducedERWR
+import src.algorithms.GenInducedRWER as GenInducedRWER
  
 import src.algorithms.InducedRWER as InducedRWER
 import src.algorithms.InducedRWR as InducedRWR
@@ -103,31 +111,79 @@ class Pipeline(object):
         '''
         Define the set of evaluators the pipeline will use in analysis
         '''
+
+        # TODO: It would be wonderful to be able to specify these
+        # from the config file as well
         evaluators = []
         for interactome in self.input_settings.interactomes:
             
-            evaluators.append(InteractomeStats(interactome))
+            #evaluators.append(InteractomeStats(interactome))
 
             for collection in self.input_settings.pathway_collections:
+                
+                #evaluators.append(PathwayStats(interactome, collection))
 
-                evaluators.append(PathwayStats(interactome, collection))
+                ##############################################################
+                # Post-hoc analysis
 
-                # TODO: It would be wonderful to be able to specify these
-                # from the config file as well
-                '''
                 evaluators.append(
-                    EdgeKFoldRemovalEvaluator(
+                    FullPathwayEvaluator(
                         interactome,
                         collection,
-                        {"num_folds":2}))
+                        self.input_settings.algorithms))
+
+                ##############################################################
+                # Node-only deletion
+                '''
+                evaluators.append(
+                    NodeAndEdgeWithholdingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.9,
+                         "percent_edges_to_keep":1,
+                         "iterations": 10}))
                 '''
                 '''
                 evaluators.append(
-                    NodeEdgeRemovalEvaluator(
+                    NodeAndEdgeWithholdingEvaluator(
                         interactome,
                         collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.8,
+                         "percent_edges_to_keep":1,
+                         "iterations": 10}))
+                '''
+                '''
+                evaluators.append(
+                    NodeAndEdgeWithholdingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
                         {"percent_nodes_to_keep":.7,
-                         "percent_edges_to_keep":.7,
+                         "percent_edges_to_keep":1,
+                         "iterations": 10}))
+                '''
+                ###############################################################
+                # Node + edge deletion
+                '''
+                evaluators.append(
+                    NodeAndEdgeWithholdingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.9,
+                         "percent_edges_to_keep":.9,
+                         "iterations": 10}))
+                '''
+                '''
+                evaluators.append(
+                    NodeAndEdgeWithholdingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.8,
+                         "percent_edges_to_keep":.8,
                          "iterations": 10}))
                 '''
                 '''
@@ -140,7 +196,42 @@ class Pipeline(object):
                          "percent_edges_to_keep":.7,
                          "iterations": 10}))
                 '''
+                ###############################################################
+                # Edge-only deletion (number deleted determined empirically)
+                ''' 
+                evaluators.append(
+                    EmpiricalEdgeSamplingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.9,
+                         "percent_edges_to_keep":.9,
+                         "iterations": 10}))
                 '''
+                '''
+                evaluators.append(
+                    EmpiricalEdgeSamplingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.8,
+                         "percent_edges_to_keep":.8,
+                         "iterations": 10}))
+                '''
+                '''
+                evaluators.append(
+                    EmpiricalEdgeSamplingEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"percent_nodes_to_keep":.7,
+                         "percent_edges_to_keep":.7,
+                         "iterations": 10}))
+                '''
+
+                ###############################################################
+                '''
+                # Edge k-fold deletion
                 evaluators.append(
                     EdgeKFoldEvaluator(
                         interactome,
@@ -150,6 +241,23 @@ class Pipeline(object):
                 '''
                 '''
                 evaluators.append(
+                    EdgeKFoldEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"num_folds":5}))
+                '''
+                '''
+                evaluators.append(
+                    EdgeKFoldEvaluator(
+                        interactome,
+                        collection,
+                        self.input_settings.algorithms,
+                        {"num_folds":10}))
+                '''
+                ###############################################################
+                '''
+                evaluators.append(
                     NodeEdgeQEstimator(
                         interactome,
                         collection,
@@ -157,12 +265,37 @@ class Pipeline(object):
                          "percent_edges_to_keep":.9,
                          "iterations": 10}))
                 '''
+                '''
                 evaluators.append(
                     EdgeKFoldQEstimator(
                         interactome,
                         collection,
                         {"num_folds":2}))
-
+                '''
+                ###############################################################
+                '''
+                evaluators.append(
+                    NodeEdgeRemovalEvaluator(
+                        interactome,
+                        collection,
+                        {"percent_nodes_to_keep":.9,
+                         "percent_edges_to_keep":.9,
+                         "iterations": 10}))
+                evaluators.append(
+                    NodeEdgeRemovalEvaluator(
+                        interactome,
+                        collection,
+                        {"percent_nodes_to_keep":.8,
+                         "percent_edges_to_keep":.8,
+                         "iterations": 10}))
+                evaluators.append(
+                    NodeEdgeRemovalEvaluator(
+                        interactome,
+                        collection,
+                        {"percent_nodes_to_keep":.7,
+                         "percent_edges_to_keep":.7,
+                         "iterations": 10}))
+                '''
 
         return evaluators
 
@@ -190,6 +323,7 @@ class Pipeline(object):
 
         else:
             for evaluator in self.evaluators:
+                print(evaluator)
                 evaluator.run(base_output_dir, self.purge_results)
 
 
@@ -403,7 +537,7 @@ RANKING_ALGORITHMS = {
     "InducedRWER": InducedRWER.InducedRWER,
 
     "GenInduced": GenInduced.GenInduced,
-    "GenInducedERWR": GenInducedERWR.GenInducedERWR,
+    "GenInducedRWER": GenInducedRWER.GenInducedRWER,
 
     "Shortcuts" : Shortcuts.Shortcuts,
     "ShortcutsRWR" : ShortcutsRWR.ShortcutsRWR,
@@ -418,7 +552,7 @@ RANKING_ALGORITHMS = {
     
     "RegLinker":  RegLinker.RegLinker,
     "RegLinkerRWR":  RegLinkerRWR.RegLinkerRWR,
-    "RegLinkerERWR":  RegLinkerRWER.RegLinkerRWER,
+    "RegLinkerRWER":  RegLinkerRWER.RegLinkerRWER,
     }
 
 

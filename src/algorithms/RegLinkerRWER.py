@@ -180,11 +180,12 @@ class RegLinkerRWER(RankingAlgorithm):
                 str(dfa_prefix_rlc)]
                 )
 
-        # -n network-rlcsp.txt -nodeTypes node-types-rlcsp.txt 
-        # -dfa dfa.txt -dfaNodeTypes dfa-node-types.txt -o test -rlcsp
+            # -n network-rlcsp.txt -nodeTypes node-types-rlcsp.txt 
+            # -dfa dfa.txt -dfaNodeTypes dfa-node-types.txt -o test -rlcsp
 
-        #######################################################################
-        # 5)
+            #######################################################################
+            # 5)
+
             output_prefix = os.path.join(str(Path(
                     reconstruction_input.output_dir, 
                     self.get_output_directory())), "rlc-%d" % i, "output")
@@ -261,6 +262,7 @@ class RegLinkerRWER(RankingAlgorithm):
                 self.get_full_output_directory(
                     reconstruction_input.output_dir),
                 "final.txt")
+
             # Write out final output file
             with output_file.open('a') as f:
                 for j, tup in enumerate(
@@ -274,16 +276,17 @@ class RegLinkerRWER(RankingAlgorithm):
                             str(tup[2] + len(self.rlcs) - 1 - i) + "\n"]))
 
             prevRankMap = prevRankMap + len(rank_map.keys())
+
     def conform_output(self, output_dir):
         None
 
 
     def get_name(self):
-        return "RegLinker + ERWR"
+        return "RegLinker + RWER"
 
 
     def get_descriptive_name(self):
-        return "RegLinker + ERWR, q=%s, rlcs=%s" % (self.q, self.rlc_abbr)
+        return "RegLinker + RWER, q=%s, rlcs=%s" % (self.q, self.rlc_abbr)
 
 
     def get_output_file(self):

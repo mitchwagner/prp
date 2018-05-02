@@ -64,3 +64,8 @@ svn checkout file:///home/murali/svnrepo/data/interactions inputs/interactions
 svn checkout file:///home/murali/svnrepo/data/interactomes inputs/interactomes
 
 svn checkout file:///home/murali/svnrepo/data/pathways inputs/pathways
+
+svn checkout file:///home/murali/svnrepo/data/transcription-factors inputs/transcription-factors
+
+svn checkout file:///home/murali/svnrepo/data/receptors inputs/receptors
+

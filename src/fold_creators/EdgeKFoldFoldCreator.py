@@ -16,6 +16,9 @@ class EdgeKFoldFoldCreator(fc.FoldCreator):
 
 
     def create_positive_folds(self):
+        '''
+        Divide the positives into folds of train and test sets
+        '''
         pathway_obj = self.pathway.get_pathway_obj()
 
         edges = fc.get_filtered_pathway_edges(pathway_obj, self.interactome)
@@ -25,6 +28,9 @@ class EdgeKFoldFoldCreator(fc.FoldCreator):
 
 
     def create_negative_folds(self): 
+        '''
+        Divide the negatives into folds of train and test sets
+        '''
         interactome_edges = set((x, y) 
             for x, y, line in self.interactome.get_interactome_edges())
 
@@ -43,7 +49,7 @@ class EdgeKFoldFoldCreator(fc.FoldCreator):
 
     def get_training_folds(self):
         '''
-        Returns an iterator that returns tuples:
+        Returns a list of tuples:
             (traing_positives, train_negatives, fold_name)
         '''
         positive_folds = self.create_positive_folds()
@@ -60,7 +66,7 @@ class EdgeKFoldFoldCreator(fc.FoldCreator):
 
     def get_test_folds(self):
         '''
-        Returns an iterator that returns tuples:
+        Returns a list of tuples:
             (test_positives, test_negatives, fold_name)
         '''
         positive_folds = self.create_positive_folds()

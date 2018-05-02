@@ -16,7 +16,7 @@ import src.external.utils.pathway.pathway_parse as pathway_parse
 from .GeneralizedSubgraphv2 import GeneralizedSubgraphv2 as egoSubgraph
 
 
-class GenInducedERWR(RankingAlgorithm):
+class GenInducedRWER(RankingAlgorithm):
     '''
     Put nodes incident on training edges in restart set, RWR, calculate edge
     flux, then let edge's affinity be the flux on the edge.
@@ -42,7 +42,7 @@ class GenInducedERWR(RankingAlgorithm):
             netCopy = pl.readNetworkFile(f)
 
         # Add dummy nodes for every node in the "head" of a p-labeled edge
-        TempNodes = set([])
+        TempNodes = set()
         for edge in provided_edges:
             TempNodes.add(str(edge[0]+"_temp"))
             netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
@@ -197,11 +197,11 @@ class GenInducedERWR(RankingAlgorithm):
         None
 
     def get_name(self) -> str:
-        return "Extended Subgraph + ERWR"
+        return "Extended Subgraph + RWER"
 
 
     def get_descriptive_name(self) -> str:
-        return "Extended Subgraph + ERWR, q=%s" % (self.q)
+        return "Extended Subgraph + RWER, q=%s" % (self.q)
 
 
     def get_output_file(self) -> str:

@@ -58,10 +58,27 @@ def flatten_fold_predictions(xs):
     weights = list(weights)
     weights.sort(reverse=True)
 
+    '''
     regrouped = []
+
+    # Group by weights. This is slow; I can probably speed it up though
     for weight in weights:
         s = {x for x in flat if x[0][1] == weight}
         regrouped.append(s)
+    '''
+    groups = {}
+
+    for weight in weights:
+        groups[weight] = set()
+
+    for x in flat:
+        groups[x[0][1]].add(x)
+        #group = groups.get(x[0][1], set())
+        #group.add(x)
+
+    regrouped = [] 
+    for k, v in sorted(groups.items()):
+        regrouped.append(v)
 
     final = [{(x[0][0], x[1]) for x in xs} for xs in regrouped]
 
@@ -87,8 +104,12 @@ class AlgorithmEvaluator(Evaluator):
         self.algorithms = algorithms
         self.options = options
         
+        print("initializing folds")
+        
         self.training_folds = self.get_training_folds()
         self.test_folds = self.get_test_folds()
+
+        print("done initializing folds")
 
 
     def get_name(self):
@@ -249,14 +270,14 @@ class AlgorithmEvaluator(Evaluator):
         self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
         self.aggregate_pr_over_pathways(evaluation_dir)
 
+        # Precision per rank 
+        self.calculate_and_plot_precision_per_rank(
+            reconstruction_dir, evaluation_dir)
+
         #self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
         #    Path(evaluation_dir.parent, "visualization"))
 
 
-    # TODO: Also make it calculate and write wilcoxon scores? Then all of the
-    # evaluation is done in this method!
-    # But the Wilcoxon scores would compare each of average_precision,
-    # AUPRC, and F1Max
     def calculate_metrics(
             self, reconstruction_dir=Path(), evaluation_dir=Path()):
         '''
@@ -461,15 +482,30 @@ class AlgorithmEvaluator(Evaluator):
                 f1_max_list_b = f1_max_algorithm_map[name_b]
                 auprc_list_b = auprc_algorithm_map[name_b]
 
+                print(alg_a.get_descriptive_name())
+                print(alg_b.get_descriptive_name())
+                print(len(avg_prec_list_a))
+                print(len(avg_prec_list_b))
+
+                print(len(f1_max_list_a))
+                print(len(f1_max_list_b))
+
+                print(len(auprc_list_a))
+                print(len(auprc_list_b))
+
+
                 # https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.wilcoxon.html
                 avg_prec_stat, avg_prec_p_val = \
                     sp.stats.wilcoxon(avg_prec_list_a, avg_prec_list_b)
+                print("wilcox1")
 
                 f1_max_stat, f1_max_p_val = \
                     sp.stats.wilcoxon(f1_max_list_a, f1_max_list_b)
+                print("wilcox2")
 
                 auprc_stat, auprc_p_val = \
                     sp.stats.wilcoxon(auprc_list_a, auprc_list_b)
+                print("wilcox3")
 
                 avg_prec_a_median = np.median(avg_prec_list_a)
                 avg_prec_b_median = np.median(avg_prec_list_b)
@@ -601,8 +637,10 @@ class AlgorithmEvaluator(Evaluator):
             fold_creators)
 
         for pathway, fc in creator_pathway_pairs:
+            print(pathway.name)
             test_folds = fc.get_test_folds()
             for algorithm in self.algorithms:
+                print("    " + algorithm.get_descriptive_name())
                 predictions = []
                 test_positives = []
                 test_negatives = []
@@ -649,15 +687,19 @@ class AlgorithmEvaluator(Evaluator):
 
                     test_positives.append(positives)
                     test_negatives.append(negatives)
-
+                
+                print("flattening")
                 flat_test_pos = set(flatten_fold_aggregate(test_positives))
                 flat_test_neg = set(flatten_fold_aggregate(test_negatives))
                 flat_pred = flatten_fold_predictions(predictions)
+                print("done")
 
+                print("computing p/r")
                 # Call existing precrec functions passing these things above
                 points = \
                     precrec.compute_precision_recall_curve_negatives_fractions(
                         flat_pred, flat_test_pos, flat_test_neg)
+                print("done")
 
                 new_outfile = Path(
                     pr_output_dir, 
@@ -712,6 +754,7 @@ class AlgorithmEvaluator(Evaluator):
                     curve = precrec.read_precision_recall_fractions(f)
                     curves.append(curve)
 
+            print("Aggregating precision/recall curves")
             aggregated = precrec.aggregate_precision_recall_curve_fractions(
                 curves)
 
@@ -906,7 +949,6 @@ class AlgorithmEvaluator(Evaluator):
             fig.savefig(str(vis_file_png), bbox_inches='tight')
 
     """
-            
 
 
     def plot_results(
@@ -914,9 +956,6 @@ class AlgorithmEvaluator(Evaluator):
         '''
         Run all plotting algorithms
         '''
-        # Precision/Recall
-        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
-        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
 
         # Boxplots
         self.all_algorithm_scores_combined_pathways_boxplot(
@@ -928,7 +967,9 @@ class AlgorithmEvaluator(Evaluator):
         self.individual_algorithm_scores_all_pathways_boxplots(
             evaluation_dir, visualization_dir)
 
-        # TODO: wilcoxon plot for all three algorithms
+        # Precision/Recall
+        self.plot_pr_individual_pathways(evaluation_dir, visualization_dir)
+        self.plot_pr_all_pathways(evaluation_dir, visualization_dir)
 
 
     def all_algorithm_scores_combined_pathways_boxplot(
@@ -1678,6 +1719,137 @@ class AlgorithmEvaluator(Evaluator):
 
             fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
                 bbox_inches='tight')
+
+
+    # TODO: I don't think it's worth it to split this function into
+    # "evaluation" and "plotting" components right this very moment.
+    def calculate_and_plot_precision_per_rank(
+            self, reconstruction_dir=Path(), evaluation_dir=Path(),
+            visualization_dir="outputs/pathway-reconstruction/visualization"):
+        '''
+        Look at each rank and plot the precision of that rank
+        '''
+
+        fold_creators = self.get_fold_creators()
+
+        creator_pathway_pairs = zip(
+            [pathway for pathway in self.pathway_collection.pathways],
+            fold_creators)
+
+        for pathway, fc in creator_pathway_pairs:
+            print(pathway.name)
+            test_folds = fc.get_test_folds()
+
+
+            for algorithm in self.algorithms:
+                # Initialize figure
+                fig, ax = precrec.init_precision_recall_figure()
+
+                ax.set_title(
+                    self.interactome.name + " " +
+                    self.pathway_collection.name + " " +
+                    pathway.name + " " + 
+                    self.get_details())
+
+                ax.set_xlim(auto=True)
+
+                # PDF file we will write
+                vis_file_pdf = Path(
+                    visualization_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    algorithm.get_descriptive_name() + 
+                        "-precision-per-rank.pdf")
+        
+                # PNG file we will write 
+                vis_file_png = Path(
+                    visualization_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    algorithm.get_descriptive_name() + 
+                        "-precision-per-rank.png")
+
+                vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
+
+                # Calculate points
+                print("    " + algorithm.get_descriptive_name())
+                predictions = []
+                test_positives = []
+                test_negatives = []
+
+                avg_prec = []
+
+                for fold in test_folds:
+                    # Where the results were written to
+                    reconstruction_output_dir = Path(
+                        reconstruction_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2])
+                    
+                    reconstruction_file = Path(
+                        reconstruction_output_dir, 
+                        algorithm.get_output_directory(),
+                        algorithm.get_output_file())
+
+                    # Some error prevented the creation of the file.
+                    # At the moment, this only happens when the reglinker
+                    # fails to find paths. Thus, create an empty file.
+                    if not reconstruction_file.exists():
+                        print("ALERT: RECONSTRUCTION FILE NOT FOUND")
+                        reconstruction_file.touch()
+
+                    # Where we will write precision/recall results
+                    pr_output_dir = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        "aggregate")
+
+                    positives = fold[0]
+                    negatives = fold[1]
+
+                    with reconstruction_file.open('r') as f:
+                        fold_predictions = pl_parse.parse_ranked_edges(f)
+                        predictions.append(fold_predictions)
+
+                    test_positives.append(positives)
+                    test_negatives.append(negatives)
+                
+                print("flattening")
+                flat_test_pos = set(flatten_fold_aggregate(test_positives))
+                flat_test_neg = set(flatten_fold_aggregate(test_negatives))
+                flat_pred = flatten_fold_predictions(predictions)
+                print("done")
+
+                print("computing precision per rank")
+                points = \
+                    precrec.compute_precision_per_rank_negatives(
+                        flat_pred, flat_test_pos, flat_test_neg)
+                print("done")
+
+                ax.plot(points, label=algorithm.get_descriptive_name())
+
+                handles, labels = ax.get_legend_handles_labels()
+
+                lgd = ax.legend(handles, labels, loc='upper center', 
+                    bbox_to_anchor=(0.5,-0.1))
+
+                print("saving", (str(vis_file_pdf)))
+
+                fig.savefig(str(vis_file_pdf), bbox_extra_artists=(lgd,), 
+                    bbox_inches='tight')
+
+                fig.savefig(str(vis_file_png), bbox_extra_artists=(lgd,), 
+                    bbox_inches='tight')
 
 
     def purge_results(self, reconstruction_dir=Path()):

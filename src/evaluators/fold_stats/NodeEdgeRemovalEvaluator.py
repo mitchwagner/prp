@@ -45,12 +45,14 @@ class NodeEdgeRemovalEvaluator(RemovalEvaluator):
 
         for i, copy in enumerate(copies):
             stats[i].append(len(copy.edges()))
+            stats[i].append((len(copy.edges()))/initial_edge_count)
 
 
         # At the end here, I will append the header
         header = ["pathway", "# nodes initial", "# edges initial",
                   "# nodes after node deletion", "# edges after node deletion",
-                  "# edges after edge deletion"]
+                  "# edges after edge deletion",
+                  "fraction edges deleted"]
 
         stats.insert(0, header)
 

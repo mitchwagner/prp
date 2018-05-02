@@ -46,6 +46,34 @@ class RemovalEvaluator(Evaluator):
             output_dir, self.get_output_prefix(), pathway.name + "-stats.txt")
    
 
+    def average_stats(self, stats):
+        '''
+        This function averages statistics gathered for a particular pathway.
+        By putting this function here, I'm putting particular constraints on
+        all of the rest of the removal evaluators.
+
+        In particular, I'm assuming that they all return stats with a 
+        string in the first column, and a header row.
+        '''
+        avg_row = []
+
+        for col in stats[0]:
+            avg_row.append(0)
+        
+        # Preserve the pathway name, which can't be averaged
+        avg_row[0] = stats[1][0] + "-average"
+
+        for row in stats[1:]:
+            # Skip the first column, as it is alphanumeric
+            for i, col in enumerate(row[1:]):
+                avg_row[i + 1] += col
+        
+        for i, col in enumerate(avg_row[1:]):
+            avg_row[i+1] = col / (len(stats) - 1)
+
+        stats.append(avg_row)
+
+
     def write_stats(self, stats, output_dir, pathway):
         outfile = self.get_outfile(output_dir, pathway)
 
@@ -64,4 +92,5 @@ class RemovalEvaluator(Evaluator):
 
         for pathway in self.pathway_collection.pathways: 
             stats = self.analyze_fold_creation(pathway)
+            self.average_stats(stats)
             self.write_stats(stats, output_dir, pathway)
