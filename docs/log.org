@@ -1,3 +1,127 @@
+* May 3, 2018
+- We recently came to the conclusion that I have been treating interactome
+  and pathway edges as directed incorrectly. The problem is that all edges
+  are seen as directed edges at present (undirected edges are converted to
+  two directed edges). Thus, it is incorrect for me to include one half of
+  an undirected edge's directed counterparts in the set of positives and the
+  other in a set of negatives
+
+- Thus, I started working on remedying this, by separating directed edges from
+  undirected edges until necessary. This provided the impetus to update the
+  interactome version we are using, along with the pathways.
+    
+    - The plan to fix this:
+        - 1) Keep, for both a pathway and an interactome, a graph of
+             directed edges and  graph of undirected edges
+
+        - 2) Create folds using the directed and undirected versions 
+             separately
+
+        - 3) Create a directed version of the interactome and use the folds
+             to run RWER.
+
+        - 4) The RESULTING and FINAL FOLDS are directed versions of the 
+             original folds, except undirected edges only have a single
+             direction included (the direction that got the highest flux)
+
+        - To put this another way:
+            - I create directed train positives from the pathway
+            - I create undirected train positives from the pathway
+            - I create directed test positives from the pathway
+            - I create undirected test positives from the pathway
+                - From these, I create: 
+                    - merged pathway positives graph (all edges are directed)
+                    - merged pathway negatives graph (all edges are directed)
+
+            - I create directed train negatives from the interactome 
+            - I create undirected train negatives from the interactome 
+            - I create directed test negatives from the interactome 
+            - I create undirected test negatives from the interactome 
+                - From these, I create: 
+                    - merged interactome positives graph
+                    - merged interactome negatives graph
+
+            - Then, I create a merged interactome and run RWER on it using the
+              merged train positives from the pathway
+
+            - Then, for each merged graph:
+                - Look at the undirected graph that comprised part of its 
+                  input
+                    - For each edge in this graph, look up the edge flux
+                      from the RWER in the merged interactome
+
+                        - Delete the directed edge created from this undirected
+                          edge that has the lower flux
+
+            - This results in four merged graphs. These graphs form the 
+              input to the algorithms and precision/recall
+
+        - Note that this WOULD prevent us from doing certain edge selection
+          techniques. E.g., if we wanted folds based in paths as opposed to the
+          selection of individual components. We can separate undirected edges
+          from directed edges as long as the fold generation does not need to
+          consider the dependencies between the two.
+
+    - Interactome: 
+        - I am now using Jeff's 2018_01 version of the interactome. I obtain
+          edge directionality (directed or undirected, that is) by looking at
+          the interactome's evidence file.
+    
+    - Pathways:
+        - At first, Jeff suggested I extract the NetPath pathways from the 
+          interactome's evidence file. I did this first. Note that this does
+          NOT take into account that an pathway's undirected edge could
+          be trumped by a directed edge from a different evidence source.
+            
+            - NOTE: TAKING DIRECTIONALITY FROM THE EVIDENCE FILE HAS A 
+              HIDDEN DANGER. This is because we do not USE all evidences in
+              the interactome itself. This means that if a line in the 
+              evidence file lists an edge as directed, the interactome itself
+              could still have been built using that edge as UNdirected.
+                - I discussed this with Jeff. We noted 71 such cases, from
+                  MINT. He decided to just add these edges back to the 
+                  interactome.
+        
+            - When I tried to S-T prune these pathways, I wound up with several
+              pathways being absolutely decimated. I realized that I was again
+              interpreting the edges in the resulting pathway as directed
+              instead of undirected. I then altered the pathway file to include
+              both directions explicitly to remedy this, but the results were
+              similar: the pathways were decimated
+
+        - Thus, I now turn to the original SBML files once more. The parsed
+          versions that I have been using has an edge_type column that I can
+          use to determine the directionality.
+            - The current plan is to re-parse the parsed "-edges.txt" files
+              derived from SBML, then add them to the evidence file,
+              then create a new interactome, then use that interactome to 
+              inform the directionality of the "-edges.txt" files
+            
+            - I do not want to have any conflicts between the pathways and
+              the interactome in terms of direction. There are four cases: 
+
+                1) NetPath says an edge is directed, interactome agrees 
+                2) NetPath says an edge is undirected, interactome agrees 
+                3) NetPath says an edge is directed, interactome disagrees
+                4) NetPath says an edge is undirected, interactome disagrees
+
+                - The first two cases are not problems. 
+
+                - The third case can be ammeliorated by including the NetPath
+                  SBML files in the evidence file and re-weighting the
+                  interactome
+
+                - The final case is the annoying one. It's not a terrible
+                  problem because I can just say that the resulting fold
+                  direction is the one the interactome already has.
+
+                - Either way, I would prefer to start out with the pathway
+                  as a strict subset of the interactome.
+
+        - I do not think the S-T pruning should be a problem because if
+          one edge in an undirected edge pair is on an S-T path, the other 
+          direction has to be as well. 
+  
 * March 7, 2018
 - After consulting with Murali and Aditya, I removed the second entry for
   P19838 in the EGFR node file (the row that has its type listed as "none").
