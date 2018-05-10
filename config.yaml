@@ -17,12 +17,16 @@ input_settings:
     #
     #   filename: Filename of the interactome
     #
+    #   edge_dir_file: a file containing whether or not each edge is
+    #       directed or undirected in the interactome
+    #
     #   path: Subdirectory of interactome_dir, specified by list of folders
     #       along the path 
     interactomes:
 
         - name: "no-kegg-no-spike"
-          filename: "csbdb.txt"
+          filename: "2018-05-02-human-ppi-weighted.txt"
+          edge_dir_file: "2018-05-02-human-ppi-weighted-directions.txt"
           path: ["human"]
 
     # Denotes a list of pathway collections, each with the following 
@@ -42,7 +46,7 @@ input_settings:
     #
     pathway_collections:
         - name: "netpath-s-t-pruned"
-          path: ["netpath-s-t-pruned-updated-receptors", "pathways"]
+          path: ["netpath-s-t-pruned-extra-filtering", "pathways"]
           pathways:
             #- "BDNF"
             #- "EGFR1"
