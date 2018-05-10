@@ -1,3 +1,44 @@
+* May 7, 2018
+- Is it a problem that we are using RWER to determine the edge direction of 
+  undirected edges, and then comparing RWER and RWR on an interactome with
+  directions determined by RWER?
+    - Aditya doesn't think so, claiming that it is a pre-processing step and
+      what's important is giving the same input to all algorithms, which is
+      a fair point. I'm just worried that we could be giving biased input. 
+
+    - I'm going to try and see how many directions disagree if I use one
+      versus the other. If it's a small number, then I won't worry about it.
+      If it is a large number, I'll start to be more concerned.
+
+- The question also arises: what restart probability should be used when 
+  determining direction?
+
+* May 6, 2018
+- Current plan for pathway, interactome, and interactome edge direction file 
+  creation:
+    - 1) Take the intersection of the pathway nodes and the interactome
+         node to get filtered nodes and edges file per pathway
+         - This eliminates dumb nodes like "-" and "--" and the nodes
+           that Jeff says aren't actually UniProt IDs
+
+    - 2) Add the filtered edges file for each pathway to the evidence file
+
+    - 3) S-T prune the filtered edge and node files
+
+    - 4) Build an interactome using the new evidence file
+
+    - 5) Build a list of directions for each edge in the interactome using
+         the evidence file
+
+    - This procedure has the added advantage of not needing a "directions"
+      file per pathway
+
+    - This allows pathway edge direction to trump interactome edges, and
+      vice versa
+
+    - This will not consider edges that are a part of the pathway but whose
+      nodes are not a part of the pathway.
+
 * May 3, 2018
 - We recently came to the conclusion that I have been treating interactome
   and pathway edges as directed incorrectly. The problem is that all edges
@@ -70,7 +111,7 @@
     - Pathways:
         - At first, Jeff suggested I extract the NetPath pathways from the 
           interactome's evidence file. I did this first. Note that this does
-          NOT take into account that an pathway's undirected edge could
+          NOT take into account that a pathway's undirected edge could
           be trumped by a directed edge from a different evidence source.
             
             - NOTE: TAKING DIRECTIONALITY FROM THE EVIDENCE FILE HAS A 
