@@ -1,0 +1,12 @@
+# Set precedence for the rest of the file
+a	b	True
+# Set both (c, b) and (b, c) to undirected
+c	b	False
+# Set both (d, e) and (e, d) to undirected
+d	e	False
+# Set (e, d) to directed and delete (d, e)
+e	d	True
+# Useless because (a, b) is already directed
+b	a	False
+# Sets the other direction for (a, b) as also directed
+b	a	True
