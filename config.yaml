@@ -28,28 +28,16 @@ input_settings:
     #
     #   filename: Filename of the interactome
     #
+    #   edge_dir_file: Filename of a file listing edge directions for edges in
+    #       the interactome
+    #
     #   path: Subdirectory of interactome_dir, specified by list of folders
     #       along the path 
     interactomes:
-        #- name: "pathlinker-signaling-children-reg-no-netpath-weighted"
-        #  filename: "pathlinker-signaling-children-reg-no-netpath-weighted.txt"
-        #  path: ["human"]
-
-        #- name: "pathlinker-signaling-children-reg-weighted"
-        #  filename: "pathlinker-signaling-children-reg-weighted.txt"
-        #  path: ["human"]
-
         - name: "no-kegg-no-spike"
-          filename: "csbdb.txt"
+          filename: "2018-05-02-human-ppi-weighted.txt"
+          edge_dir_file: "2018-05-02-human-ppi-weighted-directions.txt"
           path: ["human"]
-
-        #- name: "all-pathway-edges"
-        #  filename: "pathlinker-signaling-children-reg-weighted-all-netpath-edges.txt"
-        #  path: ["human"]
-
-        #- name: "string"
-        #  filename: "9606-final.txt"
-        #  path: ["human"]
 
     # Denotes a list of pathway collections, each with the following 
     # parameters:
@@ -135,8 +123,8 @@ input_settings:
         #    omega: [0, 0.1, .1]
         #    prize: [1, 3, 5, 7, 9]
 
-        - name: "induced-subgraph"
-          params: {}
+        #- name: "induced-subgraph"
+        #  params: {}
 
         #- name: "reglinker"
         #  params:
