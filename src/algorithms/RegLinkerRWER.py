@@ -7,7 +7,6 @@ from .RankingAlgorithm import RankingAlgorithm
 import src.external.pathlinker.parse as pl_parse
 import src.external.pathlinker.PathLinker as pl
 import src.external.pathlinker.PageRank as pr 
-import src.external.pathlinker.parse as pl_parse
 
 class RegLinkerRWER(RankingAlgorithm):
     '''
@@ -53,6 +52,7 @@ class RegLinkerRWER(RankingAlgorithm):
 
             reconstruction_input.label_interactome_file(
                 in_file, out_file, sets, default="x")
+
         # Read in the interactome
         net = None
         netCopy = None
@@ -63,18 +63,18 @@ class RegLinkerRWER(RankingAlgorithm):
             netCopy = pl.readNetworkFile(f)
 
         # Add dummy nodes for every node in the "head" of a p-labeled edge
-        TempNodes = set([])
+        TempNodes = set()
         for edge in provided_edges:
             TempNodes.add(str(edge[0]+"_temp"))
-            netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
+
+            netCopy.add_edge(str(edge[0]+"_temp"), edge[1],
+                attr_dict=net.get_edge_data(edge[0],edge[1]))
 
         # Restart to newly added temporary nodes
-        #weights = {node:1 for node in TempNodes}
         weights = {} 
         for edge in provided_edges:
             # Default value of 0
             weights[str(edge[0]+"_temp")] = weights.get(str(edge[0]+"_temp"), 0) + 1
-
 
         # Set a minimum edge weight
         for edge in net.edges(data=True):
@@ -93,24 +93,21 @@ class RegLinkerRWER(RankingAlgorithm):
         pl.calculateFluxEdgeWeights(netCopy, pagerank_scores_weighted)
                 
         fluxes_weighted = {}
-        # Add edd fluxes computed from TempNodes to original head nodes
+        # Add edge fluxes computed from TempNodes to original head nodes
         # If head is not in TempNodes, use normal ksp_weight
-        # If
         for edge in netCopy.edges():
             attr_dict=netCopy.get_edge_data(edge[0],edge[1])
             if edge[0] in TempNodes:
                 attr_dict_original=netCopy.get_edge_data(edge[0][:-5],edge[1])
                 fluxes_weighted[(edge[0][:-5], edge[1])] = attr_dict_original["ksp_weight"]+attr_dict["ksp_weight"]
             elif (edge[0],edge[1]) in provided_edges:
-                continue # This edge has already been added, do not overwrite it.
+                # This edge has already been added or will be, don't overwrite. 
+                continue 
             else:
                 fluxes_weighted[(edge[0], edge[1])] = attr_dict["ksp_weight"]
 
 
-
-
         # Create new interactome file using RWER weights
-
 
         new_labeled_interactome = Path(
             self.get_full_output_directory(
@@ -276,6 +273,7 @@ class RegLinkerRWER(RankingAlgorithm):
                             str(tup[2] + len(self.rlcs) - 1 - i) + "\n"]))
 
             prevRankMap = prevRankMap + len(rank_map.keys())
+
 
     def conform_output(self, output_dir):
         None
