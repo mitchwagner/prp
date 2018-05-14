@@ -19,7 +19,6 @@ import src.algorithms.RankingAlgorithm as RankingAlgorithm
 from src.evaluators.Evaluator import Evaluator
 import src.fold_creators.FoldCreator as fc
 
-
 from graphspace_python.api.client import GraphSpace
 from graphspace_python.graphs.classes.gsgraph import GSGraph
 
