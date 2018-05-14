@@ -44,7 +44,8 @@ def read_direction_file(file_handle):
 
 def read_edges(file_handle):
     '''
-    This function should work for both a pathway and an interactome
+    This function should work for both a pathway only. We need to
+    read weights for the interactome 
     '''
     edges = set()
     for line in file_handle:
@@ -61,7 +62,8 @@ def read_edges(file_handle):
     return edges
 
 
-# TODO: assumes that the edge_dirs map has both directions
+# TODO: Should really take the result of reading the direction file rather
+# than re-read here
 def get_directed_pathway_edges(pathway_file, direction_file):
     pathway_edges = None
     with pathway_file.open('r') as f:
@@ -71,10 +73,12 @@ def get_directed_pathway_edges(pathway_file, direction_file):
     with direction_file.open('r') as f:
         edge_dirs = read_direction_file(f)
 
-    return [x for x in pathway_edges if edge_dirs[x] == True]
+    return [x for x in pathway_edges 
+        if x in edge_dirs and edge_dirs[x] == True]
 
 
 # TODO: assumes that the edge_dirs map has both directions
+# than re-read here
 def get_undirected_pathway_edges(pathway_file, direction_file):
     pathway_edges = None
     with pathway_file.open('r') as f:
@@ -84,10 +88,12 @@ def get_undirected_pathway_edges(pathway_file, direction_file):
     with direction_file.open('r') as f:
         edge_dirs = read_direction_file(f)
 
-    return [x for x in pathway_edges if edge_dirs[x] == False]
+    return [x for x in pathway_edges 
+        if x in edge_dirs and edge_dirs[x] == False]
 
 
-# TODO: assumes that the edge_dirs map has both directions
+# TODO: Should really take the result of reading the direction file rather
+# than re-read here
 def get_directed_interactome_edges(interactome_file, direction_file):
     interactome_edges = None
     with interactome_file.open('r') as f:
@@ -97,10 +103,12 @@ def get_directed_interactome_edges(interactome_file, direction_file):
     with direction_file.open('r') as f:
         edge_dirs = read_direction_file(f)
 
-    return [x for x in interactome_edges if edge_dirs[x] == True]
+    return [x for x in interactome_edges 
+        if x in edge_dirs and edge_dirs[x] == True]
     
 
-# TODO: assumes that the edge_dirs map has both directions
+# TODO: Should really take the result of reading the direction file rather
+# than re-read here
 def get_undirected_interactome_edges(interactome_file, direction_file):
     interactome_edges = None
     with interactome_file.open('r') as f:
@@ -110,21 +118,23 @@ def get_undirected_interactome_edges(interactome_file, direction_file):
     with direction_file.open('r') as f:
         edge_dirs = read_direction_file(f)
 
-    return [x for x in interactome_edges if edge_dirs[x] == False]
+    return [x for x in interactome_edges if 
+        x in edge_dirs and edge_dirs[x] == False]
 
 
 def graph_from_interactome(interactome_file):
     G = nx.DiGraph()
     
-    edges = None
     with interactome_file.open('r') as f:
-        edges = read_edges(f)
-
-    for edge in edges:
-        tail = edge[0]
-        head = edge[1]
-
-        G.add_edge(tail, head)
+        for line in f:
+            # Ignore comment lines
+            if line.startswith("#"):
+                continue
+            else:
+                toks = [x.strip() for x in line.split("\t")]
+                tail = toks[0]
+                head = toks[1]
+                G.add_edge(tail, head, weight=float(toks[2]))
 
     return G
 
@@ -163,7 +173,7 @@ def get_RWER_flux(G, restart_edges, q):
         intermediate_nodes.add(str(edge[0]+"_temp"))
 
         G_copy.add_edge(str(edge[0]+"_temp"), edge[1], 
-            attr_dict=net.get_edge_data(edge[0], edge[1]))
+            attr_dict=G.get_edge_data(edge[0], edge[1]))
 
     # We wish to restart to newly-added temporary nodes. The Pagerank algorithm
     # will take a list of weights. We will give equal weight to all nodes
@@ -309,7 +319,7 @@ def filter_edge_direction(
         undirected edge
     '''
     
-    return [dir_map[edge] for edge in undirected_edges]
+    return [dir_map[edge] for edge in undirected_edges if edge in dir_map]
 
 
 def filter_interactome_edge_direction_rwer(
