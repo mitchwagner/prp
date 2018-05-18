@@ -37,24 +37,22 @@ from src.evaluators.fold_stats.EdgeKFoldRemovalEvaluator \
     import EdgeKFoldRemovalEvaluator 
 
 # AlgorithmEvaluators
-from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
-    import NodeAndEdgeWithholdingEvaluator
+from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV2 \
+    import NodeAndEdgeWithholdingEvaluatorV2
 
 from src.evaluators.reconstruction.EmpiricalEdgeSamplingEvaluator \
     import EmpiricalEdgeSamplingEvaluator
 
-from src.evaluators.reconstruction.EdgeKFoldEvaluator \
-    import EdgeKFoldEvaluator
+#from src.evaluators.reconstruction.EdgeKFoldEvaluator \
+#    import EdgeKFoldEvaluator
 
 # Post-hoc Evaluators
-from src.evaluators.post_hoc.FullPathwayEvaluator \
-    import FullPathwayEvaluator
-
+from src.evaluators.post_hoc.FullPathwayEvaluatorV2 \
+    import FullPathwayEvaluatorV2
 
 # RWR "q" Estimators 
-from src.evaluators.qestimator.NodeEdgeQEstimator import NodeEdgeQEstimator
-from src.evaluators.qestimator.EdgeKFoldQEstimator import EdgeKFoldQEstimator 
-
+from src.evaluators.qestimator.NodeEdgeQEstimatorV2 import NodeEdgeQEstimatorV2
+# from src.evaluators.qestimator.EdgeKFoldQEstimator import EdgeKFoldQEstimator 
 
 # Algorithms run in the pipeline
 
@@ -125,18 +123,19 @@ class Pipeline(object):
 
                 ##############################################################
                 # Post-hoc analysis
-
+                
+                '''
                 evaluators.append(
-                    FullPathwayEvaluator(
+                    FullPathwayEvaluatorV2(
                         interactome,
                         collection,
                         self.input_settings.algorithms))
+                '''
 
                 ##############################################################
                 # Node-only deletion
-                '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
+                    NodeAndEdgeWithholdingEvaluatorV2(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -144,9 +143,8 @@ class Pipeline(object):
                          "percent_edges_to_keep":1,
                          "iterations": 10}))
                 '''
-                '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
+                    NodeAndEdgeWithholdingEvaluatorV2(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -156,7 +154,7 @@ class Pipeline(object):
                 '''
                 '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
+                    NodeAndEdgeWithholdingEvaluatorV2(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -323,7 +321,6 @@ class Pipeline(object):
 
         else:
             for evaluator in self.evaluators:
-                print(evaluator)
                 evaluator.run(base_output_dir, self.purge_results)
 
 
@@ -339,9 +336,10 @@ class InteractomeOnDisk(object):
     This is a file-based representation of an interactome.
     '''
 
-    def __init__(self, name, path):
+    def __init__(self, name, path, direction_file):
         self.name = name
         self.path = path
+        self.direction_file = direction_file
 
 
     def get_interactome_edges(self):
@@ -484,10 +482,16 @@ class ConfigParser(object):
         interactomes = []
         for interactome in interactomes_list:
             interactomes.append(
-                InteractomeOnDisk(interactome["name"], Path(
-                    base_path, 
-                    *interactome["path"],
-                    interactome["filename"])))
+                InteractomeOnDisk(
+                    interactome["name"], 
+                    Path(
+                        base_path, 
+                        *interactome["path"],
+                        interactome["filename"]),
+                    Path(
+                        base_path,
+                        *interactome["path"],
+                        interactome["edge_dir_file"])))
 
         return interactomes
             

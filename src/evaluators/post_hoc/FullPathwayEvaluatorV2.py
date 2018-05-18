@@ -64,6 +64,7 @@ class FullPathwayEvaluatorV2(Evaluator):
             edge_dir_map = iu.read_direction_file(f)
 
         #######################################################################
+
         for pathway in self.pathway_collection.pathways:
             # Get the list of edges in the pathway 
 
@@ -75,6 +76,7 @@ class FullPathwayEvaluatorV2(Evaluator):
             # efforts, I still need to filter. 
 
             all_pathway_edges = None
+
             with pathway.get_edges_file().open('r') as f:
                 all_pathway_edges = iu.read_edges(f)
 
@@ -117,20 +119,20 @@ class FullPathwayEvaluatorV2(Evaluator):
                 # edge directions (this should roughly reduce the size of
                 # the interactome by half, since most edges are undirected)
 
-                iu.filter_interactome_edge_direction_rwer(                                     
+                iu.filter_interactome_edge_direction( 
                     self.interactome.path,
                     new_interactome_file,
                     self.interactome.direction_file,
                     dir_map)
 
-                # Then I filter the undirected pathway edges 
+                # Then I filter the undirected pathway edges
 
                 directed_edges = iu.get_directed_pathway_edges(
-                    pathway.get_edges_file(), 
+                    pathway.get_edges_file(),
                     self.interactome.direction_file)
 
                 undirected_edges = iu.get_undirected_pathway_edges(
-                    pathway.get_edges_file(), 
+                    pathway.get_edges_file(),
                     self.interactome.direction_file)
 
                 filtered_undirected_edges = iu.filter_edge_direction(
@@ -143,7 +145,6 @@ class FullPathwayEvaluatorV2(Evaluator):
 
                 combined = directed_edges + filtered_undirected_edges
                 print(set(combined) - set(all_interactome_edges))
-
 
                 alg_input = RankingAlgorithm.PathwayReconstructionInput(
                     new_interactome_file,

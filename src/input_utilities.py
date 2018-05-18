@@ -88,8 +88,15 @@ def get_undirected_pathway_edges(pathway_file, direction_file):
     with direction_file.open('r') as f:
         edge_dirs = read_direction_file(f)
 
-    return [x for x in pathway_edges 
+    l1 = [x for x in pathway_edges 
         if x in edge_dirs and edge_dirs[x] == False]
+
+    l2 = [(x[1], x[0]) for x in pathway_edges 
+        if x in edge_dirs and edge_dirs[x] == False]
+
+    total = l1 + l2
+
+    return list(set(total))
 
 
 # TODO: Should really take the result of reading the direction file rather
@@ -118,8 +125,15 @@ def get_undirected_interactome_edges(interactome_file, direction_file):
     with direction_file.open('r') as f:
         edge_dirs = read_direction_file(f)
 
-    return [x for x in interactome_edges if 
+    l1 = [x for x in interactome_edges if 
         x in edge_dirs and edge_dirs[x] == False]
+
+    l2 = [(x[1], x[0]) for x in interactome_edges if 
+        x in edge_dirs and edge_dirs[x] == False]
+
+    total = l1 + l2
+
+    return list(set(total))
 
 
 def graph_from_interactome(interactome_file):
@@ -148,14 +162,14 @@ def get_RWR_flux(G, restart_edges, q):
     # Give every node in the tail an equal restart weight
     restart_weights = {}
     for edge in restart_edges:
-        weights[str(edge[0])] = 1
+        restart_weights[str(edge[0])] = 1
 
     # Set a minimum edge weight for edges in the interactome
     for edge in G_copy.edges(data=True):
         if edge[2]["weight"] == 0:
             edge[2]["weight"] = sys.float_info.min
 
-    pagerank_scores = pr.pagerank(G_copy, weights=weights, q=q)
+    pagerank_scores = pr.pagerank(G_copy, weights=restart_weights, q=q)
     pl.calculateFluxEdgeWeights(G_copy, pagerank_scores)
 
     fluxes = {(edge[0], edge[1]):edge[2]["ksp_weight"] 
@@ -165,6 +179,7 @@ def get_RWR_flux(G, restart_edges, q):
 
 
 def get_RWER_flux(G, restart_edges, q):
+    print("Copying graph")
     G_copy = G.copy()
 
     # Add dumy nodes for every node in the "head" of a restart edge
@@ -198,15 +213,18 @@ def get_RWER_flux(G, restart_edges, q):
             edge[2]["weight"] = sys.float_info.min
 
     # PageRank score using weighted restart set
+    print("pagerank")
     pagerank_scores_weighted = pr.pagerank(G_copy, weights=weights, q=q)
 
     # Fluxes from PageRank score
+    print("flux")
     pl.calculateFluxEdgeWeights(G_copy, pagerank_scores_weighted)
 
     fluxes_weighted = {}
 
     # Add edge fluxes computed from intermediate node edges to original edge's
     # edge flux. If head is not in intermediate nodes, use normal ksp_weight
+    print("aggregate flux")
     for edge in G_copy.edges():
 
         attr_dict = G_copy.get_edge_data(edge[0], edge[1])
@@ -240,17 +258,30 @@ def determine_direction_via_RWER(
     :returns: a map from undirected edges to the chosen edge direction. In
         other words, an entry (a, b) will be mapped to (a, b) or (b, a)
     '''
-
+    
+    print("creating graph")
     G = graph_from_interactome(interactome_file)
 
+    print("get undirected edges")
     undir_edges = get_undirected_interactome_edges( 
         interactome_file, direction_file)
 
+    print("getting flux")
     fluxes = get_RWER_flux(G, restart_edges, q)
 
     dir_map = {}
     
     # For each undirected edge in the graph, get the flux of both directions
+
+    # This should add both directions if the fluxes are equal.
+    # This means that now an undirected edge that uses this lookup table will
+    # arbitrarily choose the direction based on the order of the nodes listed
+    # in the undirected edge.
+
+    # Both the interactome and the pathways should list both directions for
+    # an undirected edge, so both directions should remain in any filtering.
+
+    print("filtering")
     for edge in undir_edges:
         flux1 = fluxes[(edge[0], edge[1])]
         flux2 = fluxes[(edge[1], edge[0])]
@@ -274,8 +305,8 @@ def determine_direction_via_RWR(
     :param restart_edges: the list of edges to restart to. If an undirected
         edge is included here, both directions should be present
 
-    :returns: a mapping, for every edge in the interactome, of the proper
-        direction for that edge.
+    :returns: a mapping, for every undirected edge in the interactome, of the
+        proper direction for that edge.
 
         If (a, b) and (b, a) are both present in the interactome and correspond
         to an undirected edge, then both (a, b) and (b, a) will be mapped
@@ -307,7 +338,9 @@ def determine_direction_via_RWR(
 
     return dir_map
 
-
+# TODO: This method assumes that if an undirected edge (a, b) is in the
+# input, (a, b) will be in dir_map (and we will not need to look at (b, a) 
+# Something about this feels a bit off.
 def filter_edge_direction(
         undirected_edges, dir_map):
     '''
@@ -322,7 +355,7 @@ def filter_edge_direction(
     return [dir_map[edge] for edge in undirected_edges if edge in dir_map]
 
 
-def filter_interactome_edge_direction_rwer(
+def filter_interactome_edge_direction(
         interactome_file, outfile, direction_file, dir_map):
     '''
     Use dir_map to filter lines in the interactome file so that each undirected
