@@ -1,4 +1,10 @@
-* May 7, 2018
+* Log
+** May 14, 2018
+- I found that Q13547 is both listed as a transcription factor and not a
+  transcription factor for TGF Beta. I'm going to remove the line that
+  says it is not a TF.
+
+** May 7, 2018
 - Is it a problem that we are using RWER to determine the edge direction of 
   undirected edges, and then comparing RWER and RWR on an interactome with
   directions determined by RWER?
@@ -13,7 +19,7 @@
 - The question also arises: what restart probability should be used when 
   determining direction?
 
-* May 6, 2018
+** May 6, 2018
 - Current plan for pathway, interactome, and interactome edge direction file 
   creation:
     - 1) Take the intersection of the pathway nodes and the interactome
@@ -39,7 +45,7 @@
     - This will not consider edges that are a part of the pathway but whose
       nodes are not a part of the pathway.
 
-* May 3, 2018
+** May 3, 2018
 - We recently came to the conclusion that I have been treating interactome
   and pathway edges as directed incorrectly. The problem is that all edges
   are seen as directed edges at present (undirected edges are converted to
@@ -53,7 +59,7 @@
     
     - The plan to fix this:
         - 1) Keep, for both a pathway and an interactome, a graph of
-             directed edges and  graph of undirected edges
+             directed edges and graph of undirected edges
 
         - 2) Create folds using the directed and undirected versions 
              separately
@@ -163,11 +169,11 @@
           one edge in an undirected edge pair is on an S-T path, the other 
           direction has to be as well. 
   
-* March 7, 2018
+** March 7, 2018
 - After consulting with Murali and Aditya, I removed the second entry for
   P19838 in the EGFR node file (the row that has its type listed as "none").
 
-* February 22, 2018
+** February 22, 2018
 - QuickLinkerConcat has some subtle errors due to floating point.
   In this algorithm, we combine the results for multiple regular expressions,
   concatenating one set after another. When we aggregate over folds, we
@@ -181,7 +187,7 @@
   points numbers that were only very slightly different before the addition
   might get the same rank after the addition. In other words, 1 + x = 1 + y
 
-* February 19, 2018
+** February 19, 2018
 - I learned today that the node file for EGFR has the same protein
   listed TWICE: that protein is P19838. One row has it as a TF, and
   one has it as none. I am not sure what to do here, and need to ask
@@ -189,7 +195,7 @@
   up in my pipeline currently, which assumes that each node is listed
   only ONCE in the node file.
 
-* January 24, 2018
+** January 24, 2018
 - Today, while creating an interactome by adding missing edges from the 
   Netpath pathways, I noticed that, similar to the Kit pathway (see
   January 9) TCR and the TGF_beta_receptor pathway have nodes named "-".
@@ -198,7 +204,7 @@
 
   I also don't have a good idea of what these nodes are supposed to be.
 
-* January 23
+** January 23
 - In our last meeting, we discussed the possibility that we where maybe 
   not thinking our precision/recall calculation through. In particular, each
   fold consists of a list of positives and negatives to train on. However,
@@ -213,11 +219,11 @@
   fold anyway.
 
 
-* January 10, 2018
+** January 10, 2018
 - I emailed one of the original authors of FAdo asking their thoughts on the
   .tablereg file. 
 
-* January 9, 2018
+** January 9, 2018
 - I found an edge in the KitReceptor pathway nodes/edges file that Anna used.
   The name of this node was "--" and in the node file, it had no node type.  I
   am changing the name of this node to comply with Jeff's GraphSpace posting
@@ -239,7 +245,7 @@
   he is not the original author, he looked into the code and does believe the
   code could be problematic if parallelized. 
 
-* October 19, 2017
+** October 19, 2017
 - The old PathLinker script in Anna's directory, by default, divided all edge
   weights by the sum of the weight of all edges. If you think about it, this
   minimizes the any importance of edge weight at all, given the negative log
@@ -254,9 +260,24 @@
   parameters for every algorithm. It's getting to the point where the user is
   absolutely inundated with switches to provide the program.
 
-* September 27, 2017
+** September 27, 2017
 - I refactored the minimum cut computation in the main PathLinker script. One
   possibly important change is that before, it was only being run if the
   directory did not already exist. I decided to eschew this notion, and always
   recompute it, because we didn't have checks on if the parameters themselves
   were actually changing.
+
+* Pathways
+- Consist of node files and edge files
+
+- Node files seem very lightly parsed: you will not infrequently see the same 
+  node listed with different properties
+
+- Derived from the SBML files Anna parsed several years ago 
+
+- It would appear, at least on the surface, that both directions of an
+  undirected edge are listed. I have not rigorously tested this. Jeff says this
+  is the case.
+
+* Interactome
+- Both directions of an undirected edge should be listed
