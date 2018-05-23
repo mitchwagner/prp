@@ -231,9 +231,9 @@ class AlgorithmEvaluator(Evaluator):
                         fold[0], # training positive edges
                         pathway.get_nodes_file(),
                         full_output_dir,
-                        pathway.get_edges_file(),
+                        pathway.get_edges_file(), # for sanity checks
                         fold[1]) # training negative edges
-                    
+
                     print("Running algorithm: ")
                     print("    " + self.interactome.name)
                     print("    " + self.pathway_collection.name)
@@ -647,6 +647,15 @@ class AlgorithmEvaluator(Evaluator):
 
                 avg_prec = []
 
+                # Where we will write precision/recall results
+                pr_output_dir = Path(
+                    evaluation_dir,
+                    self.interactome.name,
+                    self.pathway_collection.name,
+                    pathway.name,
+                    self.get_output_prefix(),
+                    "aggregate")
+
                 for fold in test_folds:
                     # Where the results were written to
                     reconstruction_output_dir = Path(
@@ -668,15 +677,6 @@ class AlgorithmEvaluator(Evaluator):
                     if not reconstruction_file.exists():
                         print("ALERT: RECONSTRUCTION FILE NOT FOUND")
                         reconstruction_file.touch()
-
-                    # Where we will write precision/recall results
-                    pr_output_dir = Path(
-                        evaluation_dir,
-                        self.interactome.name,
-                        self.pathway_collection.name,
-                        pathway.name,
-                        self.get_output_prefix(),
-                        "aggregate")
 
                     positives = fold[0]
                     negatives = fold[1]
