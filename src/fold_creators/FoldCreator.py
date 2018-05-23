@@ -101,3 +101,7 @@ def remove_sources_and_targets(net, pathway):
             net.remove_node(source)
 
     net_nodes = set(net.nodes())
+
+    for target in targets:
+        if target in net_nodes:
+            net.remove_node(target)
