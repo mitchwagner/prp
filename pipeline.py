@@ -94,10 +94,12 @@ class Pipeline(object):
     2) Run the evaluations created in the step above
     """
 
-    def __init__(self, input_settings, output_settings):
+    def __init__(self, input_settings, output_settings, graphspace_settings):
 
         self.input_settings = input_settings
         self.output_settings = output_settings
+
+        self.graphspace_settings = graphspace_settings
 
         self.evaluators = self.__create_evaluators()
 
@@ -334,6 +336,12 @@ class InputSettings(object):
         self.algorithms = algorithms
 
 
+class GraphSpaceSettings(object):
+    def __init__(self, email, password):
+        self.email = email
+        self.password = password
+
+
 class InteractomeOnDisk(object):
     '''
     This is a file-based representation of an interactome.
@@ -457,11 +465,14 @@ class ConfigParser(object):
     @staticmethod 
     def parse(config_file_handle):
         config_map = yaml.load(config_file_handle)
+
         return Pipeline(
             ConfigParser.__parse_input_settings(
                 config_map["input_settings"]),
             ConfigParser.__parse_output_settings(
-                config_map["output_settings"]))
+                config_map["output_settings"]),
+            ConfigParser.__parse_graphspace_settings(
+                config_map["graphspace_settings"]))
 
     
     @staticmethod 
@@ -538,6 +549,13 @@ class ConfigParser(object):
     def __parse_output_settings(output_settings_map):
         output_dir = output_settings_map["output_dir"]
         return OutputSettings(output_dir) 
+
+    @staticmethod
+    def __parse_graphspace_settings(graphspace_settings_map):
+        email = graphspace_settings_map["email"]
+        password = graphspace_settings_map["password"]
+
+        return GraphSpaceSettings(email, password)
         
 
 RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
