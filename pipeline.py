@@ -37,8 +37,11 @@ from src.evaluators.fold_stats.EdgeKFoldRemovalEvaluator \
     import EdgeKFoldRemovalEvaluator 
 
 # AlgorithmEvaluators
-from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV2 \
-    import NodeAndEdgeWithholdingEvaluatorV2
+from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
+    import NodeAndEdgeWithholdingEvaluator
+
+from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV3 \
+    import NodeAndEdgeWithholdingEvaluatorV3
 
 from src.evaluators.reconstruction.EmpiricalEdgeSamplingEvaluator \
     import EmpiricalEdgeSamplingEvaluator
@@ -134,8 +137,9 @@ class Pipeline(object):
 
                 ##############################################################
                 # Node-only deletion
+                '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV2(
+                    NodeAndEdgeWithholdingEvaluator(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -143,8 +147,9 @@ class Pipeline(object):
                          "percent_edges_to_keep":1,
                          "iterations": 10}))
                 '''
+                '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV2(
+                    NodeAndEdgeWithholdingEvaluatorV3(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -154,7 +159,7 @@ class Pipeline(object):
                 '''
                 '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV2(
+                    NodeAndEdgeWithholdingEvaluatorV3(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -164,7 +169,6 @@ class Pipeline(object):
                 '''
                 ###############################################################
                 # Node + edge deletion
-                '''
                 evaluators.append(
                     NodeAndEdgeWithholdingEvaluator(
                         interactome,
@@ -174,9 +178,8 @@ class Pipeline(object):
                          "percent_edges_to_keep":.9,
                          "iterations": 10}))
                 '''
-                '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
+                    NodeAndEdgeWithholdingEvaluatorV3(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -186,7 +189,7 @@ class Pipeline(object):
                 '''
                 '''
                 evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
+                    NodeAndEdgeWithholdingEvaluatorV3(
                         interactome,
                         collection,
                         self.input_settings.algorithms,
@@ -336,9 +339,10 @@ class InteractomeOnDisk(object):
     This is a file-based representation of an interactome.
     '''
 
-    def __init__(self, name, path, direction_file):
+    def __init__(self, name, path, evidence_file, direction_file):
         self.name = name
         self.path = path
+        self.evidence_file = evidence_file
         self.direction_file = direction_file
 
 
@@ -488,6 +492,10 @@ class ConfigParser(object):
                         base_path, 
                         *interactome["path"],
                         interactome["filename"]),
+                    Path(
+                        base_path, 
+                        *interactome["path"],
+                        interactome["evidence_file"]),
                     Path(
                         base_path,
                         *interactome["path"],
