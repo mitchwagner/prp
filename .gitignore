@@ -23,6 +23,9 @@ outputs/
 venv/
 venv-regpathlinker/
 
+# Any further folder with "venv" in the name
+*venv*/
+
 # Virtual environments for running on baobab
 baobab-venv/
 baobab-venv-regpathlinker/
