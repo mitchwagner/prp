@@ -77,7 +77,7 @@ def flatten_fold_predictions(xs):
         #group.add(x)
 
     regrouped = [] 
-    for k, v in sorted(groups.items()):
+    for k, v in sorted(groups.items(), reverse=True):
         regrouped.append(v)
 
     final = [{(x[0][0], x[1]) for x in xs} for xs in regrouped]
@@ -684,9 +684,35 @@ class AlgorithmEvaluator(Evaluator):
                     with reconstruction_file.open('r') as f:
                         fold_predictions = pl_parse.parse_ranked_edges(f)
                         predictions.append(fold_predictions)
-
+                        
                     test_positives.append(positives)
                     test_negatives.append(negatives)
+
+
+
+                    
+                    # Write individual fold prec/rec curves
+                    fold_output_file = Path(
+                        evaluation_dir,
+                        self.interactome.name,
+                        self.pathway_collection.name,
+                        pathway.name,
+                        self.get_output_prefix(),
+                        fold[2],
+                        algorithm.get_output_directory(),
+                        "precision-recall.txt") 
+
+                    just_edges = [set([x[0] for x in y]) 
+                        for y in fold_predictions]
+                    
+                    fold_curve = \
+                        precrec.compute_precision_recall_curve_negatives_fractions(
+                            just_edges, set(positives), set(negatives))
+
+                    fold_output_file.parent.mkdir(parents=True, exist_ok=True) 
+
+                    with fold_output_file.open("w") as f: 
+                        precrec.write_precision_recall_fractions(f, fold_curve)
                 
                 print("flattening")
                 flat_test_pos = set(flatten_fold_aggregate(test_positives))

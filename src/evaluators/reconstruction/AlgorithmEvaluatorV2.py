@@ -77,7 +77,7 @@ def flatten_fold_predictions(xs):
         #group.add(x)
 
     regrouped = [] 
-    for k, v in sorted(groups.items()):
+    for k, v in sorted(groups.items(), reverse=True):
         regrouped.append(v)
 
     final = [{(x[0][0], x[1]) for x in xs} for xs in regrouped]
