@@ -13,3 +13,6 @@
 [submodule "src/external/quicklinker"]
 	path = src/external/quicklinker
 	url = https://github.com/mitchwagner/quicklinker
+[submodule "src/external/reglinker"]
+	path = src/external/reglinker
+	url = https://github.com/mitchwagner/reglinker
