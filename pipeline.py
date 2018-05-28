@@ -88,6 +88,8 @@ import src.algorithms.RegLinker as RegLinker
 import src.algorithms.RegLinkerRWER as RegLinkerRWER
 import src.algorithms.RegLinkerRWR as RegLinkerRWR 
 
+import src.algorithms.RegLinkerBetter as RegLinkerBetter
+
 class Pipeline(object):
     """
     1) Package the data from config file into appropriate set of evaluations 
@@ -112,193 +114,64 @@ class Pipeline(object):
 
     def __create_evaluators(self):
         '''
-        Define the set of evaluators the pipeline will use in analysis
+        Instantiate the set of evaluators the pipeline will use in analysis
+        based on parameters provided via the config file.
         '''
 
-        # TODO: It would be wonderful to be able to specify these
-        # from the config file as well
         evaluators = []
+
         for interactome in self.input_settings.interactomes:
             
-            #evaluators.append(InteractomeStats(interactome))
-
             for collection in self.input_settings.pathway_collections:
-                
-                #evaluators.append(PathwayStats(interactome, collection))
 
-                ##############################################################
-                # Post-hoc analysis
-                
-                '''
-                evaluators.append(
-                    FullPathwayEvaluatorV2(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms))
-                '''
+                for evaluator in self.input_settings.evaluators:
+                    name = evaluator[0]
+                    required_inputs = evaluator[1]
+                    params = evaluator[2]
+        
+                    # I could just as easily check the length of
+                    # required_inputs but I'd rather be explicit
+                    if "interactome" in required_inputs \
+                            and len(required_inputs) == 1:
 
-                ##############################################################
-                # Node-only deletion
-                '''
-                evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.9,
-                         "percent_edges_to_keep":1,
-                         "iterations": 10}))
-                '''
-                '''
-                evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV3(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.8,
-                         "percent_edges_to_keep":1,
-                         "iterations": 10}))
-                '''
-                '''
-                evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV3(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.7,
-                         "percent_edges_to_keep":1,
-                         "iterations": 10}))
-                '''
-                ###############################################################
-                # Node + edge deletion
-                evaluators.append(
-                    NodeAndEdgeWithholdingEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.9,
-                         "percent_edges_to_keep":.9,
-                         "iterations": 10}))
-                '''
-                evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV3(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.8,
-                         "percent_edges_to_keep":.8,
-                         "iterations": 10}))
-                '''
-                '''
-                evaluators.append(
-                    NodeAndEdgeWithholdingEvaluatorV3(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.7,
-                         "percent_edges_to_keep":.7,
-                         "iterations": 10}))
-                '''
-                ###############################################################
-                # Edge-only deletion (number deleted determined empirically)
-                ''' 
-                evaluators.append(
-                    EmpiricalEdgeSamplingEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.9,
-                         "percent_edges_to_keep":.9,
-                         "iterations": 10}))
-                '''
-                '''
-                evaluators.append(
-                    EmpiricalEdgeSamplingEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.8,
-                         "percent_edges_to_keep":.8,
-                         "iterations": 10}))
-                '''
-                '''
-                evaluators.append(
-                    EmpiricalEdgeSamplingEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"percent_nodes_to_keep":.7,
-                         "percent_edges_to_keep":.7,
-                         "iterations": 10}))
-                '''
+                        evaluators.append(
+                            EVALUATORS[name](interactome))
 
-                ###############################################################
-                '''
-                # Edge k-fold deletion
-                evaluators.append(
-                    EdgeKFoldEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"num_folds":2}))
-                '''
-                '''
-                evaluators.append(
-                    EdgeKFoldEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"num_folds":5}))
-                '''
-                '''
-                evaluators.append(
-                    EdgeKFoldEvaluator(
-                        interactome,
-                        collection,
-                        self.input_settings.algorithms,
-                        {"num_folds":10}))
-                '''
-                ###############################################################
-                '''
-                evaluators.append(
-                    NodeEdgeQEstimator(
-                        interactome,
-                        collection,
-                        {"percent_nodes_to_keep":.9,
-                         "percent_edges_to_keep":.9,
-                         "iterations": 10}))
-                '''
-                '''
-                evaluators.append(
-                    EdgeKFoldQEstimator(
-                        interactome,
-                        collection,
-                        {"num_folds":2}))
-                '''
-                ###############################################################
-                '''
-                evaluators.append(
-                    NodeEdgeRemovalEvaluator(
-                        interactome,
-                        collection,
-                        {"percent_nodes_to_keep":.9,
-                         "percent_edges_to_keep":.9,
-                         "iterations": 10}))
-                evaluators.append(
-                    NodeEdgeRemovalEvaluator(
-                        interactome,
-                        collection,
-                        {"percent_nodes_to_keep":.8,
-                         "percent_edges_to_keep":.8,
-                         "iterations": 10}))
-                evaluators.append(
-                    NodeEdgeRemovalEvaluator(
-                        interactome,
-                        collection,
-                        {"percent_nodes_to_keep":.7,
-                         "percent_edges_to_keep":.7,
-                         "iterations": 10}))
-                '''
+                    elif "interactome" in required_inputs \
+                            and "collection" in required_inputs \
+                            and len(required_inputs) == 2:
+
+                        evaluators.append(
+                            EVALUATORS[name](
+                                interactome,
+                                collection))
+
+                    elif "interactome" in required_inputs \
+                            and "collection" in required_inputs \
+                            and "algorithms" in required_inputs \
+                            and len(required_inputs) == 3:
+
+                        evaluators.append(
+                            EVALUATORS[name](
+                                interactome,
+                                collection,
+                                self.input_settings.algorithms))
+
+                    elif "interactome" in required_inputs \
+                            and "collection" in required_inputs \
+                            and "algorithms" in required_inputs \
+                            and "parameters" in required_inputs:
+
+                        evaluators.append(
+                            EVALUATORS[name](
+                                interactome,
+                                collection,
+                                self.input_settings.algorithms,
+                                params))
+
+                    else:
+                        print("What on Earth are you trying to do?")
+                        raise SystemExit 
 
         return evaluators
 
@@ -330,9 +203,12 @@ class Pipeline(object):
 
 
 class InputSettings(object):
-    def __init__(self, interactomes, pathway_collections, algorithms):
+    def __init__(
+            self, interactomes, pathway_collections, evaluators, algorithms):
+
         self.interactomes = interactomes
         self.pathway_collections = pathway_collections
+        self.evaluators = evaluators 
         self.algorithms = algorithms
 
 
@@ -488,6 +364,8 @@ class ConfigParser(object):
             ConfigParser.__parse_pathway_collections(
                 Path(input_dir, pathway_collection_dir),
                 input_settings_map["pathway_collections"]),
+            ConfigParser.__parse_evaluators(
+                input_settings_map["evaluators"]),
             ConfigParser.__parse_algorithms(
                 input_settings_map["algorithms"]))
 
@@ -527,6 +405,21 @@ class ConfigParser(object):
 
         return collections
 
+    @staticmethod
+    def __parse_evaluators(evaluators_list):
+        evaluators = []
+        for evaluator in evaluators_list:
+            combos = [dict(zip(evaluator["params"], val)) 
+                for val in itertools.product(
+                    *(evaluator["params"][param] 
+                        for param in evaluator["params"]))]
+
+            for combo in combos:
+                evaluators.append(
+                    (evaluator["name"], evaluator["inputs"], combo))
+    
+        return evaluators
+
 
     @staticmethod 
     def __parse_algorithms(algorithms_list):
@@ -550,13 +443,18 @@ class ConfigParser(object):
         output_dir = output_settings_map["output_dir"]
         return OutputSettings(output_dir) 
 
+
     @staticmethod
     def __parse_graphspace_settings(graphspace_settings_map):
         email = graphspace_settings_map["email"]
         password = graphspace_settings_map["password"]
 
         return GraphSpaceSettings(email, password)
-        
+
+
+EVALUATORS = {
+    "node-and-edge-removal-reconstruction": NodeAndEdgeWithholdingEvaluator,
+}
 
 RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
 RANKING_ALGORITHMS = {
@@ -583,6 +481,8 @@ RANKING_ALGORITHMS = {
     "RegLinker":  RegLinker.RegLinker,
     "RegLinkerRWR":  RegLinkerRWR.RegLinkerRWR,
     "RegLinkerRWER":  RegLinkerRWER.RegLinkerRWER,
+
+    "RegLinkerBetter":  RegLinkerBetter.RegLinkerBetter,
     }
 
 
