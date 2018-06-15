@@ -1,4 +1,14 @@
+'''
+Run reconstruction algorithms on an entire pathway to analyze the kinds of
+paths they return.
+
+This evaluator presumes that we have decided, for each undirected edge in the
+interactome, on a direction. A file listing the direction for each edge is
+provided via the interactome parameter to the evaluator.
+'''
+
 import time
+import subprocess
 from pathlib import Path
 
 import scipy as sp
