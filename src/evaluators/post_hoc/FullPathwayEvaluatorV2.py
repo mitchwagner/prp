@@ -2,9 +2,9 @@
 Run reconstruction algorithms on an entire pathway to analyze the kinds of
 paths they return.
 
-This evaluator presumes that we have decided, for each undirected edge in the
-interactome, on a direction. A file listing the direction for each edge is
-provided via the interactome parameter to the evaluator.
+This evaluator presumes that we will use the provided pathways to create
+restart sets for a random walk. After performing the RWER, we use the flux
+of the edges to determine a single direction for undirected edges.
 '''
 
 import time
@@ -31,8 +31,8 @@ import src.fold_creators.FoldCreator as fc
 
 import src.input_utilities as iu
 
-from graphspace_python.api.client import GraphSpace
-from graphspace_python.graphs.classes.gsgraph import GSGraph
+# from graphspace_python.api.client import GraphSpace
+# from graphspace_python.graphs.classes.gsgraph import GSGraph
 
 from src.external.utils.graphspace.post_to_graphspace import buildNodePopup
 
@@ -185,32 +185,16 @@ class FullPathwayEvaluatorV2(Evaluator):
     def get_name(self):
         return "post-hoc analysis"
 
-    # TODO
-    # TODO
-    # TODO
-    # Okay, what do I want to do?
-    #
-    # - Probably like to see edge direction.
-    #   - Can be done pretty easily 
-    #
-    # - Probably would like WHOLE of edge information
-    #   - Going to be more difficult. I will need to read in the
-    #     whole interactome info, not just edges, to get that
-    #
-    # - Real gene names are tough. I need an external lookup for that.
-    #   Or else some pre-computed thing...
-    #
-    # 1) I need to get the list of UniProt to gene names from Jeff's 
-    #    mapping file. Which means I need to add that to the input
-    #
-    # 2) 
-    #
-    #
-    # 3)
-    #
-    #
+
     def upload_to_graphspace(self, credentials, reconstruction_dir=Path()):
+        '''
+        Use Jeff's ToxCast-results-posting script to upload a fully
+        annotated pathway, adding color attributes to distinguish between
+        provided edges/nodes and recovered edges/nodes. 
+        '''
+
         for pathway in self.pathway_collection.pathways:
+            '''
             pathway_obj = pathway.get_pathway_obj()
 
             pathway_edges = \
@@ -219,7 +203,9 @@ class FullPathwayEvaluatorV2(Evaluator):
             pathway_nodes = [b for a in pathway_edges for b in a]
 
             sources = pathway_obj.get_receptors(data=False)
+
             targets = pathway_obj.get_tfs(data=False)
+            '''
 
             for algorithm in self.algorithms:
 
@@ -243,19 +229,35 @@ class FullPathwayEvaluatorV2(Evaluator):
                     print("Was there a cursed runtime error?")
                     reconstruction_file.touch()
 
-                # First, create a GraphSpace graph object
-                G = GSGraph()
+                # Name for graph to post
                 name = "-".join(
                     [self.interactome.name, 
                     self.pathway_collection.name, 
                     pathway.name, 
                     "full-pathway-reconstruction"])
 
-                G.set_name(name)
 
+                #subprocess.call([
+                #    "stuff"    
+                #    j
+                #    ])
+
+        # Options:
+        #   Ranked edges file
+        #   PPI
+        #   Datadir
+        #   Version (or maybe not)
+        #   source/target file
+        #   graphspace username
+        #   graphspace password
+        #   graph name
+        #   graph group
+        #   k
+        #   graph-attr file
+
+    '''
                 def add_node(graph, node, rank):
                     if not graph.has_node(node):
-                        popup = buildNodePopup(node)
                         graph.add_node(node, label=node, k=rank, popup=popup)
 
                         if node in pathway_nodes:
@@ -323,10 +325,6 @@ class FullPathwayEvaluatorV2(Evaluator):
 
                                 add_edge(G, tail, head, rank)
                 
-                graphspace_instance = GraphSpace(
-                    credentials["email"],
-                    credentials["password"])
-
                 graph = graphspace_instance.get_graph(name)
 
                 if graph == None:
@@ -335,6 +333,7 @@ class FullPathwayEvaluatorV2(Evaluator):
                 else:
                     print("Overwriting existing graph")
                     graphspace_instance.update_graph(G)
+    '''
 
 
     def run_alg(self, algorithm, alg_input):
