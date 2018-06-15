@@ -119,7 +119,6 @@ class NodeAndEdgeWithholdingFoldCreatorV2(fc.FoldCreatorV2):
                 dir_neg.remove(edge)
         
         print("removing undir pathway edges from the undir interactome edges")
-        # TODO: AH HA! It looks as though I have found a bottleneck!
 
         undir_neg = list(set(undir_neg) - set(undir_pos))
 
@@ -172,10 +171,6 @@ class NodeAndEdgeWithholdingFoldCreatorV2(fc.FoldCreatorV2):
             to_keep, to_delete = randomly_partition(
                 total_nodes, self.percent_nodes, i)
 
-            # TODO:
-            # This is too bloody slow. How can I make it faster?
-            # Goal will be rather than looking it up, we make it so we know
-            # the answer
             to_delete_set = set(to_delete)
            
             print("Deleting dir now")
@@ -188,52 +183,6 @@ class NodeAndEdgeWithholdingFoldCreatorV2(fc.FoldCreatorV2):
                 if edge[0] in to_delete_set or edge[1] in to_delete_set:
                     # The removal is the slow bit here
                     pair[1].remove(edge)
-
-            '''
-            node_to_edges_dir = {}
-            node_to_edges_undir = {}
-
-            for edge in pair[0]:
-                ls1 = node_to_edges_dir.get(edge[0], [])
-                ls2 = node_to_edges_dir.get(edge[1], [])
-                ls1.append(edge)
-                ls2.append(edge)
-
-                node_to_edges_dir[edge[0]] = ls1 
-                node_to_edges_dir[edge[1]] = ls2
-
-            for edge in pair[1]:
-                ls1 = node_to_edges_undir.get(edge[0], [])
-                ls2 = node_to_edges_undir.get(edge[1], [])
-                ls1.append(edge)
-                ls2.append(edge)
-
-                node_to_edges_undir[edge[0]] = ls1 
-                node_to_edges_undir[edge[1]] = ls2
-
-            for node in to_delete:
-                dir_rm = node_to_edges_dir.get(node, [])
-                undir_rm = node_to_edges_undir.get(node, [])
-
-                for edge in dir_rm:
-                    if edge in pair[0]:
-                        pair[0].remove(edge)
-
-                for edge in undir_rm:
-                    if edge in pair[1]:
-                        pair[1].remove(edge)
-            '''
-    
-            #for node in to_delete:
-            #    # Remove from directed edges
-            #    for edge in pair[0]:
-            #        if node in edge:
-            #            pair[0].remove(edge)
-            #    
-            #    # Remove from undirected edges
-            #    for edge in pair[1]:
-            #        if node in edge:
-            #            pair[1].remove(edge)
 
     
     # TODO: This method is pretty much the same as the one for the pathway.
