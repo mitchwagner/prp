@@ -12,6 +12,9 @@ from matplotlib import colors
 import src.external.pathlinker.parse as pl_parse
 import src.external.utils.precision_recall.precision_recall as precrec
 
+from graphspace_python.api.client import GraphSpace
+from graphspace_python.graphs.classes.gsgraph import GSGraph 
+
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
 
 from src.evaluators.Evaluator import Evaluator
@@ -92,7 +95,8 @@ class AlgorithmEvaluator(Evaluator):
     '''
 
     def __init__(
-            self, interactome, pathway_collection, algorithms, options={}):
+            self, interactome, pathway_collection, algorithms, options={},
+                graphspace_settings=None):
         '''
         :param interactome: on-disk interactome object
         :param pathway_collection: PathwayCollection object
@@ -109,7 +113,91 @@ class AlgorithmEvaluator(Evaluator):
         self.training_folds = self.get_training_folds()
         self.test_folds = self.get_test_folds()
 
+        #if graphspace_settings != None:
+        #    self.post_folds_to_graphspace(graphspace_settings)
+
         print("done initializing folds")
+
+
+    def get_graphspace_name(self, pathway, fold):
+        return str(self.get_output_prefix()) + "-" +  self.interactome.name \
+            + "-" + pathway.name + "-" + str(fold)
+        
+
+    def post_folds_to_graphspace(self, graphspace_settings):
+        '''
+        Iterate through all pathways/folds and post the splits to GraphSpace
+        '''
+
+        print("Posting folds to GraphSpace")
+
+        graphspace_instance = GraphSpace(
+            graphspace_settings.email,
+            graphspace_settings.password)
+
+
+        triples = zip(self.pathway_collection.pathways, 
+            self.training_folds, self.test_folds)
+
+        for pathway, training_folds, test_folds in triples:
+
+            pathway_obj = pathway.get_pathway_obj()
+
+            sources = set(pathway_obj.get_receptors(data=False))
+            targets = set(pathway_obj.get_tfs(data=False))
+
+            for i, pair in enumerate(zip(training_folds, test_folds)):
+
+                G = GSGraph()
+                name = self.get_graphspace_name(pathway, i)
+                G.set_name(name)
+
+                pos_training = set(pair[0][0])
+                pos_test = set(pair[1][0])
+                neg_training = set(pair[0][1])
+                neg_test = set(pair[1][1])
+
+                all_edges = pos_training.union(
+                    pos_test).union(neg_training).union(neg_test)
+                
+                nodes = set((node for edge in all_edges for node in edge))
+
+                for node in nodes:
+
+                    G.add_node(node, label=node)
+
+                    if node in sources:
+                        G.add_node_style(node, color='red', shape="triangle")
+
+                    elif node in targets:
+                        G.add_node_style(node, color='blue', shape="rectangle")
+
+                    else:
+                        G.add_node_style(node, color='blue', shape="ellipse")
+
+                for edge in pos_training:
+                    G.add_edge(edge[0], edge[1])
+                    G.add_edge_style(edge[0], edge[1], directed=True, color='#FFDAB9')
+
+                for edge in pos_test:
+                    G.add_edge(edge[0], edge[1])
+                    G.add_edge_style(edge[0], edge[1], directed=True, color='red')
+
+                for edge in neg_training:
+                    G.add_edge(edge[0], edge[1])
+                    G.add_edge_style(edge[0], edge[1], directed=True, color='black')
+
+                for edge in neg_test:
+                    G.add_edge(edge[0], edge[1])
+                    G.add_edge_style(edge[0], edge[1], directed=True, color='blue')
+                    
+                print("POSTING")
+                graph_id = graphspace_instance.get_graph(name)
+
+                if graph_id == None:    
+                    graphspace_instance.post_graph(G)
+                else:
+                    graphspace_instance.update_graph(G)
 
 
     def get_name(self):
@@ -334,6 +422,13 @@ class AlgorithmEvaluator(Evaluator):
                         for s in fold_predictions]
 
                     print("Calculating precision/recall points")
+                    print("Pathway:", pathway.name)
+                    print("Algorithm:", algorithm.get_descriptive_name())
+
+                    print(positives)
+                    print("--------")
+                    print(negatives)
+
                     t1 = time.time()
                     points = \
                         precrec.compute_precision_recall_curve_negatives_decimals(fold_predictions, positives, negatives)
