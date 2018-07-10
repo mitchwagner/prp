@@ -85,9 +85,14 @@ def remove_edges_not_in_interactome(net, pathway, interactome):
 
     pathway_edges = set(pathway.get_edges(data=False))
 
+    print("    Filtering pathway edges (none should be deleted)")
+    print("    # edges before:", len(pathway_edges))
+    count = 0
     for edge in pathway_edges:
         if edge not in interactome_edges:
+            count += 1
             net.remove_edge(edge[0], edge[1])
+    print("    Removed:", count)
 
 
 def remove_sources_and_targets(net, pathway):
