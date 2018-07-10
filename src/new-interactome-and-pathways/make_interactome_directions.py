@@ -2,7 +2,13 @@
 Use the evidence file to construct a map of edge to its directionality.
 For example, (a, b) might map to True, and (c, b) might map to False
 '''
+
+import sys
+
 edge_directedness = {}
+
+evidence_file = sys.argv[1]
+output_file = sys.argv[2]
 
 # Read in the evidence file. 
 # For every edge, get its directedness.
@@ -12,8 +18,10 @@ edge_directedness = {}
 #   If undirected, add this line and its reverse to the dictionary, unless
 #   this line or the reverse already exist as keys with the value "directed"
 #
-with open('2018_01pathlinker-no-kegg-spike-extra-evidence.tsv') as f:
+#with open('2018_01pathlinker-no-kegg-spike-extra-evidence.tsv') as f:
+# with open('/home/mitchw94/Desktop/svnrepo/src/python/Interactomes/Human/evidence.txt') as f:
 #with open('directionality-test.tsv', 'r') as f:
+with open(evidence_file, 'r') as f:
     for line in f:
         if line.startswith("#"):
             continue
@@ -47,7 +55,9 @@ with open('2018_01pathlinker-no-kegg-spike-extra-evidence.tsv') as f:
 
 
 # Write out the directionality file
-with open('interactome-directions.tsv', 'w') as f:
+# with open('interactome-directions.tsv', 'w') as f:
+# with open('kegg-only-directions.tsv', 'w') as f:
+with open(output_file, 'w') as f:
     for edge in edge_directedness:
         f.write(
             edge[0] + "\t" + 
