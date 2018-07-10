@@ -2,11 +2,15 @@
 The purpose of this file is to use the pathway edges files to create entries
 to add to the interactome file.
 '''
+import sys
 import csv
 from pathlib import Path
 
 
-pathway_dir = Path("filtered-pathways-s-t-pruned")
+#pathway_dir = Path("filtered-pathways-s-t-pruned")
+#evidence_file = Path("2018_01pathlinker-no-kegg-spike.tsv")
+pathway_dir = sys.argv[1]
+#evidence_file = sys.argv[2]
 
 # The list of pathway file names 
 
@@ -95,13 +99,8 @@ def get_is_directed(keyword):
     else:
         return True
 
+'''
 # First, read the evidence file to get a list of nodes in the interactome
-
-evidence_file = Path("2018_01pathlinker-no-kegg-spike.tsv")
-
-# Read in the evidence file and get a set of nodes
-
-
 nodes = set()
 counter = 0
 with evidence_file.open('r') as f:
@@ -119,16 +118,14 @@ with evidence_file.open('r') as f:
 
 print("Number of lines:", counter)
 print("Number of nodes in the evidence file:", len(nodes))
-
-# Next, add pathway edges to an "extra evidence" file if both nodes are
-# part of the interactome proper
+'''
 
 # The file we will write extra lines of evidence to
 extra_evidence_file = Path("extra-evidence.txt")
 
-bad_matches = 0
+# bad_matches = 0
 with extra_evidence_file.open("w") as f1:
-    writer = csv.writer(f1, delimiter="\t")
+    writer = csv.writer(f1, delimiter="\t", lineterminator='\n')
 
     for name in pathway_names:
         
@@ -144,35 +141,35 @@ with extra_evidence_file.open("w") as f1:
                     tail = toks[0]
                     head = toks[1]
 
-                    if tail in nodes and head in nodes:
+                    # if tail in nodes and head in nodes:
 
-                        interaction_type = toks[5]
-                        is_directed = get_is_directed(interaction_type)
+                    interaction_type = toks[5]
+                    is_directed = get_is_directed(interaction_type)
 
-                        pathway_id = toks[4]
-                        full_pathway_id = "netpath:NetPath_" + pathway_id
+                    pathway_id = toks[4]
+                    full_pathway_id = "netpath:NetPath_" + pathway_id
 
-                        pathway_name = NetPathNames["NetPath_" + pathway_id]
+                    pathway_name = NetPathNames["NetPath_" + pathway_id]
 
-                        # The evidence file has 7 columns. Write out the values
-                        # for these columns, for this line in an edge file,
-                        # to the list of extra lines of evidence.
+                    # The evidence file has 7 columns. Write out the values
+                    # for these columns, for this line in an edge file,
+                    # to the list of extra lines of evidence.
 
-                        col = [tail
-                              ,head
-                              ,str(is_directed)
-                              ,interaction_type
-                              ,pathway_name
-                              ,full_pathway_id
-                              ,"NetPath"
-                              ]
-                        
-                        writer.writerow(col)
+                    col = [tail
+                          ,head
+                          ,str(is_directed)
+                          ,interaction_type
+                          ,pathway_name
+                          ,full_pathway_id
+                          ,"NetPath"
+                          ]
+                    
+                    writer.writerow(col)
 
-                    else:
-                        bad_matches += 1
+                    #else:
+                    #    bad_matches += 1
 
-print(bad_matches, "lines where nodes where not in the interactome")
+#print(bad_matches, "lines where nodes where not in the interactome")
 
 # We can then use the resulting evidence file to get a list of directions
 # for every edge in the interactome
