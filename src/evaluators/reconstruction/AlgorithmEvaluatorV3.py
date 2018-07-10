@@ -102,7 +102,8 @@ class AlgorithmEvaluatorV3(Evaluator):
     '''
 
     def __init__(
-            self, interactome, pathway_collection, algorithms, options={}):
+            self, interactome, pathway_collection, algorithms, options={},
+            graphspace_settings=None):
         '''
         :param interactome: on-disk interactome object
         :param pathway_collection: PathwayCollection object
@@ -173,7 +174,7 @@ class AlgorithmEvaluatorV3(Evaluator):
         # Take the set of all directed + undirected pathway edges and use
         # it to determine edge direction for undirected edges
         print("RWER to determine direction")
-        dir_map = iu.determine_direction_via_RWR(
+        dir_map = iu.determine_direction_via_RWER(
             self.interactome.path,
             self.interactome.direction_file, 
             list(all_netpath_edges),
@@ -802,7 +803,6 @@ class AlgorithmEvaluatorV3(Evaluator):
                 avg_prec = []
 
                 for j, fold in enumerate(test_folds):
-                    print("HERE I AM WAHAHA")
                     # Where the results were written to
                     reconstruction_output_dir = Path(
                         reconstruction_dir,
@@ -838,7 +838,7 @@ class AlgorithmEvaluatorV3(Evaluator):
                     positives = fold[0]
                     negatives = fold[1]
 
-                    print("\n\n\n\n\n\n\nFUCKlength of positives", len(positives))
+                    print("\nlength of positives", len(positives))
                     print("length of negtives", len(negatives))
 
                     with reconstruction_file.open('r') as f:
