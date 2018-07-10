@@ -10,7 +10,7 @@ class NodeAndEdgeWithholdingEvaluatorV3(AlgorithmEvaluatorV3):
 
 
     def get_name(self):
-        return "node-and-edge-withholding evaluation"
+        return "node-and-edge-withholding evaluation (V3)"
 
 
     def get_details(self):
@@ -31,7 +31,7 @@ class NodeAndEdgeWithholdingEvaluatorV3(AlgorithmEvaluatorV3):
 
 
     def get_output_prefix(self):
-        return Path("node-and-edge-deletion", "nodes-%f-edges-%f-iter-%d" % (
+        return Path("node-and-edge-deletion-v3", "nodes-%f-edges-%f-iter-%d" % (
             self.options["percent_nodes_to_keep"],
             self.options["percent_edges_to_keep"],
             self.options["iterations"]))
