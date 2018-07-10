@@ -152,6 +152,9 @@ class GeneralizedShortcutsRWER(RankingAlgorithm):
             str(new_labeled_interactome),
             str(reconstruction_input.pathway_nodes_file)
             ])
+
+        os.remove(str(labeled_interactome))
+        os.remove(str(new_labeled_interactome))
          
 
     def conform_output(self, output_dir):

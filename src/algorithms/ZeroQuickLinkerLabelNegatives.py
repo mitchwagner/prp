@@ -48,6 +48,8 @@ class ZeroQuickLinkerLabelNegatives(RankingAlgorithm):
                 self.get_output_directory())), "output"),
             ])
 
+        os.remove(str(zero_interactome))
+
 
     def reweight_interactome( 
         self, in_handle, out_handle, positives, negatives):

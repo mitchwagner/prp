@@ -235,6 +235,12 @@ class RegLinkerRWR(RankingAlgorithm):
                             str(tup[2] + len(self.rlcs) - 1 - i) + "\n"]))
 
             prevRankMap = prevRankMap + len(rank_map.keys())
+
+        os.remove(str(labeled_interactome))
+        os.remove(str(new_labeled_interactome))
+        os.remove(str(cut_labeled_interactome))
+
+
     def conform_output(self, output_dir):
         None
 

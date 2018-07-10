@@ -189,6 +189,10 @@ class RegLinker(RankingAlgorithm):
 
             prevRankMap = prevRankMap + len(rank_map.keys())
 
+        os.remove(str(labeled_interactome))
+        os.remove(str(cut_labeled_interactome))
+
+
     def conform_output(self, output_dir):
         None
 

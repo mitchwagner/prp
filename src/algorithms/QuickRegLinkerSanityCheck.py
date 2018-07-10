@@ -114,6 +114,9 @@ class QuickRegLinkerSanityCheck(RankingAlgorithm):
             "-rlcsp"
             ])
 
+        os.remove(str(labeled_interactome))
+        os.remove(str(cut_labeled_interactome))
+
 
     def conform_output(self, output_dir):
         outfile = Path(output_dir, 

@@ -62,6 +62,7 @@ class Shortcuts(RankingAlgorithm):
             str(reconstruction_input.pathway_nodes_file)
             ])
 
+        os.remove(str(labeled_interactome))
 
 
     def conform_output(self, output_dir):

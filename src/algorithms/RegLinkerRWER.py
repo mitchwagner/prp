@@ -274,6 +274,11 @@ class RegLinkerRWER(RankingAlgorithm):
 
             prevRankMap = prevRankMap + len(rank_map.keys())
 
+        # Clean up interactome files so disk usage doesn't blow up 
+        os.remove(str(labeled_interactome))
+        os.remove(str(new_labeled_interactome))
+        os.remove(str(cut_labeled_interactome))
+
 
     def conform_output(self, output_dir):
         None

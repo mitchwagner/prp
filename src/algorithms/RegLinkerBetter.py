@@ -62,27 +62,7 @@ class RegLinkerBetter(RankingAlgorithm):
                 in_file, out_file, sets, default="x")
 
         #######################################################################
-        # 2) Keep only the necessary columns
-
-        # We can remove this with a flexible reading method
-        '''
-        cut_labeled_interactome = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "cut-labeled-interactome.txt")
-
-        with cut_labeled_interactome.open("w") as outfile:
-            subprocess.call([
-                "cut",
-                "-f", 
-                "1,2,3,5",
-                str(labeled_interactome)],
-                stdout=outfile
-                )
-        '''
-            
-        #######################################################################
-        # 3) and 4)
+        # 2) and 3)
         dfa_prefix = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
@@ -108,7 +88,7 @@ class RegLinkerBetter(RankingAlgorithm):
         # -dfa dfa.txt -dfaNodeTypes dfa-node-types.txt -o test -rlcsp
 
         #######################################################################
-        # 5)
+        # 4)
             output_prefix = os.path.join(str(Path(
                     reconstruction_input.output_dir, 
                     self.get_output_directory())), "rlc-%d" % i, "output")
@@ -249,6 +229,8 @@ class RegLinkerBetter(RankingAlgorithm):
                             str(tup[2] + len(self.rlcs) - 1 - i) + "\n"]))
 
             prevRankMap = prevRankMap + len(rank_map.keys())
+
+        os.remove(str(labeled_interactome))
 
 
     def conform_output(self, output_dir):

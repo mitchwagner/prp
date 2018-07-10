@@ -34,6 +34,9 @@ def GeneralizedSubgraphv2(G, PGraph, radius = 1):
         # Compute all simple paths from SS to ST of depth "radius"+2
         # radius+2 because of the two edges from SS->nodeU and nodeU->ST
         allPaths = nx.all_simple_paths(Gcopy, "SS", "ST", cutoff = radius+2)
+
+        # print("The number of all paths found:", sum(1 for _ in allPaths))
+
         for path in tqdm(allPaths):
             for idx in range(1,len(path)-2):
                 ExtendedSubgraph.add_edge(path[idx], path[idx+1], attr_dict=G.get_edge_data(path[idx],path[idx+1]))

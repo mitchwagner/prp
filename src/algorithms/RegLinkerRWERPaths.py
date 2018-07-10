@@ -250,77 +250,11 @@ class RegLinkerRWERPaths(RankingAlgorithm):
                     
             prevRankMap = prevRankMap + len(rank_map.keys())
 
-            '''
-            EdgeList = []
-            # Augment the results
-            with output_edges.open('r') as f1:
-                for line in f1:
-                    if line.startswith("#"):
-                        continue
-                    else:
-                        toks = line.split("\t")
-                        EdgeList.append((toks[0], toks[1]))
-            
-            output_paths = Path(
-                str(output_prefix) + "-paths.txt")
+        os.remove(str(labeled_interactome))
+        os.remove(str(new_labeled_interactome))
+        os.remove(str(cut_labeled_interactome))
+           
 
-            Edge_SPDict = {}
-            # Augment the results
-            with output_paths.open('r') as f1:
-                for line in f1:
-                    if line.startswith("#"):
-                        continue
-                    else:
-                        toks = line.split("\t")
-                        Paths_lst = toks[2].split("|")
-                        Nlist = []
-                        for nodes in Paths_lst:
-                            Nlist.append(nodes.split("<>")[0])
-                        for idx in range(len(Nlist)-1):
-                            edge = (Nlist[idx],Nlist[idx+1])
-                            if edge in Edge_SPDict.keys() or edge in provided_edges:
-                                # continue
-                                None
-                            else:
-                                Edge_SPDict[edge] = Nlist
-            
-            eWeights = [(
-                edge[0], 
-                edge[1], 
-                fluxes_weighted[(edge[0], edge[1])])
-                for edge in Edge_SPDict.keys()]
-
-            # Sort the list of final scores 
-            eWeights_only = list(set([x[2] for x in eWeights]))
-            eWeights_only.sort(reverse=True)
-
-            # Map weights to their rank
-            rank_map = {}
-            for ix, a in enumerate(eWeights_only):
-                rank_map[a] = ix
-
-            # Create output file
-            output_file = Path(
-                self.get_full_output_directory(
-                    reconstruction_input.output_dir),
-                "final.txt")
-
-            # Write out final output file
-            with output_file.open('a') as f:
-                for j, tup in enumerate(
-                    sorted(eWeights, key=lambda x: x[2], reverse=True)):
-                    NList = Edge_SPDict[(tup[0],tup[1])]
-                    for idx in range(len(NList)-1):
-                        f.write("\t".join([
-                            NList[idx],
-                            NList[idx+1],
-                            str(rank_map[tup[2]]+ prevRankMap),
-                            str(tup[2] + len(self.rlcs) - 1 - i) + "\n"]))
-
-            prevRankMap = prevRankMap + len(rank_map.keys())
-            '''
-    
-            
     def conform_output(self, output_dir):
         None
 

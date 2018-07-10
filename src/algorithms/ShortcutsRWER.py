@@ -20,6 +20,7 @@ class ShortcutsRWER(RankingAlgorithm):
         #######################################################################
         provided_edges = reconstruction_input.training_edges
         negative_edges = reconstruction_input.training_negatives
+
         labeled_interactome = Path(
             self.get_full_output_directory(
                 reconstruction_input.output_dir),
@@ -129,27 +130,9 @@ class ShortcutsRWER(RankingAlgorithm):
                             ))
 
         
-        #######################################################################
-        cut_labeled_interactome = Path(
-            self.get_full_output_directory(
-                reconstruction_input.output_dir),
-            "cut-labeled-interactome.txt")
-
-        with cut_labeled_interactome.open("w") as outfile:
-            subprocess.call([
-                "cut",
-                "-f", 
-                "1,2,3,5",
-                str(new_labeled_interactome)],
-                stdout=outfile
-                )
-
         # 6) Run Shortcuts on the resulting interactome
 
         #######################################################################
-        #with cut_labeled_interactome.open('r') as in_file,\
-        #        labeled_interactome.open('w') as out_file:
-        #     self.label_interactome_file(in_file, out_file, provided_edges)
 
         subprocess.call([ "python", "src/external/shortcuts-ss/master-script.py", 
             "-k", str(self.k),
@@ -161,6 +144,9 @@ class ShortcutsRWER(RankingAlgorithm):
             str(new_labeled_interactome),
             str(reconstruction_input.pathway_nodes_file)
             ])
+
+        os.remove(str(labeled_interactome))
+        os.remove(str(new_labeled_interactome))
 
 
     def conform_output(self, output_dir):
