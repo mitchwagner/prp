@@ -1,8 +1,117 @@
 * Log
+
+** June 20, 2018
+- Okay, I'm reverting the re-naming decision I made on January 9th (see 
+  log entry for that date). It'll be easier to eliminate bad nodes if they
+  all are consistently named.
+
+  Anna mentioned over email that there is a possibility of blank nodes,
+  but I've never seen that. Attempting to grep for empty lines in the node
+  columns of node files and the tail/head columns of edge files did not 
+  reveal anything.
+
+- On another note, it looks like the S-T pruning pretty much eliminates all
+  of the junk nodes anyway. So, I'm not going to bother trying to add a
+  separate step for that right now.
+
+
+** June 19, 2018
+- Okay, there is a lot to think about when it comes to S-T pruning and
+  creating the interactome and directed-trumps-undirected, etc.
+
+  - I recently found out that in my original pipeline, I S-T pruned
+    before removing edges in the pathway that are not in the interactome.
+    In practice, this means that I could still be evaluating edges as 
+    positives that were unreachable by RegLinker.
+        - This can be alleviated with an additional pre-processing step, 
+          before S-T pruning, on the pathways. This is still NOT done 
+          automatically in the pipeline.
+
+  - A similar problem arises when we consider trying to separate directed and
+    undirected edges.
+        - In order to do this, we need an evidence file that has every edge.
+
+        - Previously, I decided to include every edge from pathways in that
+          evidence file; the pathways were not a subset of the interactome to
+          begin with, and this would fix that problem.
+
+        - That said, I did not fully consider this decision. I will do that
+          now. Potential complications stem from the interaction between
+          S-T pruning and having directed edges trumping undirected edges.
+
+        - One question: should I add NetPath pathway edges to evidence if they
+          are going to be pruned?
+            - Either way, I don't count the pruned edges as positives
+            - However, I could potentially do any/all of the following:
+                1) Add an undirected edge to the interactome that winds up
+                   getting pruned in the pathway
+                    - This will now currently be counted as a negative,
+                      which seems wrong.
+
+                2) Add a directed edge to the interactome that winds up 
+                   getting pruned in the pathway
+                    - See above
+
+                3) Supercede an undirected edge in the interactome with a
+                   directed edge from the pathway that then gets pruned
+                    - Technically, we lose a negative in this case.
+
+        - But the opposite approach has problems too! We could instead use the
+          base evidence file to filter out nodes (currently doing that now) and
+          edges
+            - That could remove a lot of pathway edges. Especially in the case
+              of NetPath + 2018 PathLinker interactome, which uses different
+              NetPath edges.  This is why I add the pathway to the evidence
+              file in the first place!
+
+        - It all really boils down to whether the pathways should be included
+          in the evidence or not. It complicates things that the NetPath
+          pathways we are using for evaluation are not included in our
+          interactome build scripts.
+
+        - The only real decision is to make sure the pathways are included
+          in the evidence because otherwise the 2018 interactome decimates
+          the NetPath pathways during filtering. 
+
+        - The evidence file is not really a problem either.
+            - If a NetPath edge is directed, then adding it to the evidence
+              file before pruning would only remove an undirected edge from the
+              NetPath pathways.
+
+            - If a NetPath edge is undirected, then it will stay undirected 
+              unless the evidence file trumps it.
+
+        - So, there's only one real issue, and it comes down to S-T pruning
+          again (the negatives issues detailed above). If I'm adding the 
+          NetPath pathways to the evidence file, it doesn't hurt to use that
+          file to trump undir edges in the pathway itself.
+
+        - So what we can do is the following:
+            - Add all of the edges from a pathway to the evidence file
+
+            - Determine directions of every edge using evidence file
+
+            - Use this information to filter edges from the pathway
+                - Note that this filtering includes all pathway directed edges,
+                  so it is the most generous things can possibly be for the
+                  pathway in terms of it keeping its edges
+
+                - It's also as strict a filtering as can possibly be applied
+                  by the rest of the interactome.
+
+            - S-T prune. Any undirected edges that would be deleted by 
+              directed edges from the rest of the interactome will have been
+              deleted, which is what we want.
+            
+            - Add surviving edges to fresh copy of the original evidence 
+              file. 
+
+
 ** May 14, 2018
 - I found that Q13547 is both listed as a transcription factor and not a
   transcription factor for TGF Beta. I'm going to remove the line that
   says it is not a TF.
+
 
 ** May 7, 2018
 - Is it a problem that we are using RWER to determine the edge direction of 
@@ -19,11 +128,12 @@
 - The question also arises: what restart probability should be used when 
   determining direction?
 
+
 ** May 6, 2018
 - Current plan for pathway, interactome, and interactome edge direction file 
   creation:
-    - 1) Take the intersection of the pathway nodes and the interactome
-         node to get filtered nodes and edges file per pathway
+    - 1) Take the intersection of the pathway nodes and the evidence file 
+         nodes to get filtered nodes and edges file per pathway
          - This eliminates dumb nodes like "-" and "--" and the nodes
            that Jeff says aren't actually UniProt IDs
 
@@ -44,6 +154,7 @@
 
     - This will not consider edges that are a part of the pathway but whose
       nodes are not a part of the pathway.
+
 
 ** May 3, 2018
 - We recently came to the conclusion that I have been treating interactome
@@ -168,10 +279,12 @@
         - I do not think the S-T pruning should be a problem because if
           one edge in an undirected edge pair is on an S-T path, the other 
           direction has to be as well. 
-  
+
+
 ** March 7, 2018
 - After consulting with Murali and Aditya, I removed the second entry for
   P19838 in the EGFR node file (the row that has its type listed as "none").
+
 
 ** February 22, 2018
 - QuickLinkerConcat has some subtle errors due to floating point.
@@ -187,6 +300,7 @@
   points numbers that were only very slightly different before the addition
   might get the same rank after the addition. In other words, 1 + x = 1 + y
 
+
 ** February 19, 2018
 - I learned today that the node file for EGFR has the same protein
   listed TWICE: that protein is P19838. One row has it as a TF, and
@@ -194,6 +308,7 @@
   Murali about this. If it is meant to be a TF, it is getting messed 
   up in my pipeline currently, which assumes that each node is listed
   only ONCE in the node file.
+
 
 ** January 24, 2018
 - Today, while creating an interactome by adding missing edges from the 
@@ -203,6 +318,7 @@
   for posting to GraphSpace might be slightly incorrect. 
 
   I also don't have a good idea of what these nodes are supposed to be.
+
 
 ** January 23
 - In our last meeting, we discussed the possibility that we where maybe 
@@ -222,6 +338,7 @@
 ** January 10, 2018
 - I emailed one of the original authors of FAdo asking their thoughts on the
   .tablereg file. 
+
 
 ** January 9, 2018
 - I found an edge in the KitReceptor pathway nodes/edges file that Anna used.
@@ -245,6 +362,7 @@
   he is not the original author, he looked into the code and does believe the
   code could be problematic if parallelized. 
 
+
 ** October 19, 2017
 - The old PathLinker script in Anna's directory, by default, divided all edge
   weights by the sum of the weight of all edges. If you think about it, this
@@ -259,6 +377,7 @@
   worthwhile to write some sort of JSON config file parser that reads in
   parameters for every algorithm. It's getting to the point where the user is
   absolutely inundated with switches to provide the program.
+
 
 ** September 27, 2017
 - I refactored the minimum cut computation in the main PathLinker script. One
