@@ -91,12 +91,16 @@ class NodeAndEdgeWithholdingFoldCreator(fc.FoldCreator):
 
 
     def make_pathway_folds(self, copies):
+        print("Making pathway folds for:", self.pathway.name)
+
         pathway_obj = self.pathway.get_pathway_obj()
 
         original_edges = fc.get_filtered_pathway_edges(
             pathway_obj, self.interactome)
         
         original_edges = set(original_edges)
+
+        print("Number of edges surviving filtering:", len(original_edges))
 
         folds = []
         for copy in copies:
