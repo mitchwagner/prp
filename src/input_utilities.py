@@ -187,10 +187,14 @@ def get_RWER_flux(G, restart_edges, q):
     for edge in restart_edges:
         intermediate_nodes.add(str(edge[0]+"_temp"))
 
-        G_copy.add_edge(str(edge[0]+"_temp"), edge[1], 
-            attr_dict=G.get_edge_data(edge[0], edge[1]))
+        print(edge)
+        heads = G[edge[0]] 
+        attr_dict = heads[edge[1]]
+        G_copy.add_edge(str(edge[0])+"_temp", edge[1], attr_dict)
+        #G_copy.add_edge(str(edge[0]+"_temp"), edge[1], 
+        #    attr_dict=G.get_edge_data(edge[0], edge[1]))
 
-    # We wish to restart to newly-added temporary nodes. The Pagerank algorithm
+    # We wish to restart to newly-added temporary nodes. The PageRank algorithm
     # will take a list of weights. We will give equal weight to all nodes
     # corresponding to edges in the restart set, and no weight to anything
     # else.
@@ -209,6 +213,7 @@ def get_RWER_flux(G, restart_edges, q):
             edge[2]["weight"] = sys.float_info.min
 
     for edge in G_copy.edges(data=True):
+        print(edge)
         if edge[2]["weight"] == 0:
             edge[2]["weight"] = sys.float_info.min
 
@@ -337,6 +342,7 @@ def determine_direction_via_RWR(
             dir_map[edge] = (edge[1], edge[0])
 
     return dir_map
+
 
 # TODO: This method assumes that if an undirected edge (a, b) is in the
 # input, (a, b) will be in dir_map (and we will not need to look at (b, a) 
