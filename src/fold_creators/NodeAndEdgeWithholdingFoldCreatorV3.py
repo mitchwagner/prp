@@ -3,10 +3,10 @@ import random
 
 from pathlib import Path
 
-import src.fold_creators.FoldCreatorV2 as fc
+import src.fold_creators.FoldCreatorV3 as fc
 import src.external.pathlinker.PathLinker as pl
 
-class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV2):
+class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
     '''
     Positives come from pathways. Negatives come from the remainder of the
     interactome.
@@ -61,19 +61,20 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV2):
         pathway_obj = self.pathway.get_pathway_obj()
         pathway_nodes = pathway_obj.get_nodes(data=False)
 
-        # TODO: It might be good to revisit this, but I don't think it makes
-        # sense to avoid deleting sources and targets here. The algorithms
-        # all get the pathway nodes file so they know what sources are. The
-        # only thing that this does is prevent wholesale deletion of all
-        # edges adjacent to a source or target
-        '''
         sources = pathway_obj.get_receptors(data=False)
         targets = pathway_obj.get_tfs(data=False)
 
         for node in pathway_nodes.copy():
             if node in sources or node in targets:
+                if node in sources:
+                    print("DELETING A SOURCE")
+                    print(node)
+
+                if node in targets:
+                    print("DELETING A TARGET")
+                    print(node)
+                
                 pathway_nodes.remove(node)
-        '''
 
         for i, pair in enumerate(copies):
             pathway_nodes.sort()
@@ -169,13 +170,32 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV2):
 
     def delete_interactome_node_percentage(self, copies):
         print("Deleting interactome node percentage")
-        
+
         # The list of nodes can be obtained from the first copy's directed
         # and undirected edges, combined together
         dir_nodes = [node for edge in copies[0][0] for node in edge]
         undir_nodes = [node for edge in copies[0][1] for node in edge]
 
         total_nodes = list(set(dir_nodes).union(set(undir_nodes)))
+
+        # Remove pathway sources and targets from these nodes
+        pathway_obj = self.pathway.get_pathway_obj()
+        pathway_nodes = pathway_obj.get_nodes(data=False)
+
+        sources = pathway_obj.get_receptors(data=False)
+        targets = pathway_obj.get_tfs(data=False)
+
+        for node in pathway_nodes.copy():
+            if (node in sources or node in targets) and (node in total_nodes):
+                if node in sources:
+                    print("DELETING A SOURCE FROM INTERACTOME")
+                    print(node)
+
+                if node in targets:
+                    print("DELETING A TARGET FROM INTERACTOME")
+                    print(node)
+                
+                total_nodes.remove(node)
 
         for i, pair in enumerate(copies):
             total_nodes.sort()
