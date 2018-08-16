@@ -146,6 +146,8 @@ class QEstimatorV3(Evaluator):
                         try:
                             path = \
                                 nx.shortest_path(pathway_net, source, target)
+                            # Plus one because during RWER we first
+                            # slide down from u to v?
                             number_of_xs.append(len(path) + 1)
                         except:
                             number_of_xs.append(99999999999)
