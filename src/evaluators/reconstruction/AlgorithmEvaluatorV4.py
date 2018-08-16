@@ -28,13 +28,6 @@ import src.algorithms.RankingAlgorithm as RankingAlgorithm
 
 from src.evaluators.Evaluator import Evaluator
 
-# TODO: In the past, I had this "write tp_fp with folds" function to 
-# write out whether or not an edge was a true positive or a false positive
-
-# I also plotted out the weights of these edges and divided them into two
-# bins: true positives or false positives: to see what their overall weights
-# are
-
 def flatten_fold_aggregate(xs):
     '''
     [[a,b],[c]] -> [(a, 0), (b, 0), (c, 1)]
@@ -382,9 +375,6 @@ class AlgorithmEvaluatorV4(Evaluator):
         #### Precision per rank 
         #self.calculate_and_plot_precision_per_rank(
         #    reconstruction_dir, evaluation_dir)
-
-        #self.s_t_paths_analysis(reconstruction_dir, evaluation_dir,
-        #    Path(evaluation_dir.parent, "visualization"))
 
 
     def calculate_metrics_nodes(
@@ -1745,10 +1735,6 @@ class AlgorithmEvaluatorV4(Evaluator):
                 '''
 
 
-
-
-
-
                 print("computing p/r for edges")
                 points = \
                     precrec.compute_precision_recall_curve_negatives_fractions(
@@ -1820,13 +1806,6 @@ class AlgorithmEvaluatorV4(Evaluator):
 
             print("Aggregating precision/recall curves")
 
-            '''
-            aggregated_edges = precrec.aggregate_precision_recall_curve_fractions(
-                edge_curves)
-
-            aggregated_nodes = precrec.aggregate_precision_recall_curve_fractions(
-                node_curves)
-            '''
             aggregated_edges = precrec.aggregate_precision_recall_curve_fractions_stretch(
                 edge_curves)
 
@@ -3578,109 +3557,6 @@ class AlgorithmEvaluatorV4(Evaluator):
             fig_auprc.savefig(str(auprc_png), bbox_inches='tight')
             fig_auprc.savefig(str(auprc_pdf), bbox_inches='tight')
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    """
-        # Snippets of old Wilcoxon plotting code
-        for i, algorithm1 in enumerate(self.algorithms):
-            for algorithm2 in self.algorithms:
-
-                # Greater and significant: green
-                # Lesser and significant: red
-                # Not significant: black
-                # Colormap defined below
-                if (p_val < corrected_alpha):
-                    if median1 > median2: 
-                        matrix[i].append(2) 
-                    else:
-                        matrix[i].append(1)
-                else:
-                    matrix[i].append(0)
-
-        fig, ax = plt.subplots()
-
-        ax.set_title(
-            "Wilcoxon Rank Sum Test"
-            + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
-            + "Node Percent Kept: " + str(
-                self.options["percent_nodes_to_keep"]) + " "
-            + "Edge Percent Kept: " + str(
-                self.options["percent_edges_to_keep"]) + " " 
-            + "Iterations: " + str(
-                self.options["iterations"]))
-
-        ax.set_xlabel("Algorithm")
-        ax.set_ylabel("Algorithm")
-
-        vis_file_png = Path(
-            visualization_dir,
-            self.interactome.name,
-            self.pathway_collection.name,
-            self.get_output_prefix(),
-            "keep-%f-nodes-%f-edges-%d-iterations" % (
-                self.options["percent_nodes_to_keep"], 
-                self.options["percent_edges_to_keep"], 
-                self.options["iterations"]),
-            "wilcoxon.png")
-
-        vis_file_pdf = Path(
-            visualization_dir,
-            self.interactome.name,
-            self.pathway_collection.name,
-            self.get_output_prefix(),
-            "keep-%f-nodes-%f-edges-%d-iterations" % (
-                self.options["percent_nodes_to_keep"], 
-                self.options["percent_edges_to_keep"], 
-                self.options["iterations"]),
-            "wilcoxon.pdf")
-
-        array = np.array(matrix)
-        print(array)
-
-        cmap = colors.ListedColormap([[0, 0, 0], [1, 0 ,0], [0, 1, 0]])
-        ax.matshow(array, cmap=cmap)
-        
-        plt.xticks(range(0, len(array)), labels, rotation="vertical")
-        ax.xaxis.tick_bottom()
-
-        plt.yticks(range(0, len(array)), labels)
-
-        #ax.set_xticklabels(['']+labels)
-        #ax.set_yticklabels(['']+labels)
-        
-        vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
-
-
-        fig.savefig(str(vis_file_pdf), bbox_inches='tight')
-        fig.savefig(str(vis_file_png), bbox_inches='tight')
-    """
 
 
     def plot_pr_individual_pathways(
