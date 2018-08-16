@@ -43,6 +43,9 @@ from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
 from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV3 \
     import NodeAndEdgeWithholdingEvaluatorV3
 
+from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV4 \
+    import NodeAndEdgeWithholdingEvaluatorV4
+
 from src.evaluators.reconstruction.EmpiricalEdgeSamplingEvaluator \
     import EmpiricalEdgeSamplingEvaluator
 
@@ -50,11 +53,11 @@ from src.evaluators.reconstruction.EmpiricalEdgeSamplingEvaluator \
 #    import EdgeKFoldEvaluator
 
 # Post-hoc Evaluators
-from src.evaluators.post_hoc.FullPathwayEvaluatorV2 \
-    import FullPathwayEvaluatorV2
+from src.evaluators.post_hoc.FullPathwayEvaluatorV4 \
+    import FullPathwayEvaluatorV4
 
 # RWR "q" Estimators 
-from src.evaluators.qestimator.NodeEdgeQEstimatorV2 import NodeEdgeQEstimatorV2
+from src.evaluators.qestimator.NodeEdgeQEstimatorV3 import NodeEdgeQEstimatorV3
 # from src.evaluators.qestimator.EdgeKFoldQEstimator import EdgeKFoldQEstimator 
 
 # Algorithms run in the pipeline
@@ -63,9 +66,14 @@ from src.evaluators.qestimator.NodeEdgeQEstimatorV2 import NodeEdgeQEstimatorV2
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
 import src.algorithms.QuickRegLinkerSanityCheck as SanityCheck
 
+## PathLinker
+import src.algorithms.PathLinker as PathLinker
+import src.algorithms.PathLinkerRWER as PathLinkerRWER
+
 ## Induced Subgraph
 import src.algorithms.InducedSubgraph as InducedSubgraph
 import src.algorithms.GenInduced as GenInduced 
+import src.algorithms.GenInducedRWR as GenInducedRWR
 import src.algorithms.GenInducedRWER as GenInducedRWER
  
 import src.algorithms.InducedRWER as InducedRWER
@@ -83,9 +91,19 @@ import src.algorithms.GeneralizedShortcutsRWER as GeneralizedShortcutsRWER
 import src.algorithms.ZeroQuickLinkerLabelNegatives as \
     ZeroQuickLinkerLabelNegatives
 
+## Random Walks
+import src.algorithms.RWR as \
+    RWR
+
+import src.algorithms.RWER as \
+    RWER
+
 ## Final version of RegLinker 
 import src.algorithms.RegLinker as RegLinker 
+import src.algorithms.RegLinkerPaths as RegLinkerPaths 
 import src.algorithms.RegLinkerRWER as RegLinkerRWER
+import src.algorithms.RegLinkerRWERPaths as RegLinkerRWERPaths
+import src.algorithms.RegLinkerRWERNoLoops as RegLinkerRWERNoLoops
 import src.algorithms.RegLinkerRWR as RegLinkerRWR 
 
 import src.algorithms.RegLinkerBetter as RegLinkerBetter
@@ -128,6 +146,12 @@ class Pipeline(object):
                     name = evaluator[0]
                     required_inputs = evaluator[1]
                     params = evaluator[2]
+
+                    # TODO: In the future, this weird contrivance should
+                    # be replaced with named arguments, honestly, so I can
+                    # have any combination of parameters I want. I can then
+                    # use tuple unpacking to throw all the named arguments
+                    # to each evaluator at their will
         
                     # I could just as easily check the length of
                     # required_inputs but I'd rather be explicit
@@ -157,10 +181,23 @@ class Pipeline(object):
                                 collection,
                                 self.input_settings.algorithms))
 
+                    # QEstimators
+                    elif "interactome" in required_inputs \
+                            and "collection" in required_inputs \
+                            and "parameters" in required_inputs \
+                            and len(required_inputs) == 3:
+
+                        evaluators.append(
+                            EVALUATORS[name](
+                                interactome,
+                                collection,
+                                params))
+
                     elif "interactome" in required_inputs \
                             and "collection" in required_inputs \
                             and "algorithms" in required_inputs \
-                            and "parameters" in required_inputs:
+                            and "parameters" in required_inputs \
+                            and len(required_inputs) == 4:
 
                         evaluators.append(
                             EVALUATORS[name](
@@ -168,6 +205,33 @@ class Pipeline(object):
                                 collection,
                                 self.input_settings.algorithms,
                                 params))
+
+                    elif "interactome" in required_inputs \
+                            and "collection" in required_inputs \
+                            and "algorithms" in required_inputs \
+                            and "graphspace" in required_inputs \
+                            and len(required_inputs) == 4:
+
+                        evaluators.append(
+                            EVALUATORS[name](
+                                interactome,
+                                collection,
+                                self.input_settings.algorithms,
+                                self.graphspace_settings))
+
+                    elif "interactome" in required_inputs \
+                            and "collection" in required_inputs \
+                            and "algorithms" in required_inputs \
+                            and "parameters" in required_inputs \
+                            and "graphspace" in required_inputs:
+
+                        evaluators.append(
+                            EVALUATORS[name](
+                                interactome,
+                                collection,
+                                self.input_settings.algorithms,
+                                params,
+                                self.graphspace_settings))
 
                     else:
                         print("What on Earth are you trying to do?")
@@ -453,7 +517,20 @@ class ConfigParser(object):
 
 
 EVALUATORS = {
-    "node-and-edge-removal-reconstruction": NodeAndEdgeWithholdingEvaluator,
+    "node-and-edge-removal-reconstruction": 
+        NodeAndEdgeWithholdingEvaluator,
+    "node-and-edge-removal-reconstruction-v3": 
+        NodeAndEdgeWithholdingEvaluatorV3,
+    "node-and-edge-removal-reconstruction-v4": 
+        NodeAndEdgeWithholdingEvaluatorV4,
+
+    "node-edge-q-estimator-v3": 
+        NodeEdgeQEstimatorV3,
+    "node-edge-q-estimator-v3": 
+        NodeEdgeQEstimatorV3,
+
+    "full-pathway-v4":
+        FullPathwayEvaluatorV4,
 }
 
 RANKING_ALGORITHMS = Dict[str, RankingAlgorithm.RankingAlgorithm]
@@ -465,6 +542,7 @@ RANKING_ALGORITHMS = {
     "InducedRWER": InducedRWER.InducedRWER,
 
     "GenInduced": GenInduced.GenInduced,
+    "GenInducedRWR": GenInducedRWR.GenInducedRWR,
     "GenInducedRWER": GenInducedRWER.GenInducedRWER,
 
     "Shortcuts" : Shortcuts.Shortcuts,
@@ -475,12 +553,21 @@ RANKING_ALGORITHMS = {
     "GeneralizedShortcutsRWER" : 
         GeneralizedShortcutsRWER.GeneralizedShortcutsRWER,
 
+    "PathLinker": PathLinker.PathLinker,
+    "PathLinkerRWER": PathLinkerRWER.PathLinkerRWER,
+
     "ZeroQuickLinkerLabelNegatives" : 
         ZeroQuickLinkerLabelNegatives.ZeroQuickLinkerLabelNegatives,
+
+    "RWR": RWR.RWR,
+    "RWER": RWER.RWER,
     
     "RegLinker":  RegLinker.RegLinker,
+    "RegLinkerPaths":  RegLinkerPaths.RegLinkerPaths,
     "RegLinkerRWR":  RegLinkerRWR.RegLinkerRWR,
     "RegLinkerRWER":  RegLinkerRWER.RegLinkerRWER,
+    "RegLinkerRWERPaths":  RegLinkerRWERPaths.RegLinkerRWERPaths,
+    "RegLinkerRWERNoLoops":  RegLinkerRWERNoLoops.RegLinkerRWERNoLoops,
 
     "RegLinkerBetter":  RegLinkerBetter.RegLinkerBetter,
     }
