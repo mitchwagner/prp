@@ -2,6 +2,9 @@ import csv
 
 from pathlib import Path
 
+# TODO: This code is obsolete, as the import below has been removed.
+# Leaving this here for now if anybody would like to adapt it in the 
+# future.
 from src.evaluators.Evaluator import Evaluator
 
 class RemovalEvaluator(Evaluator):
