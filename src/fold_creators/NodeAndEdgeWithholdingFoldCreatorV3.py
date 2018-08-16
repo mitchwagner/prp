@@ -178,6 +178,8 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
 
         total_nodes = list(set(dir_nodes).union(set(undir_nodes)))
 
+        print("TOTAL NODES", len(total_nodes))
+
         # Remove pathway sources and targets from these nodes
         pathway_obj = self.pathway.get_pathway_obj()
         pathway_nodes = pathway_obj.get_nodes(data=False)
@@ -186,16 +188,31 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
         targets = pathway_obj.get_tfs(data=False)
 
         for node in pathway_nodes.copy():
-            if (node in sources or node in targets) and (node in total_nodes):
-                if node in sources:
-                    print("DELETING A SOURCE FROM INTERACTOME")
-                    print(node)
-
-                if node in targets:
-                    print("DELETING A TARGET FROM INTERACTOME")
-                    print(node)
-                
+            if node in pathway_nodes and node in total_nodes:
                 total_nodes.remove(node)
+
+            if node in sources or node in targets:
+                pathway_nodes.remove(node)
+                
+            #if (node in sources or node in targets) and (node in total_nodes):
+                #if node in sources:
+                #    print("DELETING A SOURCE FROM INTERACTOME")
+                #    print(node)
+
+                #if node in targets:
+                #    print("DELETING A TARGET FROM INTERACTOME")
+                #    print(node)
+                
+                #total_nodes.remove(node)
+
+        #to_delete_list = []
+        #for i, pair in enumerate(copies):
+        #    pathway_nodes.sort()
+
+        #    to_keep, to_delete = randomly_partition(
+        #        pathway_nodes, self.percent_nodes, i)
+
+        #    to_delete_list.append(to_delete)
 
         for i, pair in enumerate(copies):
             total_nodes.sort()
@@ -203,6 +220,9 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
             to_keep, to_delete = randomly_partition(
                 total_nodes, self.percent_nodes, i)
 
+            #pathway_to_delete = to_delete_list[i]
+
+            #to_delete_set = set(to_delete).union(set(pathway_to_delete))
             to_delete_set = set(to_delete)
            
             print("Deleting dir now")
