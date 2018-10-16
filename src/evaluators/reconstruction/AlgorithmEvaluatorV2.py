@@ -16,12 +16,6 @@ import src.algorithms.RankingAlgorithm as RankingAlgorithm
 
 from src.evaluators.Evaluator import Evaluator
 
-# TODO: In the past, I had this "write tp_fp with folds" function to 
-# write out whether or not an edge was a true positive or a false positive
-
-# I also plotted out the weights of these edges and divided them into two
-# bins: true positives or false positives: to see what their overall weights
-# are
 
 def flatten_fold_aggregate(xs):
     '''

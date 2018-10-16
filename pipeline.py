@@ -26,31 +26,19 @@ import src.external.utils.pathway.pathway_parse as pathway_parse
 # Evaluators
 
 # Dataset Evaluators
-from src.evaluators.dataset.InteractomeStats import InteractomeStats
-from src.evaluators.dataset.PathwayStats import PathwayStats
+#from src.evaluators.dataset.InteractomeStats import InteractomeStats
+#from src.evaluators.dataset.PathwayStats import PathwayStats
 
 # Fold Creator Evaluators
-from src.evaluators.fold_stats.NodeEdgeRemovalEvaluator \
-    import NodeEdgeRemovalEvaluator
-
-from src.evaluators.fold_stats.EdgeKFoldRemovalEvaluator \
-    import EdgeKFoldRemovalEvaluator 
+#from src.evaluators.fold_stats.NodeEdgeRemovalEvaluator \
+#    import NodeEdgeRemovalEvaluator
+#
+#from src.evaluators.fold_stats.EdgeKFoldRemovalEvaluator \
+#    import EdgeKFoldRemovalEvaluator 
 
 # AlgorithmEvaluators
-from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluator \
-    import NodeAndEdgeWithholdingEvaluator
-
-from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV3 \
-    import NodeAndEdgeWithholdingEvaluatorV3
-
 from src.evaluators.reconstruction.NodeAndEdgeWithholdingEvaluatorV4 \
     import NodeAndEdgeWithholdingEvaluatorV4
-
-from src.evaluators.reconstruction.EmpiricalEdgeSamplingEvaluator \
-    import EmpiricalEdgeSamplingEvaluator
-
-#from src.evaluators.reconstruction.EdgeKFoldEvaluator \
-#    import EdgeKFoldEvaluator
 
 # Post-hoc Evaluators
 from src.evaluators.post_hoc.FullPathwayEvaluatorV4 \
@@ -517,15 +505,9 @@ class ConfigParser(object):
 
 
 EVALUATORS = {
-    "node-and-edge-removal-reconstruction": 
-        NodeAndEdgeWithholdingEvaluator,
-    "node-and-edge-removal-reconstruction-v3": 
-        NodeAndEdgeWithholdingEvaluatorV3,
     "node-and-edge-removal-reconstruction-v4": 
         NodeAndEdgeWithholdingEvaluatorV4,
 
-    "node-edge-q-estimator-v3": 
-        NodeEdgeQEstimatorV3,
     "node-edge-q-estimator-v3": 
         NodeEdgeQEstimatorV3,
 
