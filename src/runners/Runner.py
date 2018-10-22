@@ -1,6 +1,6 @@
 from pathlib import Path
 
-class Evaluator(object):
+class Runner(object):
     '''
     A runnable analysis to be incorporated into the pipeline
     '''
@@ -12,9 +12,16 @@ class Evaluator(object):
         raise NotImplementedError()
 
 
-    def run(self, output_dir=Path(), purge_results=False):
+    def run(self, *args, **kwargs):
         '''
         Glues the entire Evaluator's suite of functionality into a
         single runnable function
         '''
+        should_run = kwargs.pop('should_run')
+
+        if should_run:
+            self.run_internal(*args, **kwargs)
+                
+
+    def run_internal(self, *args, **kwargs):
         raise NotImplementedError()

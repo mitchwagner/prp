@@ -26,7 +26,7 @@ import src.input_utilities as iu
 
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
 
-from src.evaluators.Evaluator import Evaluator
+from src.evaluators.Runner import Runner 
 
 def flatten_fold_aggregate(xs):
     '''
@@ -88,7 +88,7 @@ def flatten_fold_predictions(xs):
     return final
 
 
-class AlgorithmEvaluatorV4(Evaluator):
+class AlgorithmEvaluatorV4(Runner):
     '''
     Base class for an object that has a "fold" creation procedure and
     runs a set of supplied algorithms over each fold.
@@ -362,19 +362,19 @@ class AlgorithmEvaluatorV4(Evaluator):
         #self.calculate_wilcoxon_scores_nodes(evaluation_dir)
 
         ###### Precision/Recall plots
-        self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
-        self.aggregate_pr_over_pathways(evaluation_dir)
+        #self.aggregate_pr_over_folds(reconstruction_dir, evaluation_dir)
+        #self.aggregate_pr_over_pathways(evaluation_dir)
 
         #####self.successively_aggregate_pr_by_auprc(evaluation_dir)
         #####self.successively_aggregate_pr_by_auprc_nodes(evaluation_dir)
-        #self.successively_aggregate_pr_by_pathway_auprc(evaluation_dir)
-        #self.successively_aggregate_pr_by_pathway_auprc_nodes(evaluation_dir)
-        self.calculate_wilcoxon_scores_pathway(evaluation_dir)
-        self.calculate_wilcoxon_scores_pathway_nodes(evaluation_dir)
+        self.successively_aggregate_pr_by_pathway_auprc(evaluation_dir)
+        self.successively_aggregate_pr_by_pathway_auprc_nodes(evaluation_dir)
+        #self.calculate_wilcoxon_scores_pathway(evaluation_dir)
+        #self.calculate_wilcoxon_scores_pathway_nodes(evaluation_dir)
 
         #### Precision per rank 
-        #self.calculate_and_plot_precision_per_rank(
-        #    reconstruction_dir, evaluation_dir)
+        self.calculate_and_plot_precision_per_rank(
+            reconstruction_dir, evaluation_dir)
 
 
     def calculate_metrics_nodes(
