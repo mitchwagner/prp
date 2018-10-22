@@ -10,6 +10,7 @@ must be setup somewhere on the Murali group computing cluster, for access to
 the SVN repository thereon.
 
 Things that need to be added to the setup script:
+
     - One must build the quicklinker jar in the subrepo. For this, one needs
       to install Gradle and run "gradle build" in the subrepo TLD. 
 
@@ -31,9 +32,9 @@ A limited set of command line parameters can be passed as well. Run
 
 ## Configuration 
 
-The pipeline is configured via the config file, currently hard-coded as 
-config.yaml. Instructions for setting various parameters can be found in that
-file.
+The pipeline is configured via the config file. By default, the pipeline reads
+from config.yaml. Instructions for setting various parameters can be found in
+that file.
 
 ## Inputs
 
