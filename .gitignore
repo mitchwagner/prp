@@ -39,3 +39,6 @@ venv-regpathlinker-baobab/
 .tablereg.bak
 .tablereg.dat
 .tablereg.dir
+
+# mypy
+.mypy_cache
