@@ -1,7 +1,9 @@
 # Pathway Reconstruction Pipeline 
 
-This repository tracks code used for evaluating algorithms for signaling 
-pathway reconstruction.
+This project provides a framework for running jobs related to pathway
+reconstruction. In general, such jobs take as input an interactome and
+a pathway collection; the framework is general enough to encompass a wide
+variety of such tasks.
 
 ## Setup
 
@@ -48,3 +50,11 @@ that file.
     - A folder, where the pathways in the collection are stored
     - A list of pathway names, whose node and edge lists can be found in the
       pathway collection's folder
+
+## Coding Standards
+- The project is implemented in Python 3; adhere to the corresponding
+  conventions
+
+- Keep lines to a maximum of 79 characters in length
+
+- Use single quotes for all strings
