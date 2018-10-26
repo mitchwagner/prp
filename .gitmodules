@@ -16,3 +16,6 @@
 [submodule "src/external/reglinker"]
 	path = src/external/reglinker
 	url = https://github.com/mitchwagner/reglinker
+[submodule "src/external/rwer"]
+	path = src/external/rwer
+	url = https://github.com/mitchwagner/rwer
