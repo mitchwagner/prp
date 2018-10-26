@@ -41,12 +41,6 @@ class InducedRWER(RankingAlgorithm):
             reconstruction_input.label_interactome_file(
                 in_file, out_file, sets, default="n")
 
-
-        weights = {} 
-        for edge in provided_edges:
-            # Default value of 0
-            weights[str(edge[0])] = weights.get(edge[0],0) + 1
-
         # Read in the interactome
         net = None
         netCopy = None
