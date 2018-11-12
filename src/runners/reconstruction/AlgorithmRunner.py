@@ -1,11 +1,3 @@
-'''
-Runs an algorithm, but makes sure that undirected edges and directed
-edges are split into folds separately, so that both directions of undirected 
-edges are ensured to end up in the same bin. This is the same as 
-AlgorithmEvaluatorV1 in all regards but that. We do NOT decide on a single
-direction for an undirected edge here.
-'''
-
 import time
 import itertools
 from pathlib import Path
@@ -25,8 +17,8 @@ import src.external.utils.precision_recall.precision_recall as precrec
 import src.input_utilities as iu
 
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
+from src.runners.Runner import Runner
 
-from src.evaluators.Runner import Runner 
 
 def flatten_fold_aggregate(xs):
     '''
@@ -88,39 +80,41 @@ def flatten_fold_predictions(xs):
     return final
 
 
-class AlgorithmEvaluatorV4(Runner):
+class AlgorithmRunner(Runner):
     '''
-    Base class for an object that has a "fold" creation procedure and
-    runs a set of supplied algorithms over each fold.
+    This class serves as a basis for pathway reconstruction runners that:
+
+    1) Creates training and test sets from the nodes or edges in an interactome
+    2) Runs algorithms over the interactome using the training data
+    3) Evaluates the results of running those algorithms
+    4) Produces visualizations of the evalution results
+
+    Directed and undirected edges must be split into folds
+    independently. This is because undirected edges are represented
+    with a pair of directed edges under our model, and we want
+    both directions to either in the same bin (train or test).
     '''
 
-    def __init__(
-            self, interactome, pathway_collection, algorithms, options={},
-            graphspace_settings=None):
+    def __init__(self, *args, **kwargs) -> None:
         '''
-        :param interactome: on-disk interactome object
-        :param pathway_collection: PathwayCollection object
-        :param algorithms: list of RankingAlgorithms
-        :param options: map of options for the evaluator
+        Sets instance variables
         '''
-        self.interactome = interactome
-        self.pathway_collection = pathway_collection
-        self.algorithms = algorithms
-        self.options = options
+        super().__init__(*args, **kwargs)
+
+        # Cache remaining keyword arguments
+        self.options = kwargs
         
-        print("initializing folds")
-        
+        print('initializing folds')
         self.training_folds = self.get_training_folds()
         self.test_folds = self.get_test_folds()
+        print('done initializing folds')
+    
 
-        print("done initializing folds")
-
-
-    def get_name(self):
+    def get_name(self) -> str:
         raise NotImplementedError()
 
 
-    def get_details(self):
+    def get_details(self) -> str:
         raise NotImplementedError()
 
 
@@ -139,7 +133,7 @@ class AlgorithmEvaluatorV4(Runner):
 
         fcs = []
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
             fcs.append(self.get_fold_creator(pathway))
         
         # Cache the fold creators because they cache things
@@ -211,7 +205,7 @@ class AlgorithmEvaluatorV4(Runner):
             print("-------------------------------------------")
             print("Creating training folds for", fc.pathway.name)
             print("-------------------------------------------")
-            pos_folds, neg_folds = fc.create_folds_initial()
+            pos_folds, neg_folds = fc.create_folds()
             pos_training = [x[0] for x in self.get_filtered_folds(pos_folds)]
             neg_training = [x[0] for x in self.get_filtered_folds(neg_folds)]
 
@@ -238,7 +232,7 @@ class AlgorithmEvaluatorV4(Runner):
             print("-------------------------------------------")
             print("Creating test folds for", fc.pathway.name)
             print("-------------------------------------------")
-            pos_folds, neg_folds = fc.create_folds_initial()
+            pos_folds, neg_folds = fc.create_folds()
             pos_test = [x[1] for x in self.get_filtered_folds(pos_folds)]
             neg_test = [x[1] for x in self.get_filtered_folds(neg_folds)]
 
@@ -257,7 +251,7 @@ class AlgorithmEvaluatorV4(Runner):
         '''
 
         # self.training_folds is a list of tuples of lists
-        pairs = zip(self.pathway_collection.pathways, self.training_folds)
+        pairs = zip(self.collection.pathways, self.training_folds)
 
         # training_folds is a tuple of lists corresponding to the pathway
         for i, (pathway, training_fold) in enumerate(pairs):
@@ -272,7 +266,7 @@ class AlgorithmEvaluatorV4(Runner):
                     full_output_dir = Path(
                         output_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -283,27 +277,6 @@ class AlgorithmEvaluatorV4(Runner):
                     # TODO: Is this step even necessary?
                     alg_dir.mkdir(parents=True, exist_ok=True)
                     
-                        
-                    # This should be unnecessary for this evaluator
-                    '''
-                    # Write out a filtered interactome file
-                    # For now, let's just do this for every fold.
-                    # Huge waste, but simple beats complex
-                    new_interactome_file = \
-                        Path(alg_dir, "edge-filtered-interactome.txt")
-
-                    iu.filter_interactome_edge_direction(                                          
-                        self.interactome.path, 
-                        new_interactome_file, 
-                        self.interactome.direction_file, 
-                        self.get_dir_map())
-                    '''
-
-                    #print("# of training positives: ", 
-                    #    len(training_fold[0][j]))
-
-                    #print("# of training negatives: ", 
-                    #    len(training_fold[1][j]))
                     print("# of training positives: ", 
                         len(fold[0]))
 
@@ -318,17 +291,9 @@ class AlgorithmEvaluatorV4(Runner):
                         pathway.get_edges_file(),
                         fold[1]) # training negative edges
 
-                    # alg_input = RankingAlgorithm.PathwayReconstructionInput(
-                    #    new_interactome_file,
-                    #    training_fold[0][j], # training positive edges
-                    #    pathway.get_nodes_file(),
-                    #    full_output_dir,
-                    #    pathway.get_edges_file(),
-                    #    training_fold[0][j]) # training negative edges
-
                     print("Running algorithm: ")
                     print("    " + self.interactome.name)
-                    print("    " + self.pathway_collection.name)
+                    print("    " + self.collection.name)
                     print("    " + pathway.name)
                     print("    " + self.get_name())
                     print("    " + "fold-" + str(j))
@@ -384,7 +349,7 @@ class AlgorithmEvaluatorV4(Runner):
         for each fold independently, writing it to disk.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # TODO These varible names are AWFUL LIES.
         # dir_neg and undirected return ALL edges in the interactome,
@@ -423,7 +388,7 @@ class AlgorithmEvaluatorV4(Runner):
                     reconstruction_output_dir = Path(
                         reconstruction_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -443,7 +408,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -620,7 +585,7 @@ class AlgorithmEvaluatorV4(Runner):
         for each fold independently, writing it to disk.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         for pathway, test_fold in pairs:
             for algorithm in self.algorithms:
@@ -632,7 +597,7 @@ class AlgorithmEvaluatorV4(Runner):
                     reconstruction_output_dir = Path(
                         reconstruction_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -652,7 +617,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -721,7 +686,7 @@ class AlgorithmEvaluatorV4(Runner):
         from each pathway fold.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -738,7 +703,7 @@ class AlgorithmEvaluatorV4(Runner):
                 eval_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -812,7 +777,7 @@ class AlgorithmEvaluatorV4(Runner):
         wilcoxon_auprc_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-auprc.tsv")
 
@@ -853,7 +818,7 @@ class AlgorithmEvaluatorV4(Runner):
         from each pathway fold.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -870,7 +835,7 @@ class AlgorithmEvaluatorV4(Runner):
                 eval_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -944,7 +909,7 @@ class AlgorithmEvaluatorV4(Runner):
         wilcoxon_auprc_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-auprc-nodes.tsv")
 
@@ -974,19 +939,11 @@ class AlgorithmEvaluatorV4(Runner):
 
 
 
-
-
-
-
-
-
-
-
     def calculate_wilcoxon_scores(self, evaluation_dir=Path()):
         '''
         Write out a TSV relating Wilcoxon scores between algorithms
         '''
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -1012,7 +969,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -1140,21 +1097,21 @@ class AlgorithmEvaluatorV4(Runner):
         wilcoxon_avg_prec_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-avg-prec.tsv")
 
         wilcoxon_f1_max_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-f1-max.tsv")
 
         wilcoxon_auprc_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-auprc.tsv")
 
@@ -1232,7 +1189,7 @@ class AlgorithmEvaluatorV4(Runner):
         '''
         Write out a TSV relating Wilcoxon scores between algorithms
         '''
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -1258,7 +1215,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -1386,21 +1343,21 @@ class AlgorithmEvaluatorV4(Runner):
         wilcoxon_avg_prec_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-avg-prec-nodes.tsv")
 
         wilcoxon_f1_max_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-f1-max-nodes.tsv")
 
         wilcoxon_auprc_file = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "wilcoxon-auprc-nodes.tsv")
 
@@ -1493,7 +1450,7 @@ class AlgorithmEvaluatorV4(Runner):
         fold_creators = self.get_fold_creators()
 
         creator_pathway_pairs = zip(
-            [pathway for pathway in self.pathway_collection.pathways],
+            [pathway for pathway in self.collection.pathways],
             fold_creators)
 
         for i, (pathway, fc) in enumerate(creator_pathway_pairs):
@@ -1506,7 +1463,7 @@ class AlgorithmEvaluatorV4(Runner):
             pr_output_dir = Path(
                 evaluation_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "aggregate")
@@ -1524,7 +1481,7 @@ class AlgorithmEvaluatorV4(Runner):
                     reconstruction_output_dir = Path(
                         reconstruction_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -1766,7 +1723,7 @@ class AlgorithmEvaluatorV4(Runner):
         pathway_collection_pr_output_dir = Path(
             evaluation_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             "aggregate",
             self.get_output_prefix())
 
@@ -1777,11 +1734,11 @@ class AlgorithmEvaluatorV4(Runner):
 
             # Where we wrote precision/recall, aggregated over
             # all folds per pathway
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 pathway_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -1834,185 +1791,6 @@ class AlgorithmEvaluatorV4(Runner):
                 precrec.write_precision_recall_fractions(f, aggregated_nodes)
 
         
-    """
-
-    # TODO: This needs to be updated to reflect Aditya's most recent changes!
-    def s_t_paths_analysis(
-            self, reconstruction_dir=Path(), evaluation_dir=Path(),
-            visualization_dir=Path()):
-        '''
-        See how quickly the algorithms connect all receptors to all
-        transcription factors.
-        '''
-        
-        fold_creators = self.get_fold_creators()
-
-        creator_pathway_pairs = zip(
-            [pathway for pathway in self.pathway_collection.pathways],
-            fold_creators)
-
-        for pathway, fc in creator_pathway_pairs:
-
-            # Start with the p-graph
-            train_folds = fc.get_training_folds()
-            test_folds = fc.get_test_folds()
-
-            fig, ax = plt.subplots()
-
-            ax.set_title(
-                "Fraction s-t pairs Connected vs. Rank"
-                + self.interactome.name + " "
-                + self.pathway_collection.name + " "
-                + pathway.name + "\n"
-                + self.get_details())
-
-            ax.set_xlabel("Rank")
-            ax.set_ylabel("Fraction s-t Pairs Connected")
-
-            vis_file_png = Path(
-                visualization_dir,
-                self.interactome.name,
-                self.pathway_collection.name,
-                pathway.name,
-                self.get_output_prefix(),
-                "st-pairs.png")
-
-            vis_file_pdf = Path(
-                visualization_dir,
-                self.interactome.name,
-                self.pathway_collection.name,
-                pathway.name,
-                self.get_output_prefix(),
-                "st-pairs.pdf")
-
-            vis_file_pdf.parent.mkdir(parents=True, exist_ok=True)
-
-            for algorithm in self.algorithms:
-
-                rank_st_path_points = [] 
-
-                for (train_fold, test_fold) in zip(train_folds, test_folds):
-                    points = []
-
-                    # 1) Get the list of edges for the algorithm               
-
-                    # Where the results were written to
-                    reconstruction_output_dir = Path(
-                        reconstruction_dir,
-                        self.interactome.name,
-                        self.pathway_collection.name,
-                        pathway.name,
-                        self.get_output_prefix(),
-                        train_fold[2])
-
-                    reconstruction_file = Path(
-                        reconstruction_output_dir, 
-                        algorithm.get_output_directory(),
-                        algorithm.get_output_file())
-
-                    # Some error prevented the creation of the file.
-                    # At the moment, this only happens when the reglinker
-                    # fails to find paths. Thus, create an empty file.
-                    if not reconstruction_file.exists():
-                        reconstruction_file.touch()
-        
-                    # 2) Read the list of edges in by rank
-                    fold_predictions = None
-                    with reconstruction_file.open('r') as f:
-                        fold_predictions = pl_parse.parse_ranked_edges(f)
-
-                    # 3) Read the lists of sources and targets
-
-                    pathway_obj = pathway.get_pathway_obj()
-
-                    sources = pathway_obj.get_receptors(data=False)
-                    targets = pathway_obj.get_tfs(data=False)
-                    
-                    # 4) Construct the base graph
-
-                    base_graph = nx.DiGraph()
-
-                    for source in sources:
-                        base_graph.add_node(source)
-
-                    for target in targets:
-                        base_graph.add_node(target)
-
-                    for edge in set(train_fold[0]):
-                        base_graph.add_edge(edge[0], edge[1])
-
-                    # 5) For reach rank...
-                    for i, rank in enumerate(fold_predictions):
-
-                        # 5) Add the edges with the rank to the graph
-                        for edge in rank:
-                            base_graph.add_edge(edge[0][0], edge[0][1])
-                        if i%20 == 0:
-                            # 6) For each source/target pair, try to find a
-                            # path. Keep track of the number of successes
-
-                            path_sum = 0
-                            
-                            for source in sources:
-                                for target in targets:
-                                    if nx.has_path(
-                                        base_graph, source,target):
-                                        path_sum += 1
-                            
-                            total_possible = len(sources) * len(targets)
-                            frac = float(path_sum) / float(total_possible)
- 
-                            # 7) Create a tuple (rank, sum)
-                            tup = (i, frac)
-
-                        # 8) Append tuple to a list
-                            points.append(tup)
-                            #if frac == 1:
-                    # 9) Append list to overall list
-                    rank_st_path_points.append(points)
-
-                # 10) Avg. across folds
-                maxLen = max([len(x) for x in rank_st_path_points])
-                AvgYs = [0] * maxLen
-                Counts = [0] * maxLen
-                StddevList = [[] for i in range(maxLen)]
-
-                # Make all lists the same length by padding the end of the
-                # shorter ones with their last element
-                for x in rank_st_path_points:
-                    xLen =  len(x)
-                    lastElement = x[-1]
-                    
-                    for i in range(maxLen - xLen):
-                        x.append(lastElement)
-                
-                for i, ls in enumerate(rank_st_path_points):
-
-                    for j in range(len(ls)):
-                        AvgYs[j] += ls[j][1]
-                        StddevList[j].append(ls[j][1])
-                        Counts[j] += 1
-                    
-                AvgYs = [x/Counts[i] for i,x in enumerate(AvgYs)]
-                Ebars = [np.std(x) for i,x in enumerate(StddevList)]
-
-                xs = [i*20 for i in range(len(AvgYs))]
-                    
-                label = algorithm.get_descriptive_name() 
-                ax.plot(xs, AvgYs, label=label)
-                Ebars_minus = [max(0,x-Ebars[i]) for i,x in enumerate(AvgYs)]
-                Ebars_plus = [min(1,x+Ebars[i]) for i,x in enumerate(AvgYs)]
-                ax.fill_between(xs, Ebars_minus, Ebars_plus,alpha=0.5,)
-
-                ax.set_ybound(0,1)
-                ax.set_xbound(0,1000)
-            ax.legend(loc='best')
-
-            fig.savefig(str(vis_file_pdf), bbox_inches='tight')
-            fig.savefig(str(vis_file_png), bbox_inches='tight')
-
-    """
-
 
     def plot_results(
             self, evaluation_dir=Path(), visualization_dir=Path()):
@@ -2057,11 +1835,6 @@ class AlgorithmEvaluatorV4(Runner):
             evaluation_dir, visualization_dir)
 
 
-
-
-
-
-
     def all_algorithm_scores_combined_pathways_boxplot_aggregated(
             self, evaluation_dir, visualization_dir): 
         '''
@@ -2069,7 +1842,7 @@ class AlgorithmEvaluatorV4(Runner):
         a constituent point is an algorithm's score on a particular fold.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -2086,7 +1859,7 @@ class AlgorithmEvaluatorV4(Runner):
                 eval_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -2130,7 +1903,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_auprc.set_title(
             "AUPRC by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_auprc.set_xlabel("AUPRC")
@@ -2139,14 +1912,14 @@ class AlgorithmEvaluatorV4(Runner):
         auprc_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc-aggregated-take-two.png")
 
         auprc_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc-aggregated-take-two.pdf")
 
@@ -2170,7 +1943,7 @@ class AlgorithmEvaluatorV4(Runner):
         a constituent point is an algorithm's score on a particular fold.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -2187,7 +1960,7 @@ class AlgorithmEvaluatorV4(Runner):
                 eval_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -2228,7 +2001,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_auprc.set_title(
             "AUPRC by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_auprc.set_xlabel("AUPRC")
@@ -2237,14 +2010,14 @@ class AlgorithmEvaluatorV4(Runner):
         auprc_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc-aggregated-take-two-nodes.png")
 
         auprc_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc-aggregated-take-two-nodes.pdf")
 
@@ -2257,21 +2030,6 @@ class AlgorithmEvaluatorV4(Runner):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def all_algorithm_scores_combined_pathways_boxplot(
             self, evaluation_dir, visualization_dir): 
         '''
@@ -2279,7 +2037,7 @@ class AlgorithmEvaluatorV4(Runner):
         a constituent point is an algorithm's score on a particular fold.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -2306,7 +2064,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -2367,7 +2125,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_avg_prec.set_title(
             "Average Precision by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_avg_prec.set_xlabel("Average Precision")
@@ -2376,7 +2134,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_f1_max.set_title(
             "Max F-Measure by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_f1_max.set_xlabel("Max F-Measure")
@@ -2385,7 +2143,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_auprc.set_title(
             "AUPRC by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_auprc.set_xlabel("AUPRC")
@@ -2394,42 +2152,42 @@ class AlgorithmEvaluatorV4(Runner):
         avg_prec_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "avg_prec.png")
 
         avg_prec_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "avg_prec.pdf")
 
         f1_max_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "f1_max.png")
 
         f1_max_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "f1_max.pdf")
 
         auprc_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc.png")
 
         auprc_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc.pdf")
 
@@ -2452,7 +2210,7 @@ class AlgorithmEvaluatorV4(Runner):
     def all_algorithm_scores_individual_pathways_boxplots( 
             self, evaluation_dir, visualization_dir): 
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -2464,7 +2222,7 @@ class AlgorithmEvaluatorV4(Runner):
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 avg_prec_algorithm_map[tup] = []
                 f1_max_algorithm_map[tup] = []
@@ -2482,7 +2240,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -2526,7 +2284,7 @@ class AlgorithmEvaluatorV4(Runner):
                     f1_max_algorithm_map[tup].append(f1_max)
                     auprc_algorithm_map[tup].append(auprc)
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
             labels = []
             results_avg_prec = []
             results_f1_max = []
@@ -2547,7 +2305,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_avg_prec.set_title(
                 "Average Precision by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_avg_prec.set_xlabel("Average Precision")
@@ -2556,7 +2314,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_f1_max.set_title(
                 "Max F-Measure by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_f1_max.set_xlabel("Max F-Measure")
@@ -2565,7 +2323,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_auprc.set_title(
                 "AUPRC by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_auprc.set_xlabel("AUPRC")
@@ -2574,7 +2332,7 @@ class AlgorithmEvaluatorV4(Runner):
             avg_prec_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "avg_prec.png")
@@ -2582,7 +2340,7 @@ class AlgorithmEvaluatorV4(Runner):
             avg_prec_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "avg_prec.pdf")
@@ -2590,7 +2348,7 @@ class AlgorithmEvaluatorV4(Runner):
             f1_max_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "f1_max.png")
@@ -2598,7 +2356,7 @@ class AlgorithmEvaluatorV4(Runner):
             f1_max_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "f1_max.pdf")
@@ -2606,7 +2364,7 @@ class AlgorithmEvaluatorV4(Runner):
             auprc_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "auprc.png")
@@ -2614,7 +2372,7 @@ class AlgorithmEvaluatorV4(Runner):
             auprc_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "auprc.pdf")
@@ -2638,7 +2396,7 @@ class AlgorithmEvaluatorV4(Runner):
     def individual_algorithm_scores_all_pathways_boxplots(
             self, evaluation_dir, visualization_dir): 
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -2650,7 +2408,7 @@ class AlgorithmEvaluatorV4(Runner):
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 avg_prec_algorithm_map[tup] = []
                 f1_max_algorithm_map[tup] = []
@@ -2668,7 +2426,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -2719,7 +2477,7 @@ class AlgorithmEvaluatorV4(Runner):
             results_f1_max = []
             results_auprc = []
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 labels.append(pathway.name)
                 tup = (name, pathway.name)
                 results_avg_prec.append(avg_prec_algorithm_map[tup])
@@ -2733,7 +2491,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_avg_prec.set_title(
                 "Average Precision by Pathway"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_avg_prec.set_xlabel("Average Precision")
@@ -2742,7 +2500,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_f1_max.set_title(
                 "Max F-Measure by Pathway"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_f1_max.set_xlabel("Max F-Measure")
@@ -2751,7 +2509,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_auprc.set_title(
                 "AUPRC by Pathway"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_auprc.set_xlabel("AUPRC")
@@ -2760,42 +2518,42 @@ class AlgorithmEvaluatorV4(Runner):
             avg_prec_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-avg_prec.png")
 
             avg_prec_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-avg_prec.pdf")
 
             f1_max_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-f1_max.png")
 
             f1_max_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-f1_max.pdf")
 
             auprc_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-auprc.png")
 
             auprc_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-auprc.pdf")
 
@@ -2816,205 +2574,6 @@ class AlgorithmEvaluatorV4(Runner):
 
 
 
-
-
-
-
-
-
-
-
-
-
-    #def individual_algorithm_scores_all_pathways_aggregated_boxplots(
-    #        self, evaluation_dir, visualization_dir): 
-
-    #    pairs = zip(self.pathway_collection.pathways, self.test_folds)
-
-    #    # First, read in the scores 
-
-    #    # Map of algorithms to lists of points
-    #    avg_prec_algorithm_map = {}
-    #    f1_max_algorithm_map = {}
-    #    auprc_algorithm_map = {}
-
-    #    for algorithm in self.algorithms:
-    #        name = algorithm.get_descriptive_name()
-
-    #        for pathway in self.pathway_collection.pathways:
-    #            tup = (name, pathway.name)
-    #            avg_prec_algorithm_map[tup] = []
-    #            f1_max_algorithm_map[tup] = []
-    #            auprc_algorithm_map[tup] = []
-    #    
-    #    for pathway, test_fold in pairs:
-    #        for algorithm in self.algorithms:
-    #            eval_dir = Path(
-    #                evaluation_dir,
-    #                self.interactome.name,
-    #                self.pathway_collection.name,
-    #                pathway.name,
-    #                self.get_output_prefix(),
-    #                "aggregate")
-
-    #            pr_file = Path(
-    #                eval_dir,
-    #                algorithm.get_output_directory(),
-    #                "precision-recall.txt")
-
-    #            with pr_file.open('r') as f:
-    #                pr_points = precrec.read_precision_recall_fractions(f)
-
-    #            # Then get the AUPRC
-    #            auprc = precrec.compute_AUPRC(pr_points)
-
-    #            # Then append it as appropriate
-    #            
-    #            alg_name = algorithm.get_descriptive_name()
-    #            tup = (alg_name, pathway.name)
-    #            auprc_algorithm_map[tup].append(auprc)
-
-    #    for alg in self.algorithms:
-    #        name = alg.get_descriptive_name()
-    #        labels = []
-    #        results_auprc = []
-
-    #        for pathway in self.pathway_collection.pathways:
-    #            labels.append(pathway.name)
-    #            tup = (name, pathway.name)
-    #            results_auprc.append(auprc_algorithm_map[tup])
-
-    #        fig_auprc, ax_auprc = precrec.init_precision_recall_figure()
-
-    #        ax_auprc.set_title(
-    #            "AUPRC by Pathway"
-    #            + self.interactome.name + " "
-    #            + self.pathway_collection.name + "\n"
-    #            + self.get_details())
-
-    #        ax_auprc.set_xlabel("AUPRC")
-    #        ax_auprc.set_ylabel("Pathway")
-
-    #        auprc_png = Path(
-    #            visualization_dir,
-    #            self.interactome.name,
-    #            self.pathway_collection.name,
-    #            self.get_output_prefix(),
-    #            name + "-aggregated-auprc.png")
-
-    #        auprc_pdf = Path(
-    #            visualization_dir,
-    #            self.interactome.name,
-    #            self.pathway_collection.name,
-    #            self.get_output_prefix(),
-    #            name + "-aggregated-auprc.pdf")
-
-    #        auprc_png.parent.mkdir(parents=True, exist_ok=True)
-
-    #        ax_auprc.boxplot(results_auprc, labels=labels, vert=False)
-
-    #        fig_auprc.savefig(str(auprc_png), bbox_inches='tight')
-    #        fig_auprc.savefig(str(auprc_pdf), bbox_inches='tight')
-
-
-    #def individual_algorithm_scores_all_pathways_aggregated_boxplots_nodes(
-    #        self, evaluation_dir, visualization_dir): 
-
-    #    pairs = zip(self.pathway_collection.pathways, self.test_folds)
-
-    #    # First, read in the scores 
-
-    #    # Map of algorithms to lists of points
-    #    avg_prec_algorithm_map = {}
-    #    f1_max_algorithm_map = {}
-    #    auprc_algorithm_map = {}
-
-    #    for algorithm in self.algorithms:
-    #        name = algorithm.get_descriptive_name()
-
-    #        for pathway in self.pathway_collection.pathways:
-    #            tup = (name, pathway.name)
-    #            avg_prec_algorithm_map[tup] = []
-    #            f1_max_algorithm_map[tup] = []
-    #            auprc_algorithm_map[tup] = []
-    #    
-    #    for pathway, test_fold in pairs:
-    #        for algorithm in self.algorithms:
-    #            eval_dir = Path(
-    #                evaluation_dir,
-    #                self.interactome.name,
-    #                self.pathway_collection.name,
-    #                pathway.name,
-    #                self.get_output_prefix(),
-    #                "aggregate")
-    #                
-    #            # The -nodes here and below in the file names is literally the
-    #            # only difference between the two functions
-    #            pr_file = Path(
-    #                eval_dir,
-    #                algorithm.get_output_directory(),
-    #                "precision-recall-nodes.txt")
-
-    #            with pr_file.open('r') as f:
-    #                pr_points = precrec.read_precision_recall_fractions(f)
-
-    #            # Then get the AUPRC
-    #            auprc = precrec.compute_AUPRC(pr_points)
-
-    #            # Then append it as appropriate
-    #            
-    #            alg_name = algorithm.get_descriptive_name()
-    #            tup = (alg_name, pathway.name)
-    #            auprc_algorithm_map[tup].append(auprc)
-
-    #    for alg in self.algorithms:
-    #        name = alg.get_descriptive_name()
-    #        labels = []
-    #        results_auprc = []
-
-    #        for pathway in self.pathway_collection.pathways:
-    #            labels.append(pathway.name)
-    #            tup = (name, pathway.name)
-    #            results_auprc.append(auprc_algorithm_map[tup])
-
-    #        fig_auprc, ax_auprc = precrec.init_precision_recall_figure()
-
-    #        ax_auprc.set_title(
-    #            "AUPRC by Pathway"
-    #            + self.interactome.name + " "
-    #            + self.pathway_collection.name + "\n"
-    #            + self.get_details())
-
-    #        ax_auprc.set_xlabel("AUPRC")
-    #        ax_auprc.set_ylabel("Pathway")
-
-    #        auprc_png = Path(
-    #            visualization_dir,
-    #            self.interactome.name,
-    #            self.pathway_collection.name,
-    #            self.get_output_prefix(),
-    #            name + "-aggregated-auprc-nodes.png")
-
-    #        auprc_pdf = Path(
-    #            visualization_dir,
-    #            self.interactome.name,
-    #            self.pathway_collection.name,
-    #            self.get_output_prefix(),
-    #            name + "-aggregated-auprc-nodes.pdf")
-
-    #        auprc_png.parent.mkdir(parents=True, exist_ok=True)
-
-    #        ax_auprc.boxplot(results_auprc, labels=labels, vert=False)
-
-    #        fig_auprc.savefig(str(auprc_png), bbox_inches='tight')
-    #        fig_auprc.savefig(str(auprc_pdf), bbox_inches='tight')
-
-
-
-
-
-
-
     def all_algorithm_scores_combined_pathways_boxplot_nodes(
             self, evaluation_dir, visualization_dir): 
         '''
@@ -3022,7 +2581,7 @@ class AlgorithmEvaluatorV4(Runner):
         a constituent point is an algorithm's score on a particular fold.
         '''
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -3049,7 +2608,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -3110,7 +2669,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_avg_prec.set_title(
             "Average Precision by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_avg_prec.set_xlabel("Average Precision")
@@ -3119,7 +2678,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_f1_max.set_title(
             "Max F-Measure by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_f1_max.set_xlabel("Max F-Measure")
@@ -3128,7 +2687,7 @@ class AlgorithmEvaluatorV4(Runner):
         ax_auprc.set_title(
             "AUPRC by Algorithm "
             + self.interactome.name + " "
-            + self.pathway_collection.name + "\n"
+            + self.collection.name + "\n"
             + self.get_details())
 
         ax_auprc.set_xlabel("AUPRC")
@@ -3137,42 +2696,42 @@ class AlgorithmEvaluatorV4(Runner):
         avg_prec_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "avg_prec-nodes.png")
 
         avg_prec_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "avg_prec-nodes.pdf")
 
         f1_max_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "f1_max-nodes.png")
 
         f1_max_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "f1_max-nodes.pdf")
 
         auprc_png = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc-nodes.png")
 
         auprc_pdf = Path(
             visualization_dir,
             self.interactome.name,
-            self.pathway_collection.name,
+            self.collection.name,
             self.get_output_prefix(),
             "auprc-nodes.pdf")
 
@@ -3195,7 +2754,7 @@ class AlgorithmEvaluatorV4(Runner):
     def all_algorithm_scores_individual_pathways_boxplots_nodes(
             self, evaluation_dir, visualization_dir): 
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -3207,7 +2766,7 @@ class AlgorithmEvaluatorV4(Runner):
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 avg_prec_algorithm_map[tup] = []
                 f1_max_algorithm_map[tup] = []
@@ -3225,7 +2784,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -3269,7 +2828,7 @@ class AlgorithmEvaluatorV4(Runner):
                     f1_max_algorithm_map[tup].append(f1_max)
                     auprc_algorithm_map[tup].append(auprc)
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
             labels = []
             results_avg_prec = []
             results_f1_max = []
@@ -3290,7 +2849,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_avg_prec.set_title(
                 "Average Precision by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_avg_prec.set_xlabel("Average Precision")
@@ -3299,7 +2858,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_f1_max.set_title(
                 "Max F-Measure by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_f1_max.set_xlabel("Max F-Measure")
@@ -3308,7 +2867,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_auprc.set_title(
                 "AUPRC by Algorithm (%s)" % pathway.name
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_auprc.set_xlabel("AUPRC")
@@ -3317,7 +2876,7 @@ class AlgorithmEvaluatorV4(Runner):
             avg_prec_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "avg_prec-nodes.png")
@@ -3325,7 +2884,7 @@ class AlgorithmEvaluatorV4(Runner):
             avg_prec_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "avg_prec-nodes.pdf")
@@ -3333,7 +2892,7 @@ class AlgorithmEvaluatorV4(Runner):
             f1_max_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "f1_max-nodes.png")
@@ -3341,7 +2900,7 @@ class AlgorithmEvaluatorV4(Runner):
             f1_max_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "f1_max-nodes.pdf")
@@ -3349,7 +2908,7 @@ class AlgorithmEvaluatorV4(Runner):
             auprc_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "auprc-nodes.png")
@@ -3357,7 +2916,7 @@ class AlgorithmEvaluatorV4(Runner):
             auprc_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "auprc-nodes.pdf")
@@ -3381,7 +2940,7 @@ class AlgorithmEvaluatorV4(Runner):
     def individual_algorithm_scores_all_pathways_boxplots_nodes(
             self, evaluation_dir, visualization_dir): 
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         # First, read in the scores 
 
@@ -3393,7 +2952,7 @@ class AlgorithmEvaluatorV4(Runner):
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 avg_prec_algorithm_map[tup] = []
                 f1_max_algorithm_map[tup] = []
@@ -3411,7 +2970,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -3462,7 +3021,7 @@ class AlgorithmEvaluatorV4(Runner):
             results_f1_max = []
             results_auprc = []
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 labels.append(pathway.name)
                 tup = (name, pathway.name)
                 results_avg_prec.append(avg_prec_algorithm_map[tup])
@@ -3476,7 +3035,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_avg_prec.set_title(
                 "Average Precision by Pathway"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_avg_prec.set_xlabel("Average Precision")
@@ -3485,7 +3044,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_f1_max.set_title(
                 "Max F-Measure by Pathway"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_f1_max.set_xlabel("Max F-Measure")
@@ -3494,7 +3053,7 @@ class AlgorithmEvaluatorV4(Runner):
             ax_auprc.set_title(
                 "AUPRC by Pathway"
                 + self.interactome.name + " "
-                + self.pathway_collection.name + "\n"
+                + self.collection.name + "\n"
                 + self.get_details())
 
             ax_auprc.set_xlabel("AUPRC")
@@ -3503,42 +3062,42 @@ class AlgorithmEvaluatorV4(Runner):
             avg_prec_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-avg_prec-nodes.png")
 
             avg_prec_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-avg_prec-nodes.pdf")
 
             f1_max_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-f1_max-nodes.png")
 
             f1_max_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-f1_max-nodes.pdf")
 
             auprc_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-auprc-nodes.png")
 
             auprc_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 name + "-auprc-nodes.pdf")
 
@@ -3562,20 +3121,20 @@ class AlgorithmEvaluatorV4(Runner):
     def plot_pr_individual_pathways(
             self, evaluation_dir=Path(), visualization_dir=Path()):
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
 
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
                 self.interactome.name + " " +
-                self.pathway_collection.name + " " +
+                self.collection.name + " " +
                 pathway.name)
 
             # Where we wrote precision/recall results
             pr_output_dir = Path(
                 evaluation_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "aggregate")
@@ -3584,7 +3143,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "precision-recall.pdf")
@@ -3593,7 +3152,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "precision-recall.png")
@@ -3630,20 +3189,20 @@ class AlgorithmEvaluatorV4(Runner):
     def plot_pr_all_pathways(
             self, evaluation_dir=Path(), visualization_dir=Path()):
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
 
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
                 self.interactome.name + " " +
-                self.pathway_collection.name + " " +
+                self.collection.name + " " +
                 self.get_details())
 
             # Where we wrote precision/recall results
             pr_output_dir = Path(
                 evaluation_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 "aggregate",
                 self.get_output_prefix())
 
@@ -3651,7 +3210,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "precision-recall.pdf")
     
@@ -3659,7 +3218,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "precision-recall.png")
 
@@ -3695,20 +3254,20 @@ class AlgorithmEvaluatorV4(Runner):
     def plot_pr_individual_pathways_nodes(
             self, evaluation_dir=Path(), visualization_dir=Path()):
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
 
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
                 self.interactome.name + " " +
-                self.pathway_collection.name + " " +
+                self.collection.name + " " +
                 pathway.name)
 
             # Where we wrote precision/recall results
             pr_output_dir = Path(
                 evaluation_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "aggregate")
@@ -3717,7 +3276,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "precision-recall-nodes.pdf")
@@ -3726,7 +3285,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 pathway.name,
                 self.get_output_prefix(),
                 "precision-recall-nodes.png")
@@ -3763,20 +3322,20 @@ class AlgorithmEvaluatorV4(Runner):
     def plot_pr_all_pathways_nodes(
             self, evaluation_dir=Path(), visualization_dir=Path()):
 
-        for pathway in self.pathway_collection.pathways:
+        for pathway in self.collection.pathways:
 
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
                 self.interactome.name + " " +
-                self.pathway_collection.name + " " +
+                self.collection.name + " " +
                 self.get_details())
 
             # Where we wrote precision/recall results
             pr_output_dir = Path(
                 evaluation_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 "aggregate",
                 self.get_output_prefix())
 
@@ -3784,7 +3343,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "precision-recall-nodes.pdf")
     
@@ -3792,7 +3351,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_png = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "precision-recall-nodes.png")
 
@@ -3851,13 +3410,13 @@ class AlgorithmEvaluatorV4(Runner):
             name = algorithm.get_descriptive_name()
             median_map[name] = []
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 auprc_algorithm_map[tup] = []
 
         # Now read in the fold AUPRC per pathway
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         for pathway, test_fold in pairs:
             for algorithm in self.algorithms:
@@ -3865,7 +3424,7 @@ class AlgorithmEvaluatorV4(Runner):
                 eval_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -3897,43 +3456,12 @@ class AlgorithmEvaluatorV4(Runner):
                 auprc_algorithm_map[tup].append(auprc)
 
 
-                '''
-                for j, fold in enumerate(test_fold):
-                    
-                    # Where we wrote scores to
-                    eval_dir = Path(
-                        evaluation_dir,
-                        self.interactome.name,
-                        self.pathway_collection.name,
-                        pathway.name,
-                        self.get_output_prefix(),
-                        "fold-" + str(j))
-
-
-                    auprc_file = Path(
-                        eval_dir, 
-                        algorithm.get_output_directory(),
-                        "auprc.txt") 
-
-                    auprc = None
-
-                    with auprc_file.open('r') as f:
-                        line = next(f)
-                        auprc = float(line.strip())
-
-                    alg_name = algorithm.get_descriptive_name()
-
-                    tup = (alg_name, pathway.name)
-
-                    auprc_algorithm_map[tup].append(auprc)
-                '''
-
         # Now make a sorted list of pathways by median AUPRC per algorithm
 
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
 
                 #median = np.median(auprc_algorithm_map[tup])
@@ -3964,7 +3492,7 @@ class AlgorithmEvaluatorV4(Runner):
             pathways_fig, pathways_ax = precrec.init_precision_recall_figure()
 
             pathways_ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" + alg_name
                 + self.get_details())
@@ -3973,12 +3501,12 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name,
                 "per-pathway.pdf")
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 
                 curve = []
 
@@ -3987,7 +3515,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -4004,7 +3532,7 @@ class AlgorithmEvaluatorV4(Runner):
                     curve, label=pathway.name, ax=pathways_ax)
 
             pathways_ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -4072,7 +3600,7 @@ class AlgorithmEvaluatorV4(Runner):
             name_file = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name,
                 "pathway-order.txt")
@@ -4087,12 +3615,12 @@ class AlgorithmEvaluatorV4(Runner):
                     f.write("\n")
 
             pairs = list(zip(
-                self.pathway_collection.pathways, self.test_folds))
+                self.collection.pathways, self.test_folds))
 
             fig2, ax2 = precrec.init_precision_recall_figure()
 
             ax2.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -4102,7 +3630,7 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name,
                 "overall.pdf")
@@ -4111,16 +3639,6 @@ class AlgorithmEvaluatorV4(Runner):
                 names = [tup[0] for tup in grouping]
                 print(names)
     
-
-                # pair_subset = [tup for tup in pairs if tup[0].name in names]
-
-                # No... this will use the order of pathways in pairs
-
-                # Instead, I need to somehow order the things by their position
-                # in the names array. There are lots of easy ways to do this!
-
-                # Heck, let's do it the dumb way
-
                 pair_subset = []
 
                 for name in names:
@@ -4136,7 +3654,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_collection_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     "aggregate",
                     self.get_output_prefix(),
                     alg_name)
@@ -4152,7 +3670,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -4189,7 +3707,7 @@ class AlgorithmEvaluatorV4(Runner):
                 fig, ax = precrec.init_precision_recall_figure()
 
                 ax.set_title(
-                    self.interactome.name + " " + self.pathway_collection.name 
+                    self.interactome.name + " " + self.collection.name 
                     + " "
                     + "\n" 
                     + alg_name
@@ -4199,7 +3717,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     self.get_output_prefix(),
                     alg_name,
                     "precision-recall-top-" + str(i) + ".pdf")
@@ -4236,7 +3754,7 @@ class AlgorithmEvaluatorV4(Runner):
         # ETC.
             
         # There are 15 pathways, so 15 groupings
-        for grouping in range(len(self.pathway_collection.pathways)):
+        for grouping in range(len(self.collection.pathways)):
 
             # First, initialize a figure for the grouping. We want 15 figures
             # when we are done
@@ -4244,7 +3762,7 @@ class AlgorithmEvaluatorV4(Runner):
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -4254,7 +3772,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "aggregated",
                 "precision-recall-top-" + str(grouping) + ".pdf")
@@ -4265,7 +3783,7 @@ class AlgorithmEvaluatorV4(Runner):
                 alg_name = algorithm.get_descriptive_name()
 
                 pairs = list(zip(
-                    self.pathway_collection.pathways, self.test_folds))
+                    self.collection.pathways, self.test_folds))
 
                 group = alg_to_groupings[alg_name][grouping] 
                 names = [tup[0] for tup in group]
@@ -4287,7 +3805,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -4352,13 +3870,13 @@ class AlgorithmEvaluatorV4(Runner):
             name = algorithm.get_descriptive_name()
             median_map[name] = []
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 auprc_algorithm_map[tup] = []
 
         # Now read in the fold AUPRC per pathway
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         for pathway, test_fold in pairs:
             for algorithm in self.algorithms:
@@ -4366,7 +3884,7 @@ class AlgorithmEvaluatorV4(Runner):
                 eval_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -4398,43 +3916,13 @@ class AlgorithmEvaluatorV4(Runner):
                 auprc_algorithm_map[tup].append(auprc)
 
 
-                '''
-                for j, fold in enumerate(test_fold):
-                    
-                    # Where we wrote scores to
-                    eval_dir = Path(
-                        evaluation_dir,
-                        self.interactome.name,
-                        self.pathway_collection.name,
-                        pathway.name,
-                        self.get_output_prefix(),
-                        "fold-" + str(j))
-
-
-                    auprc_file = Path(
-                        eval_dir, 
-                        algorithm.get_output_directory(),
-                        "auprc.txt") 
-
-                    auprc = None
-
-                    with auprc_file.open('r') as f:
-                        line = next(f)
-                        auprc = float(line.strip())
-
-                    alg_name = algorithm.get_descriptive_name()
-
-                    tup = (alg_name, pathway.name)
-
-                    auprc_algorithm_map[tup].append(auprc)
-                '''
 
         # Now make a sorted list of pathways by median AUPRC per algorithm
 
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
 
                 #median = np.median(auprc_algorithm_map[tup])
@@ -4465,7 +3953,7 @@ class AlgorithmEvaluatorV4(Runner):
             pathways_fig, pathways_ax = precrec.init_precision_recall_figure()
 
             pathways_ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" + alg_name
                 + self.get_details())
@@ -4474,12 +3962,12 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name + "-nodes",
                 "per-pathway.pdf")
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 
                 curve = []
 
@@ -4488,7 +3976,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -4505,7 +3993,7 @@ class AlgorithmEvaluatorV4(Runner):
                     curve, label=pathway.name, ax=pathways_ax)
 
             pathways_ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -4573,7 +4061,7 @@ class AlgorithmEvaluatorV4(Runner):
             name_file = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name + "-nodes",
                 "pathway-order.txt")
@@ -4588,12 +4076,12 @@ class AlgorithmEvaluatorV4(Runner):
                     f.write("\n")
 
             pairs = list(zip(
-                self.pathway_collection.pathways, self.test_folds))
+                self.collection.pathways, self.test_folds))
 
             fig2, ax2 = precrec.init_precision_recall_figure()
 
             ax2.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -4603,7 +4091,7 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name + "-nodes",
                 "overall.pdf")
@@ -4637,7 +4125,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_collection_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     "aggregate",
                     self.get_output_prefix(),
                     alg_name)
@@ -4653,7 +4141,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -4690,7 +4178,7 @@ class AlgorithmEvaluatorV4(Runner):
                 fig, ax = precrec.init_precision_recall_figure()
 
                 ax.set_title(
-                    self.interactome.name + " " + self.pathway_collection.name 
+                    self.interactome.name + " " + self.collection.name 
                     + " "
                     + "\n" 
                     + alg_name
@@ -4700,7 +4188,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     self.get_output_prefix(),
                     alg_name + "-nodes",
                     "precision-recall-top-" + str(i) + ".pdf")
@@ -4737,7 +4225,7 @@ class AlgorithmEvaluatorV4(Runner):
         # ETC.
             
         # There are 15 pathways, so 15 groupings
-        for grouping in range(len(self.pathway_collection.pathways)):
+        for grouping in range(len(self.collection.pathways)):
 
             # First, initialize a figure for the grouping. We want 15 figures
             # when we are done
@@ -4745,7 +4233,7 @@ class AlgorithmEvaluatorV4(Runner):
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -4755,7 +4243,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "aggregated-nodes",
                 "precision-recall-top-" + str(grouping) + ".pdf")
@@ -4766,7 +4254,7 @@ class AlgorithmEvaluatorV4(Runner):
                 alg_name = algorithm.get_descriptive_name()
 
                 pairs = list(zip(
-                    self.pathway_collection.pathways, self.test_folds))
+                    self.collection.pathways, self.test_folds))
 
                 group = alg_to_groupings[alg_name][grouping] 
                 names = [tup[0] for tup in group]
@@ -4788,7 +4276,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -4822,28 +4310,6 @@ class AlgorithmEvaluatorV4(Runner):
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     def successively_aggregate_pr_by_auprc(self, evaluation_dir=Path(),
             visualization_dir="outputs/pathway-reconstruction/visualization"):
 
@@ -4870,13 +4336,13 @@ class AlgorithmEvaluatorV4(Runner):
             name = algorithm.get_descriptive_name()
             median_map[name] = []
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 auprc_algorithm_map[tup] = []
 
         # Now read in the fold AUPRC per pathway
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         for pathway, test_fold in pairs:
             for algorithm in self.algorithms:
@@ -4887,7 +4353,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -4915,7 +4381,7 @@ class AlgorithmEvaluatorV4(Runner):
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
 
                 median = np.median(auprc_algorithm_map[tup])
@@ -4945,7 +4411,7 @@ class AlgorithmEvaluatorV4(Runner):
             pathways_fig, pathways_ax = precrec.init_precision_recall_figure()
 
             pathways_ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" + alg_name
                 + self.get_details())
@@ -4954,12 +4420,12 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name,
                 "per-pathway.pdf")
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 
                 curve = []
 
@@ -4968,7 +4434,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "aggregate")
@@ -4985,7 +4451,7 @@ class AlgorithmEvaluatorV4(Runner):
                     curve, label=pathway.name, ax=pathways_ax)
 
             pathways_ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -5053,7 +4519,7 @@ class AlgorithmEvaluatorV4(Runner):
             name_file = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name,
                 "pathway-order.txt")
@@ -5068,12 +4534,12 @@ class AlgorithmEvaluatorV4(Runner):
                     f.write("\n")
 
             pairs = list(zip(
-                self.pathway_collection.pathways, self.test_folds))
+                self.collection.pathways, self.test_folds))
 
             fig2, ax2 = precrec.init_precision_recall_figure()
 
             ax2.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -5083,7 +4549,7 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name,
                 "overall.pdf")
@@ -5117,7 +4583,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_collection_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     "aggregate",
                     self.get_output_prefix(),
                     alg_name)
@@ -5133,7 +4599,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -5170,7 +4636,7 @@ class AlgorithmEvaluatorV4(Runner):
                 fig, ax = precrec.init_precision_recall_figure()
 
                 ax.set_title(
-                    self.interactome.name + " " + self.pathway_collection.name 
+                    self.interactome.name + " " + self.collection.name 
                     + " "
                     + "\n" 
                     + alg_name
@@ -5180,7 +4646,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     self.get_output_prefix(),
                     alg_name,
                     "precision-recall-top-" + str(i) + ".pdf")
@@ -5217,7 +4683,7 @@ class AlgorithmEvaluatorV4(Runner):
         # ETC.
             
         # There are 15 pathways, so 15 groupings
-        for grouping in range(len(self.pathway_collection.pathways)):
+        for grouping in range(len(self.collection.pathways)):
 
             # First, initialize a figure for the grouping. We want 15 figures
             # when we are done
@@ -5225,7 +4691,7 @@ class AlgorithmEvaluatorV4(Runner):
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -5235,7 +4701,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "aggregated",
                 "precision-recall-top-" + str(grouping) + ".pdf")
@@ -5246,7 +4712,7 @@ class AlgorithmEvaluatorV4(Runner):
                 alg_name = algorithm.get_descriptive_name()
 
                 pairs = list(zip(
-                    self.pathway_collection.pathways, self.test_folds))
+                    self.collection.pathways, self.test_folds))
 
                 group = alg_to_groupings[alg_name][grouping] 
                 names = [tup[0] for tup in group]
@@ -5268,7 +4734,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -5333,13 +4799,13 @@ class AlgorithmEvaluatorV4(Runner):
             name = algorithm.get_descriptive_name()
             median_map[name] = []
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
                 auprc_algorithm_map[tup] = []
 
         # Now read in the fold AUPRC per pathway
 
-        pairs = zip(self.pathway_collection.pathways, self.test_folds)
+        pairs = zip(self.collection.pathways, self.test_folds)
 
         for pathway, test_fold in pairs:
             for algorithm in self.algorithms:
@@ -5350,7 +4816,7 @@ class AlgorithmEvaluatorV4(Runner):
                     eval_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -5378,7 +4844,7 @@ class AlgorithmEvaluatorV4(Runner):
         for algorithm in self.algorithms:
             name = algorithm.get_descriptive_name()
 
-            for pathway in self.pathway_collection.pathways:
+            for pathway in self.collection.pathways:
                 tup = (name, pathway.name)
 
                 median = np.median(auprc_algorithm_map[tup])
@@ -5416,7 +4882,7 @@ class AlgorithmEvaluatorV4(Runner):
             name_file = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name + "-nodes",
                 "pathway-order-node-auc.txt")
@@ -5433,7 +4899,7 @@ class AlgorithmEvaluatorV4(Runner):
             fig2, ax2 = precrec.init_precision_recall_figure()
 
             ax2.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -5443,13 +4909,13 @@ class AlgorithmEvaluatorV4(Runner):
             overall_vis = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 alg_name + "-nodes",
                 "overall.pdf")
 
             pairs = list(zip(
-                self.pathway_collection.pathways, self.test_folds))
+                self.collection.pathways, self.test_folds))
 
             for i, grouping in enumerate(successive_groupings):
                 names = [tup[0] for tup in grouping]
@@ -5480,7 +4946,7 @@ class AlgorithmEvaluatorV4(Runner):
                 pathway_collection_pr_output_dir = Path(
                     evaluation_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     "aggregate-nodes",
                     self.get_output_prefix(),
                     alg_name)
@@ -5496,7 +4962,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -5533,7 +4999,7 @@ class AlgorithmEvaluatorV4(Runner):
                 fig, ax = precrec.init_precision_recall_figure()
 
                 ax.set_title(
-                    self.interactome.name + " " + self.pathway_collection.name 
+                    self.interactome.name + " " + self.collection.name 
                     + " "
                     + "\n" 
                     + alg_name
@@ -5543,7 +5009,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     self.get_output_prefix(),
                     alg_name + "-nodes",
                     "precision-recall-top-" + str(i) + "-nodes.pdf")
@@ -5579,7 +5045,7 @@ class AlgorithmEvaluatorV4(Runner):
         # ETC.
 
         # There are 15 pathways, so 15 groupings
-        for grouping in range(len(self.pathway_collection.pathways)):
+        for grouping in range(len(self.collection.pathways)):
 
             # First, initialize a figure for the grouping. We want 15 figures
             # when we are done
@@ -5587,7 +5053,7 @@ class AlgorithmEvaluatorV4(Runner):
             fig, ax = precrec.init_precision_recall_figure()
 
             ax.set_title(
-                self.interactome.name + " " + self.pathway_collection.name 
+                self.interactome.name + " " + self.collection.name 
                 + " "
                 + "\n" 
                 + alg_name
@@ -5597,7 +5063,7 @@ class AlgorithmEvaluatorV4(Runner):
             vis_file_pdf = Path(
                 visualization_dir,
                 self.interactome.name,
-                self.pathway_collection.name,
+                self.collection.name,
                 self.get_output_prefix(),
                 "aggregated-nodes",
                 "precision-recall-top-" + str(grouping) + ".pdf")
@@ -5608,7 +5074,7 @@ class AlgorithmEvaluatorV4(Runner):
                 alg_name = algorithm.get_descriptive_name()
 
                 pairs = list(zip(
-                    self.pathway_collection.pathways, self.test_folds))
+                    self.collection.pathways, self.test_folds))
 
                 group = alg_to_groupings[alg_name][grouping] 
                 names = [tup[0] for tup in group]
@@ -5630,7 +5096,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pathway_pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -5663,12 +5129,6 @@ class AlgorithmEvaluatorV4(Runner):
                 bbox_inches='tight')
 
 
-
-
-
-
-
-
     # TODO: I don't think it's worth it to split this function into
     # "evaluation" and "plotting" components right this very moment.
     def calculate_and_plot_precision_per_rank(
@@ -5681,14 +5141,13 @@ class AlgorithmEvaluatorV4(Runner):
         fold_creators = self.get_fold_creators()
 
         creator_pathway_pairs = zip(
-            [pathway for pathway in self.pathway_collection.pathways],
+            [pathway for pathway in self.collection.pathways],
             fold_creators)
 
         for i, (pathway, fc) in enumerate(creator_pathway_pairs):
             print(pathway.name)
 
             test_folds = self.test_folds[i] #fc.get_test_folds()
-
 
             for algorithm in self.algorithms:
                 # Initialize figure
@@ -5708,7 +5167,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     algorithm.get_descriptive_name() + 
@@ -5718,7 +5177,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf_just_one = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     algorithm.get_descriptive_name() + 
@@ -5728,7 +5187,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_pdf_greater_than_half = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     algorithm.get_descriptive_name() + 
@@ -5738,7 +5197,7 @@ class AlgorithmEvaluatorV4(Runner):
                 vis_file_png = Path(
                     visualization_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     algorithm.get_descriptive_name() + 
@@ -5759,7 +5218,7 @@ class AlgorithmEvaluatorV4(Runner):
                     reconstruction_output_dir = Path(
                         reconstruction_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "fold-" + str(j))
@@ -5780,7 +5239,7 @@ class AlgorithmEvaluatorV4(Runner):
                     pr_output_dir = Path(
                         evaluation_dir,
                         self.interactome.name,
-                        self.pathway_collection.name,
+                        self.collection.name,
                         pathway.name,
                         self.get_output_prefix(),
                         "aggregate")
@@ -5846,7 +5305,7 @@ class AlgorithmEvaluatorV4(Runner):
                 ###############################################################
                 ax.set_title(
                     self.interactome.name + " " +
-                    self.pathway_collection.name + " " +
+                    self.collection.name + " " +
                     pathway.name + " " + 
                     self.get_details() + " " + 
                     "Group size: " +  str(group_size))
@@ -5869,7 +5328,7 @@ class AlgorithmEvaluatorV4(Runner):
                 ###############################################################
                 ax_just_one.set_title(
                     self.interactome.name + " " +
-                    self.pathway_collection.name + " " +
+                    self.collection.name + " " +
                     pathway.name + " " + 
                     self.get_details() + " " + 
                     "Group size: " +  str(group_size))
@@ -5891,7 +5350,7 @@ class AlgorithmEvaluatorV4(Runner):
                 ###############################################################
                 ax_greater_than_half.set_title(
                     self.interactome.name + " " +
-                    self.pathway_collection.name + " " +
+                    self.collection.name + " " +
                     pathway.name + " " + 
                     self.get_details() + " " + 
                     "Group size: " +  str(group_size))
@@ -5929,7 +5388,7 @@ class AlgorithmEvaluatorV4(Runner):
         fold_creators = self.get_fold_creators()
 
         creator_pathway_pairs = zip(
-            [pathway for pathway in self.pathway_collection.pathways],
+            [pathway for pathway in self.collection.pathways],
             fold_creators)
 
         for pathway, fc in creator_pathway_pairs:
@@ -5939,7 +5398,7 @@ class AlgorithmEvaluatorV4(Runner):
                 output_dir = Path(
                     reconstruction_dir,
                     self.interactome.name,
-                    self.pathway_collection.name,
+                    self.collection.name,
                     pathway.name,
                     self.get_output_prefix(),
                     "fold-" + str(j))
@@ -5951,7 +5410,7 @@ class AlgorithmEvaluatorV4(Runner):
                         shutil.rmtree(str(alg_dir))
     
 
-    def run(self, output_dir=Path(), purge_results=False):
+    def run(self, *args, **kwargs): 
         '''
         0) Remove reconstructions created during previous runs of algorithms
            (this does not remove evaluations or plots at this point)
@@ -5965,6 +5424,7 @@ class AlgorithmEvaluatorV4(Runner):
         3) Plot the results of the above evaluations
         '''
 
+        output_dir = kwargs.pop('output_dir')
         output_dir = Path(output_dir, "pathway-reconstruction")
 
         # TODO: Add as paramaters, and override with config-file specified 
@@ -5973,12 +5433,9 @@ class AlgorithmEvaluatorV4(Runner):
         evaluation_dir = Path(output_dir, "evaluation")
         visualization_dir = Path(output_dir, "visualization")
 
-        if purge_results:
-            self.purge_results(reconstruction_dir)
-
         print("Beginning evaluation of:\n"
             + "    interactome: %s\n" % self.interactome.name
-            + "    pathway collection: %s\n" % self.pathway_collection.name
+            + "    pathway collection: %s\n" % self.collection.name
             + "    procedure: %s\n" % self.get_name())
 
         print("Running reconstructions...")

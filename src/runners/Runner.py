@@ -1,9 +1,21 @@
 from pathlib import Path
+from typing import List
+
+# Local imports
+from src.algorithms.RankingAlgorithm import RankingAlgorithm
+
 
 class Runner(object):
     '''
     A runnable analysis to be incorporated into the pipeline
     '''
+
+    def __init__(self, *args, **kwargs):
+        self.interactome = kwargs.pop('interactome')
+        self.collection = kwargs.pop('collection')
+        self.algorithms = kwargs.pop('algorithms')
+        self.graphspace = kwargs.pop('graphspace')
+        
     
     def get_name(self) -> str:
         '''
@@ -14,17 +26,6 @@ class Runner(object):
 
     def run(self, *args, **kwargs) -> None:
         '''
-        Wrapper that first checks if the Runner's task should in fact
-        be performed.
-        '''
-        should_run = kwargs.pop('should_run')
-
-        if should_run:
-            self.run_internal(*args, **kwargs)
-                
-
-    def run_internal(self, *args, **kwargs) -> None:
-        '''
-        The task to be performed by the runner.
+        Task to be performed.
         '''
         raise NotImplementedError()

@@ -1,12 +1,22 @@
+'''
+Splits an interactome and a pathway into train/test sets of negatives and
+positives, distinguishing between directed and undirected edges.
+'''
+
 import copy
 import random
 
 from pathlib import Path
 
-import src.fold_creators.FoldCreatorV3 as fc
+# Local imports
+# from pipeline import InteractomeOnDisk, PathwayOnDisk
+
+import src.runners.folds.FoldCreator as fc
 import src.external.pathlinker.PathLinker as pl
 
-class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
+# TODO: return both node and edge folds from the create_folds method
+# TODO: caching
+class NodeAndEdgeWithholdingFoldCreator(fc.FoldCreator):
     '''
     Positives come from pathways. Negatives come from the remainder of the
     interactome.
@@ -19,9 +29,26 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
     def __init__(self, interactome, pathway, options):
         self.interactome = interactome
         self.pathway = pathway
-        self.percent_nodes = options["percent_nodes_to_keep"]
-        self.percent_edges = options["percent_edges_to_keep"]
-        self.itr = options["iterations"]
+        self.percent_nodes: float = options["percent_nodes_to_keep"]
+        self.percent_edges: float = options["percent_edges_to_keep"]
+        self.itr: int = options["iterations"]
+
+
+    def create_folds(self):
+        '''
+        Returns a tuple, where each element in the tuple
+        is a 4-tuple of dir_training, dir_test, undir_train, and undir_test
+        edges.
+        '''
+        dir_pos, undir_pos = self.get_separated_pathway_edges()
+        dir_neg, undir_neg = self.get_separated_interactome_edges()
+
+        pos_folds = self.create_positive_folds(dir_pos, undir_pos)
+
+        neg_folds = self.create_negative_folds(
+            dir_pos, undir_pos, dir_neg, undir_neg)
+
+        return (pos_folds, neg_folds)
 
 
     def create_positive_folds(self, dir_pos, undir_pos):
@@ -55,8 +82,9 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
 
         return folds
   
-
-    def delete_pathway_node_percentage(self, copies):
+    
+    # TODO: Large parts of this are redundent w/ the corresponding pathway func
+    def delete_pathway_node_percentage(self, copies) -> None:
         print("Deleting pathway node percentage")
         pathway_obj = self.pathway.get_pathway_obj()
         pathway_nodes = pathway_obj.get_nodes(data=False)
@@ -115,11 +143,9 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
             
             print("deleting", i)
             for j, edge in enumerate(dir_to_delete):
-                #print(j, "/", len(dir_to_delete))
                 pair[0].remove(edge)
 
             for j, edge in enumerate(undir_to_delete):
-                #print(j, "/", len(undir_to_delete))
                 pair[1].remove(edge)
 
     
@@ -168,7 +194,7 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
         return folds
 
 
-    def delete_interactome_node_percentage(self, copies):
+    def delete_interactome_node_percentage(self, copies) -> None:
         print("Deleting interactome node percentage")
 
         # The list of nodes can be obtained from the first copy's directed
@@ -191,46 +217,18 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
             if node in pathway_nodes and node in total_nodes:
                 total_nodes.remove(node)
 
-            if node in sources or node in targets:
-                pathway_nodes.remove(node)
-                
-            #if (node in sources or node in targets) and (node in total_nodes):
-                #if node in sources:
-                #    print("DELETING A SOURCE FROM INTERACTOME")
-                #    print(node)
-
-                #if node in targets:
-                #    print("DELETING A TARGET FROM INTERACTOME")
-                #    print(node)
-                
-                #total_nodes.remove(node)
-
-        #to_delete_list = []
-        #for i, pair in enumerate(copies):
-        #    pathway_nodes.sort()
-
-        #    to_keep, to_delete = randomly_partition(
-        #        pathway_nodes, self.percent_nodes, i)
-
-        #    to_delete_list.append(to_delete)
-
         for i, pair in enumerate(copies):
             total_nodes.sort()
 
             to_keep, to_delete = randomly_partition(
                 total_nodes, self.percent_nodes, i)
 
-            #pathway_to_delete = to_delete_list[i]
-
-            #to_delete_set = set(to_delete).union(set(pathway_to_delete))
             to_delete_set = set(to_delete)
            
-            print("Deleting dir now")
             for edge in set(pair[0]):
                 if edge[0] in to_delete_set or edge[1] in to_delete_set:
                     pair[0].remove(edge)
 
-            print("Deleting undir now")
             for edge in set(pair[1]):
                 if edge[0] in to_delete_set or edge[1] in to_delete_set:
                     # The removal is the slow bit here
@@ -263,6 +261,19 @@ class NodeAndEdgeWithholdingFoldCreatorV3(fc.FoldCreatorV3):
             for edge in undir_to_delete:
                 pair[1].remove(edge)
 
+
+    def get_cache_dir(self, base_output_dir: Path) -> Path:
+        '''
+        Determines where we store computed folds on disk
+        '''
+        return Path(
+            'pathway-reconstruction',
+            base_output_dir, 
+            'folds', 
+            self.interactome.name,
+            self.pathway.name,
+            self.get_name())
+    
 
 def randomly_partition(items, percent, seed):
     '''

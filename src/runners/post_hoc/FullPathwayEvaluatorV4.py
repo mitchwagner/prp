@@ -17,7 +17,7 @@ import src.external.utils.precision_recall.precision_recall as precrec
 
 import src.algorithms.RankingAlgorithm as RankingAlgorithm
 
-from src.evaluators.Evaluator import Evaluator
+from src.runners.Runner import Runner
 
 from graphspace_python.api.client import GraphSpace
 from graphspace_python.graphs.classes.gsgraph import GSGraph
@@ -25,7 +25,7 @@ from graphspace_python.graphs.classes.gsgraph import GSGraph
 #from src.external.utils.graphspace.post_to_graphspace import buildNodePopup
 
 
-class FullPathwayEvaluatorV4(Evaluator):
+class FullPathwayRunner(Runner):
     '''
     Run an algorithm using an entire pathway as input (no fold creation here)
     and upload the results to GraphSpace + whatever else might be necessary for
