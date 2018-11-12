@@ -20,14 +20,19 @@ input_settings:
     #   edge_dir_file: a file containing whether or not each edge is
     #       directed or undirected in the interactome
     #
+    #   evidence_file: the evidence file used to generate the interactome.
+    #       The dates on this file reflects the CSBDB version used, as opposed
+    #       to the date that the interactome was generated.
+    #
     #   path: Subdirectory of interactome_dir, specified by list of folders
     #       along the path 
     interactomes:
-
-        - name: "no-kegg-no-spike"
-          filename: "2018-05-02-human-ppi-weighted.txt"
-          edge_dir_file: "2018-05-02-human-ppi-weighted-directions.txt"
-          path: ["human"]
+        
+        - name: "final-run"
+          filename: "2018-minus-kegg-spike-plus-netpath-weighted-cap0_75-filtered.txt"
+          edge_dir_file: "final-directions-filtered.txt"
+          evidence_file: "final-evidence-filtered.txt"
+          path: ["human", "netpath-2018-fixed-tcr-tgfb-tweak-interactome"]
 
     # Denotes a list of pathway collections, each with the following 
     # parameters:
@@ -45,80 +50,168 @@ input_settings:
     #       <name>-nodes.txt and <name>-edges.txt in that folder.
     #
     pathway_collections:
-        - name: "netpath-s-t-pruned"
-          path: ["netpath-s-t-pruned-extra-filtering", "pathways"]
+        
+        - name: "netpath-2018-fixed-tcr-tgfb-tweak"
+          path: ["netpath-2018-fixed-tcr-tgfb-tweak-final"]
           pathways:
-            #- "BDNF"
-            #- "EGFR1"
-            #- "IL1"
-            #- "IL2"
-            #- "IL3"
-            #- "IL6"
-            #- "IL-7"
-            #- "KitReceptor"
-            #- "Leptin"
-            #- "Prolactin"
-            #- "RANKL"
-            #- "TCR"
-            #- "TGF_beta_Receptor"
-            #- "TNFalpha"
+            - "BDNF"
+            - "EGFR1"
+            - "IL1"
+            - "IL2"
+            - "IL3"
+            - "IL6"
+            - "IL-7"
+            - "KitReceptor"
+            - "Leptin"
+            - "Prolactin"
+            - "RANKL"
+            - "TCR"
+            - "TGF_beta_Receptor"
+            - "TNFalpha"
             - "Wnt"
+
+    runners:
+        
+        #- name: "interactome-stats"
+        #  params: {}
+
+        #- name: "pathway-stats"
+        #  params: {}
+
+        #######################################################################
+
+        - name: "node-and-edge-removal-reconstruction-v4"
+          should_run: true
+          order: 0
+          params:
+            percent_nodes_to_keep:
+                - .9
+            percent_edges_to_keep:
+                - .9
+            iterations: 
+                - 10
 
     # Denotes a list of algorithms to run. Each has the following parameters: 
     #   name: Name of the algorithm. Must be recognized by the pipeline, see
     #       code for acceptable values
     #
-    #   <additional parameters>: any additional, algorithm-specific parameters 
-    #       should be specified in the map for a given algorithm
+    #   should_run: whether or not to run the algorithm
+    #
+    #   params: any additional, algorithm-specific parameters 
+    #       should be specified in the params map for a given algorithm
+    #
     algorithms:
+        - name: "quickreglinker-sanity"
+          should_run: false
+          params:
+            rlc: 
+                - ["one-t", "p*tp*"]
+                - ["two-t", "p*ttp*"]
+                - ["one-t-bookend", "p*t|tp*"]
 
-        #- name: "ZeroQuickLinkerLabelNegatives"
-        #  params: {}
 
-        #- name: "GenInduced"
-        #  params: {}
+        - name: "ZeroQuickLinkerLabelNegatives"
+          should_run: false
+          params: {}
 
-        #- name: "GenInducedRWER"
-        #  params:
-        #    q: [.1667]
+        - name: "RWR"
+          should_run: false
+          params: 
+            q: [.1667]
 
-        #- name: "GeneralizedShortcutsSSViaRWRFlux"
-        #  params:
-        #    alpha: [1.0]
-        #    k: [1000]
-        #    q: [.1667]
+        - name: "RWER"
+          should_run: false
+          params: 
+            q: [.1667]
 
-        #- name: "GeneralizedShortcuts"
-        #  params:
-        #    alpha: [1.0]
-        #    k: [1000]
+        - name: "induced-subgraph"
+          should_run: false
+          params: {}
 
-        #- name: "RegLinker"
-        #  params: 
-        #    rlcs:
-        #        #- ["one-x", ["p*xp*"]] 
-        #        #- ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
-        #        - ["one-then-two-then-three-x", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*"]]
-        #        #- ["xx", ["p*xxp*"]]
-        #        - ["xx-xxx", ["p*xxp*", "p*xxxp*"]]
-        #        #- ["xx-xxx-xxxx", ["p*xxp*", "p*xxxp*", "p*xxxxp*"]]
-        #        #- ["xx-xxx-xxxx-xxxxx", ["p*xxp*", "p*xxxp*", "p*xxxxp*", "p*xxxxxp*"]]
-        #        #- ["consecutive-x-extra", ["p*xxp*(xp*)*"]]
+        - name: "GenInduced"
+          should_run: false
+          params: {}
 
-        - name: "RegLinkerRWER"
+        - name: "GenInducedRWR"
+          should_run: false
+          params:
+            q: [.1667]
+
+        - name: "GenInducedRWER"
+          should_run: false
+          params:
+            q: [.1667]
+
+        - name: "GeneralizedShortcutsRWER"
+          should_run: false
+          params:
+            alpha: [1.0]
+            k: [1000]
+            q: [.1667]
+
+
+        - name: "PathLinker"
+          should_run: false
+          params:
+            k: 
+                - 10000
+
+        - name: "PathLinkerRWER"
+          should_run: false
+          params:
+            k: 
+                - 10000
+            q: 
+                - 0.1667
+
+        - name: "RegLinkerBetter"
+          should_run: false
           params: 
             rlcs:
-                #- ["one-x", ["p*xp*"]]
-                #- ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
-                #- ["one-then-two-then-three-x", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*"]]
-                #- ["two-then-three-x", ["p*xp*xp*", "p*xp*xp*xp*"]]
-                - ["two-x", ["p*xxp*"]]
-                #- ["1234", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*", "p*xp*xp*xp*xp*"]]
-                #- ["xx", ["p*xxp*"]]
-                #- ["xx-xxx", ["p*xxp*", "p*xxxp*"]]
-                #- ["xx-xxx-xxxx", ["p*xxp*", "p*xxxp*", "p*xxxxp*"]]
-                #- ["xx-xxx-xxxx-xxxxx", ["p*xxp*", "p*xxxp*", "p*xxxxp*", "p*xxxxxp*"]]
-                #- ["consecutive-x-extra", ["p*xxp*(xp*)*"]]
+                - ["one-x", ["p*xp*"]]
+                - ["one-then-two-then-three-x", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*"]]
+                - ["two-then-three-x", ["p*xp*xp*", "p*xp*xp*xp*"]]
+                - ["three-x", ["p*xp*xp*xp*"]]
+                - ["xx-xxx", ["p*xxp*", "p*xxxp*"]]
+
+        - name: "RegLinker"
+          should_run: false
+          params: 
+            rlcs:
+                - ["one-x", ["p*xp*"]] 
+                - ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
+                - ["anything", ["(p|x)*"]]
+                - ["two-then-three-x", ["p*xp*xp*", "p*xp*xp*xp*"]]
+                - ["xx", ["p*xxp*"]]
+                - ["xx-xxx-xxxx", ["p*xxp*", "p*xxxp*", "p*xxxxp*"]]
+                - ["one-then-two-then-three-x", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*"]]
+                - ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
+                - ["one-x", ["p*xp*"]]
+                - ["xx-xxx", ["p*xxp*", "p*xxxp*"]]
+                - ["xx", ["p*xxp*", "p*xxxp*"]]
+
+        - name: "RegLinkerRWR"
+          should_run: false
+          params: 
+            rlcs:
+                - ["one-then-two-then-three-x", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*"]]
+            q:
+                - .1667
+
+        - name: "RegLinkerRWER"
+          should_run: false
+          params: 
+            rlcs:
+
+                - ["one-then-two-then-three-x", ["p*xp*", "p*xp*xp*", "p*xp*xp*xp*"]]
+                - ["one-x", ["p*xp*"]]
+                - ["two-x", ["p*xp*xp*"]]
+                - ["three-x", ["p*xp*xp*xp*"]]
+                - ["one-then-two-x", ["p*xp*", "p*xp*xp*"]]
+                - ["xx-xxx", ["p*xxp*", "p*xxxp*"]]
+                - ["xxx-xx", ["p*xxxp*", "p*xxp*"]]
+                - ["xx", ["p*xxp*"]]
+                - ["xxx", ["p*xxxp*"]]
             q:
                 - .1667
 
@@ -128,3 +221,7 @@ output_settings:
 
     # Base output directory
     output_dir: "outputs"
+
+graphspace_settings:
+    email: "local-part@domain"
+    password: "not123456"
