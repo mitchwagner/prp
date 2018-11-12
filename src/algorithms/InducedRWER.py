@@ -57,8 +57,7 @@ class InducedRWER(RankingAlgorithm):
             netCopy.add_edge(str(edge[0]+"_temp"),edge[1],attr_dict=net.get_edge_data(edge[0],edge[1]))
 
         # Restart to newly added temporary nodes
-        #weights = {node:1 for node in TempNodes}
-        weights = {} 
+        weights: Dict[str, int] = {}
         for edge in provided_edges:
             # Default value of 0
             weights[str(edge[0]+"_temp")] = weights.get(str(edge[0]+"_temp"), 0) + 1
